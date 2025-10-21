@@ -46,7 +46,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "next lint --fix",
+      "eslint --fix --cache --cache-location node_modules/.cache/eslint --max-warnings=0 --no-error-on-unmatched-pattern",
       "prettier --write"
     ],
     "*.{json,md,mdx,css,scss,html,yml,yaml}": [
