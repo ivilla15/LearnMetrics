@@ -1,4 +1,3 @@
-import postgres from 'postgres';
 import {
   CustomerField,
   CustomersTableType,
@@ -8,13 +7,14 @@ import {
   Revenue,
 } from './definitions';
 import { formatCurrency } from './utils';
+import { unstable_noStore as noStore } from 'next/cache';
+import { sql } from './db';
 
-const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
-
+// ✅ First function we convert
 export async function fetchRevenue() {
+  noStore(); // opt this call out of prerender/caching
   try {
     const data = await sql<Revenue[]>`SELECT * FROM revenue`;
-
     return data;
   } catch (error) {
     console.error('Database Error:', error);

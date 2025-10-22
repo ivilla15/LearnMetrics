@@ -2,7 +2,7 @@ import type { NextConfig } from 'next';
 
 const nextConfig = {
   experimental: {
-    cacheComponents: true,
+    cacheComponents: false,
   },
 } satisfies NextConfig;
 
