@@ -1,0 +1,19 @@
+name: Prisma Introspect (Manual)
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  introspect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: corepack enable && (pnpm -v || npm i -g pnpm)
+      - run: pnpm install --frozen-lockfile
+      - name: Introspect DB
+        run: pnpm prisma db pull --schema=prisma/schema.prisma
+        env:
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
