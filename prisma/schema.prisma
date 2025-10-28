@@ -1,3 +1,4 @@
+// trigger CI
 generator client {
   provider = "prisma-client-js"
 }
@@ -95,6 +96,7 @@ model Attempt {
   items        AttemptItem[]
 
   @@index([assignmentId])
+  @@index([studentId])
   @@unique([studentId, assignmentId]) // exactly one attempt per student per assignment
 }
 
@@ -109,6 +111,7 @@ model AttemptItem {
   question    Question  @relation(fields: [questionId], references: [id], onDelete: Restrict)
 
   @@index([questionId])
+  @@index([attemptId])
   @@unique([attemptId, questionId]) // each question answered once per attempt
 }
 
