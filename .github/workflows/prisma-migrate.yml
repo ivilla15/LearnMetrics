@@ -5,6 +5,7 @@ on:
     paths:
       - 'prisma/schema.prisma'
       - 'prisma/migrations/**'
+  workflow_dispatch: {}
 
 jobs:
   migrate:
@@ -18,15 +19,22 @@ jobs:
 
       - run: corepack enable
       - run: pnpm -v || npm i -g pnpm
-
       - run: pnpm install --frozen-lockfile
 
-      - name: Generate Prisma Client
-        run: pnpm prisma generate
+      - name: Validate schema
+        run: pnpm prisma validate --schema=prisma/schema.prisma
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+      - name: Generate Prisma Client
+        run: pnpm prisma generate --schema=prisma/schema.prisma
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_URL: ${{ secrets.DIRECT_URL }}
 
       - name: Deploy migrations to Supabase
         run: pnpm prisma migrate deploy --schema=prisma/schema.prisma
         env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_URL: ${{ secrets.DIRECT_URL }}
