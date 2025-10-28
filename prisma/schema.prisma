@@ -1,0 +1,114 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")  // prisma+postgres://...
+  directUrl = env("DIRECT_URL")    // postgresql://... ?pgbouncer=false&sslmode=require
+}
+
+model Teacher {
+  id Int @id @default(autoincrement())
+  name String
+  email String @unique
+  password String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  classrooms Classroom[]
+}
+
+model Classroom {
+  id Int @id @default(autoincrement())
+  name String
+  teacherId Int
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  students Student[] 
+
+  assignments Assignment[]
+  @@index([teacherId])
+}
+
+model Student {
+  id Int @id @default(autoincrement())
+  name String
+  username String @unique
+  password String
+  level Int @default(1)
+  classroomId Int
+  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  attempts Attempt[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([classroomId])
+}
+
+model QuestionSet {
+  id        Int        @id @default(autoincrement())
+  level     Int
+  questions Question[]
+
+  @@unique([level])              // one set per level (1–12)
+  assignments Assignment[]
+}
+
+model Question {
+  id      Int         @id @default(autoincrement())
+  setId   Int
+  factorA Int
+  factorB Int
+  answer  Int
+
+  set     QuestionSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@index([setId])
+  @@unique([setId, factorA, factorB])  // no duplicate questions inside a set
+  attemptItems AttemptItem[]
+}
+
+model Assignment {
+  id            Int         @id @default(autoincrement())
+  date          DateTime    @default(now())
+  classroomId   Int
+  questionSetId Int
+
+  classroom     Classroom   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  questionSet   QuestionSet @relation(fields: [questionSetId], references: [id], onDelete: Restrict)
+  attempts      Attempt[]
+
+  @@index([classroomId])
+  @@index([questionSetId])
+  // (Optional) enforce at most one assignment per classroom per date:
+  // @@unique([classroomId, date])
+}
+
+model Attempt {
+  id           Int        @id @default(autoincrement())
+  studentId    Int
+  assignmentId Int
+  score        Int        // 0–100 (enforce range in app logic)
+  completedAt  DateTime   @default(now())
+
+  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  items        AttemptItem[]
+
+  @@index([assignmentId])
+  @@unique([studentId, assignmentId]) // exactly one attempt per student per assignment
+}
+
+model AttemptItem {
+  id          Int       @id @default(autoincrement())
+  attemptId   Int
+  questionId  Int
+  givenAnswer Int
+  isCorrect   Boolean
+
+  attempt     Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  question    Question  @relation(fields: [questionId], references: [id], onDelete: Restrict)
+
+  @@index([questionId])
+  @@unique([attemptId, questionId]) // each question answered once per attempt
+}
+
