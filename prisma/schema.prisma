@@ -1,4 +1,3 @@
-// trigger CI
 generator client {
   provider = "prisma-client-js"
 }
@@ -68,20 +67,29 @@ model Question {
   attemptItems AttemptItem[]
 }
 
+enum AssignmentKind {
+  FRIDAY_TEST
+  // (add more later e.g. PRACTICE, QUIZ)
+}
+
 model Assignment {
-  id            Int         @id @default(autoincrement())
-  date          DateTime    @default(now())
+  id            Int            @id @default(autoincrement())
   classroomId   Int
   questionSetId Int
+  kind          AssignmentKind @default(FRIDAY_TEST)
 
-  classroom     Classroom   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  questionSet   QuestionSet @relation(fields: [questionSetId], references: [id], onDelete: Restrict)
+  // Precise window (store UTC instants)
+  opensAt       DateTime
+  closesAt      DateTime
+  windowMinutes Int            @default(4)
+
+  classroom     Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  questionSet   QuestionSet    @relation(fields: [questionSetId], references: [id], onDelete: Restrict)
   attempts      Attempt[]
 
   @@index([classroomId])
   @@index([questionSetId])
-  // (Optional) enforce at most one assignment per classroom per date:
-  // @@unique([classroomId, date])
+  @@unique([classroomId, kind, opensAt]) // idempotency key
 }
 
 model Attempt {
