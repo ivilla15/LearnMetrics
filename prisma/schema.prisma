@@ -4,76 +4,17 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("DATABASE_URL")  // prisma+postgres://...
-  directUrl = env("DIRECT_URL")    // postgresql://... ?pgbouncer=false&sslmode=require
-}
-
-model Teacher {
-  id Int @id @default(autoincrement())
-  name String
-  email String @unique
-  password String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  classrooms Classroom[]
-}
-
-model Classroom {
-  id Int @id @default(autoincrement())
-  name String
-  teacherId Int
-  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  students Student[] 
-
-  assignments Assignment[]
-  @@index([teacherId])
-}
-
-model Student {
-  id Int @id @default(autoincrement())
-  name String
-  username String @unique
-  password String
-  level Int @default(1)
-  classroomId Int
-  classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  attempts Attempt[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  @@index([classroomId])
-}
-
-model QuestionSet {
-  id        Int        @id @default(autoincrement())
-  level     Int
-  questions Question[]
-
-  @@unique([level])              // one set per level (1–12)
-  assignments Assignment[]
-}
-
-model Question {
-  id      Int         @id @default(autoincrement())
-  setId   Int
-  factorA Int
-  factorB Int
-  answer  Int
-
-  set     QuestionSet @relation(fields: [setId], references: [id], onDelete: Cascade)
-
-  @@index([setId])
-  @@unique([setId, factorA, factorB])  // no duplicate questions inside a set
-  attemptItems AttemptItem[]
+  url       = env("POSTGRES_URL")
+  directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
 enum AssignmentKind {
   FRIDAY_TEST
-  // (add more later e.g. PRACTICE, QUIZ)
 }
 
 model Assignment {
   id            Int            @id @default(autoincrement())
+  date          DateTime       @default(now())
   classroomId   Int
   questionSetId Int
   kind          AssignmentKind @default(FRIDAY_TEST)
@@ -83,43 +24,94 @@ model Assignment {
   closesAt      DateTime
   windowMinutes Int            @default(4)
 
-  classroom     Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  questionSet   QuestionSet    @relation(fields: [questionSetId], references: [id], onDelete: Restrict)
-  attempts      Attempt[]
+  Classroom     Classroom   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  QuestionSet   QuestionSet @relation(fields: [questionSetId], references: [id])
+  Attempt       Attempt[]
 
   @@index([classroomId])
   @@index([questionSetId])
-  @@unique([classroomId, kind, opensAt]) // idempotency key
+  @@unique([classroomId, kind, opensAt])
 }
 
 model Attempt {
-  id           Int        @id @default(autoincrement())
+  id           Int           @id @default(autoincrement())
   studentId    Int
   assignmentId Int
-  score        Int        // 0–100 (enforce range in app logic)
-  completedAt  DateTime   @default(now())
+  score        Int
+  completedAt  DateTime      @default(now())
+  Assignment   Assignment    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  Student      Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  AttemptItem  AttemptItem[]
 
-  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  items        AttemptItem[]
-
+  @@unique([studentId, assignmentId])
   @@index([assignmentId])
-  @@index([studentId])
-  @@unique([studentId, assignmentId]) // exactly one attempt per student per assignment
 }
 
 model AttemptItem {
-  id          Int       @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   attemptId   Int
   questionId  Int
   givenAnswer Int
   isCorrect   Boolean
+  Attempt     Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  Question    Question @relation(fields: [questionId], references: [id])
 
-  attempt     Attempt   @relation(fields: [attemptId], references: [id], onDelete: Cascade)
-  question    Question  @relation(fields: [questionId], references: [id], onDelete: Restrict)
-
+  @@unique([attemptId, questionId])
   @@index([questionId])
-  @@index([attemptId])
-  @@unique([attemptId, questionId]) // each question answered once per attempt
 }
 
+model Classroom {
+  id         Int          @id @default(autoincrement())
+  name       String
+  teacherId  Int
+  Assignment Assignment[]
+  Teacher    Teacher      @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  Student    Student[]
+
+  @@index([teacherId])
+}
+
+model Question {
+  id          Int           @id @default(autoincrement())
+  setId       Int
+  factorA     Int
+  factorB     Int
+  answer      Int
+  AttemptItem AttemptItem[]
+  QuestionSet QuestionSet   @relation(fields: [setId], references: [id], onDelete: Cascade)
+
+  @@unique([setId, factorA, factorB])
+  @@index([setId])
+}
+
+model QuestionSet {
+  id         Int          @id @default(autoincrement())
+  level      Int          @unique
+  Assignment Assignment[]
+  Question   Question[]
+}
+
+model Student {
+  id          Int       @id @default(autoincrement())
+  name        String
+  username    String    @unique
+  password    String
+  level       Int       @default(1)
+  classroomId Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime
+  Attempt     Attempt[]
+  Classroom   Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  @@index([classroomId])
+}
+
+model Teacher {
+  id        Int         @id @default(autoincrement())
+  name      String
+  email     String      @unique
+  password  String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime
+  Classroom Classroom[]
+}
