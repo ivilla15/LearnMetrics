@@ -16,4 +16,4 @@ jobs:
       - name: Introspect DB
         run: pnpm prisma db pull --schema=prisma/schema.prisma
         env:
-          DIRECT_URL: ${{ secrets.DIRECT_URL }}
+          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
