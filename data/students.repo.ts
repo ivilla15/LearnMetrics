@@ -6,13 +6,14 @@ export async function findStudentsWithLatestAttempt(classroomId: number) {
     where: { classroomId },
     orderBy: { name: 'asc' },
     include: {
-      attempts: {
+      Attempt: {
         orderBy: { completedAt: 'desc' },
         take: 1,
         select: {
           id: true,
           assignmentId: true,
           score: true,
+          total: true,
           completedAt: true,
         },
       },
@@ -24,6 +25,6 @@ export async function findStudentsWithLatestAttempt(classroomId: number) {
     name: s.name,
     username: s.username,
     level: s.level,
-    lastAttempt: s.attempts.length ? s.attempts[0] : null,
+    lastAttempt: s.Attempt.length ? s.Attempt[0] : null,
   }));
 }

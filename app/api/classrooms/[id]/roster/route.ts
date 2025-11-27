@@ -1,22 +1,26 @@
-import { getRosterWithLastAttempt } from '@/core/classrooms/service';
-import { jsonResponse } from '@/utils/http';
 import { classroomIdParamSchema } from '@/validation/classrooms.schema';
+import { getRosterWithLastAttempt } from '@/core/classrooms/service';
+import { jsonResponse, errorResponse } from '@/utils/http';
 import { ZodError } from 'zod';
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
-  // 1. Validate params.id with classroomIdParamSchema.
-  // 2. Call getRosterWithLastAttempt(id).
-  // 3. Return jsonResponse(result).
-  // 4. Handle errors.
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
+    // 1) Unwrap the params Promise (Next 15 requirement)
+    const { id } = await params;
+
+    // 2) Validate + coerce id ("1" -> 1)
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
+
+    // 3) Call the service
     const roster = await getRosterWithLastAttempt(classroomId);
+
+    // 4) Return success
     return jsonResponse(roster, 200);
   } catch (err) {
     if (err instanceof ZodError) {
-      return jsonResponse('Invalid classroom id', 400);
+      return errorResponse('Invalid classroom id', 400);
     }
-    return jsonResponse('Internal server error', 500);
+
+    return errorResponse('Internal server error', 500);
   }
 }

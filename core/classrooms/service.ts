@@ -11,6 +11,7 @@ export type RosterDTO = {
     lastAttempt: null | {
       assignmentId: number;
       score: number; // 0–100 in your schema
+      total: number; // total questions
       percent: number; // same as score for now
       completedAt: string; // ISO
       wasMastery: boolean; // score === 100
@@ -38,10 +39,11 @@ export async function getRosterWithLastAttempt(classroomId: number): Promise<Ros
         ? {
             assignmentId: a.assignmentId,
             score: a.score,
-            percent: a.score,
+            total: a.total,
+            percent: a.total > 0 ? Math.round((a.score / a.total) * 100) : 0,
             // 4. Compute percent and wasMastery.
             completedAt: a.completedAt.toISOString(),
-            wasMastery: a.score === 100,
+            wasMastery: a.score === a.total,
           }
         : null,
     };

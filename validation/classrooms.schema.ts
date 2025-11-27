@@ -1,6 +1,11 @@
-import z from 'zod';
+// src/validation/classrooms.schema.ts
+import { z } from 'zod';
 
 export const classroomIdParamSchema = z.object({
-  id: z.number().min(1, 'classroom id required'),
+  id: z.coerce.number().int().positive(),
 });
-export type ClassroomIdParams = z.infer<typeof classroomIdParamSchema>;
+export type ClassroomIdParam = z.infer<typeof classroomIdParamSchema>;
+export const createClassroomSchema = z.object({
+  name: z.string().min(1).max(100),
+});
+export type CreateClassroom = z.infer<typeof createClassroomSchema>;

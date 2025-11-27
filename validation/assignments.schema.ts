@@ -1,14 +1,17 @@
-import z from 'zod';
+import { z } from 'zod';
 
-// Defines the shape of the POST body for create-friday.
 export const createFridayRequestSchema = z.object({
-  classroomId: z.string().min(1, 'classroomId required'),
-  fridayDate: z.string().optional(), // "YYYY-MM-DD"
-  opensAtLocalTime: z.string().optional(), // "HH:mm"
-  windowMinutes: z.number().min(1).max(10).optional(),
+  classroomId: z.coerce.number().int().positive(),
+  questionSetId: z.coerce.number().int().positive(),
+  fridayDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/) // "YYYY-MM-DD"
+    .optional(),
+  opensAtLocalTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/) // "HH:mm"
+    .optional(),
+  windowMinutes: z.coerce.number().int().positive().max(60).optional(),
 });
-export type CreateFridayRequest = z.infer<typeof createFridayRequestSchema>;
 
-export const classroomIdParamSchema = z.object({
-  id: z.string().min(1, 'classroom id required'),
-});
+export type CreateFridayRequest = z.infer<typeof createFridayRequestSchema>;

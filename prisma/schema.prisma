@@ -19,7 +19,6 @@ model Assignment {
   questionSetId Int
   kind          AssignmentKind @default(FRIDAY_TEST)
 
-  // Precise window (store UTC instants)
   opensAt       DateTime
   closesAt      DateTime
   windowMinutes Int            @default(4)
@@ -38,6 +37,7 @@ model Attempt {
   studentId    Int
   assignmentId Int
   score        Int
+  total        Int
   completedAt  DateTime      @default(now())
   Assignment   Assignment    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   Student      Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
