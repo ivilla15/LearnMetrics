@@ -28,3 +28,9 @@ export async function findStudentsWithLatestAttempt(classroomId: number) {
     lastAttempt: s.Attempt.length ? s.Attempt[0] : null,
   }));
 }
+
+export async function findById(id: number) {
+  return prisma.student.findUnique({
+    where: { id },
+  });
+}

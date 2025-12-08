@@ -8,28 +8,23 @@ datasource db {
   directUrl = env("POSTGRES_URL_NON_POOLING")
 }
 
-enum AssignmentKind {
-  FRIDAY_TEST
-}
-
 model Assignment {
   id            Int            @id @default(autoincrement())
   date          DateTime       @default(now())
   classroomId   Int
   questionSetId Int
+  closesAt      DateTime
   kind          AssignmentKind @default(FRIDAY_TEST)
 
   opensAt       DateTime
-  closesAt      DateTime
   windowMinutes Int            @default(4)
-
-  Classroom     Classroom   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  QuestionSet   QuestionSet @relation(fields: [questionSetId], references: [id])
+  Classroom     Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  QuestionSet   QuestionSet    @relation(fields: [questionSetId], references: [id])
   Attempt       Attempt[]
 
+  @@unique([classroomId, kind, opensAt])
   @@index([classroomId])
   @@index([questionSetId])
-  @@unique([classroomId, kind, opensAt])
 }
 
 model Attempt {
@@ -39,6 +34,7 @@ model Attempt {
   score        Int
   total        Int
   completedAt  DateTime      @default(now())
+  total        Int
   Assignment   Assignment    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   Student      Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   AttemptItem  AttemptItem[]
@@ -114,4 +110,8 @@ model Teacher {
   createdAt DateTime    @default(now())
   updatedAt DateTime
   Classroom Classroom[]
+}
+
+enum AssignmentKind {
+  FRIDAY_TEST
 }

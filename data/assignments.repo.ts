@@ -23,6 +23,12 @@ export async function findByClassroomKindAndOpensAt(args: {
   });
 }
 
+export async function findById(id: number) {
+  return prisma.assignment.findUnique({
+    where: { id },
+  });
+}
+
 export async function create(args: CreateArgs) {
   const {
     classroomId,

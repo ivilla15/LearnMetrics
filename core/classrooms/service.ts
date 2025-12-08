@@ -1,5 +1,6 @@
 import * as ClassroomsRepo from '@/data/classrooms.repo';
 import * as StudentsRepo from '@/data/students.repo';
+import { NotFoundError } from '@/core/errors';
 
 export type RosterDTO = {
   classroom: { id: number; name?: string };
@@ -23,7 +24,7 @@ export async function getRosterWithLastAttempt(classroomId: number): Promise<Ros
   // 1. Confirm classroom exists.
   const classroom = await ClassroomsRepo.findClassroomById(classroomId);
   if (!classroom) {
-    throw new Error('Classroom not found');
+    throw new NotFoundError('Classroom not found');
   }
   // 2. Fetch students in classroom.
   const rows = await StudentsRepo.findStudentsWithLatestAttempt(classroomId);
