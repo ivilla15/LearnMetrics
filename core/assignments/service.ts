@@ -1,7 +1,8 @@
 // src/core/assignments/service.ts
 import * as AssignmentsRepo from '@/data/assignments.repo';
-import { nextFridayLocalDate, localDateTimeToUtcRange, TZ } from '@/utils/time';
 import { FRIDAY_KIND } from '@/data/assignments.repo';
+import { nextFridayLocalDate, localDateTimeToUtcRange, TZ } from '@/utils/time';
+import { NotFoundError } from '@/core/errors';
 
 // Keep the response shape simple and stable for your handler
 export type AssignmentDTO = {
@@ -86,5 +87,30 @@ export async function createFridayAssignment(params: Params): Promise<Assignment
     closesAtLocal: closesAtLocalISO,
     windowMinutes: created.windowMinutes,
     wasCreated: true,
+  };
+}
+
+export type LatestAssignmentDTO = {
+  id: number;
+  classroomId: number;
+  kind: string;
+  opensAt: string; // UTC ISO
+  closesAt: string; // UTC ISO
+  windowMinutes: number;
+};
+
+export async function getLatestAssignmentForClassroom(
+  classroomId: number,
+): Promise<LatestAssignmentDTO | null> {
+  const assignment = await AssignmentsRepo.findLatestForClassroom(classroomId);
+  if (!assignment) return null;
+
+  return {
+    id: assignment.id,
+    classroomId: assignment.classroomId,
+    kind: assignment.kind,
+    opensAt: assignment.opensAt.toISOString(),
+    closesAt: assignment.closesAt.toISOString(),
+    windowMinutes: assignment.windowMinutes,
   };
 }

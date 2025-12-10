@@ -32,3 +32,21 @@ export async function createAttemptItems(items: AttemptItemInput[]) {
     data: items,
   });
 }
+
+export async function findByStudentWithAssignment(studentId: number) {
+  return prisma.attempt.findMany({
+    where: { studentId },
+    include: {
+      Assignment: {
+        select: {
+          id: true,
+          classroomId: true,
+          kind: true,
+          opensAt: true,
+          closesAt: true,
+        },
+      },
+    },
+    orderBy: { completedAt: 'desc' },
+  });
+}

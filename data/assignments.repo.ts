@@ -46,3 +46,10 @@ export async function create(args: CreateArgs) {
     data: { classroomId, questionSetId, kind, opensAt, closesAt, windowMinutes },
   });
 }
+
+export async function findLatestForClassroom(classroomId: number) {
+  return prisma.assignment.findFirst({
+    where: { classroomId },
+    orderBy: { opensAt: 'desc' },
+  });
+}
