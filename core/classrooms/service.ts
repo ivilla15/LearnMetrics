@@ -13,9 +13,9 @@ export type RosterDTO = {
       assignmentId: number;
       score: number; // 0–100 in your schema
       total: number; // total questions
-      percent: number; // same as score for now
+      percent: number; // score / total * 100
       completedAt: string; // ISO
-      wasMastery: boolean; // score === 100
+      wasMastery: boolean; // score === total
     };
   }>;
 };
@@ -26,9 +26,11 @@ export async function getRosterWithLastAttempt(classroomId: number): Promise<Ros
   if (!classroom) {
     throw new NotFoundError('Classroom not found');
   }
+
   // 2. Fetch students in classroom.
   const rows = await StudentsRepo.findStudentsWithLatestAttempt(classroomId);
-  // 3. For each, fetch their latest attempt.
+
+  // 3. Map to DTO, letting TS infer `s` type.
   const students = rows.map((s) => {
     const a = s.lastAttempt;
     return {
@@ -42,13 +44,13 @@ export async function getRosterWithLastAttempt(classroomId: number): Promise<Ros
             score: a.score,
             total: a.total,
             percent: a.total > 0 ? Math.round((a.score / a.total) * 100) : 0,
-            // 4. Compute percent and wasMastery.
             completedAt: a.completedAt.toISOString(),
             wasMastery: a.score === a.total,
           }
         : null,
     };
   });
+
   // 5. Return aggregated RosterDTO.
   return {
     classroom: { id: classroom.id, name: (classroom as any).name },

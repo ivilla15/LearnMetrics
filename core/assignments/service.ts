@@ -1,7 +1,7 @@
 // src/core/assignments/service.ts
-import { AssignmentKind } from '@prisma/client';
 import * as AssignmentsRepo from '@/data/assignments.repo';
 import { nextFridayLocalDate, localDateTimeToUtcRange, TZ } from '@/utils/time';
+import { FRIDAY_KIND } from '@/data/assignments.repo';
 
 // Keep the response shape simple and stable for your handler
 export type AssignmentDTO = {
@@ -47,7 +47,7 @@ export async function createFridayAssignment(params: Params): Promise<Assignment
   // 3) Idempotency check by composite unique (classroomId, kind, opensAt)
   const existing = await AssignmentsRepo.findByClassroomKindAndOpensAt({
     classroomId,
-    kind: AssignmentKind.FRIDAY_TEST,
+    kind: FRIDAY_KIND,
     opensAt: opensAtUTC,
   });
 
@@ -69,7 +69,7 @@ export async function createFridayAssignment(params: Params): Promise<Assignment
   const created = await AssignmentsRepo.create({
     classroomId,
     questionSetId,
-    kind: AssignmentKind.FRIDAY_TEST,
+    kind: FRIDAY_KIND,
     opensAt: opensAtUTC,
     closesAt: closesAtUTC,
     windowMinutes,

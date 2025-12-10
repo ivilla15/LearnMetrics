@@ -1,10 +1,10 @@
-import { SubmitAttemptInput } from '@/validation/attempts.schema';
+import { SubmitAttemptBody } from '@/validation/attempts.schema';
 import * as AssignmentsRepo from '@/data/assignments.repo';
 import * as StudentRepo from '@/data/students.repo';
 import * as QuestionsRepo from '@/data/questions.repo';
 import * as AttemptsRepo from '@/data/attempts.repo';
 import { NotFoundError, ConflictError } from '@/core/errors';
-import { Prisma } from '@prisma/client';
+import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 export type AttemptResultDTO = {
   assignmentId: number;
@@ -15,12 +15,25 @@ export type AttemptResultDTO = {
   wasMastery: boolean;
 };
 
+export type SubmitAttemptInput = SubmitAttemptBody & {
+  studentId: number;
+};
+
 export async function submitAttempt(params: SubmitAttemptInput): Promise<AttemptResultDTO> {
   const { studentId, assignmentId, answers } = params;
   // 1) Load assignment, ensure exists
   const assignment = await AssignmentsRepo.findById(assignmentId);
   if (!assignment) {
     throw new NotFoundError('Assignment not found');
+  }
+  const now = new Date();
+
+  if (now < assignment.opensAt) {
+    throw new ConflictError('This assignment is not open yet');
+  }
+
+  if (now > assignment.closesAt) {
+    throw new ConflictError('This assignment is already closed');
   }
   // 2) Load student, ensure exists
   const student = await StudentRepo.findById(studentId);
@@ -96,11 +109,9 @@ export async function submitAttempt(params: SubmitAttemptInput): Promise<Attempt
       wasMastery,
     };
   } catch (err) {
-    // Prisma unique constraint: already has an attempt
-    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+    if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
       throw new ConflictError('Student has already submitted an attempt for this assignment');
     }
-
     throw err;
   }
 }

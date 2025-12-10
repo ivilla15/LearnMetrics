@@ -4,7 +4,6 @@ export async function findStudentsWithLatestAttempt(classroomId: number) {
   // Join students + attempts, order by completedAt desc per student.
   const students = await prisma.student.findMany({
     where: { classroomId },
-    orderBy: { name: 'asc' },
     include: {
       Attempt: {
         orderBy: { completedAt: 'desc' },
@@ -18,9 +17,10 @@ export async function findStudentsWithLatestAttempt(classroomId: number) {
         },
       },
     },
+    orderBy: { name: 'asc' },
   });
 
-  return students.map((s) => ({
+  return students.map((s: (typeof students)[number]) => ({
     id: s.id,
     name: s.name,
     username: s.username,

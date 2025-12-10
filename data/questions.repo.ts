@@ -7,7 +7,7 @@ export async function findByQuestionSetId(questionSetId: number) {
       id: true,
       factorA: true,
       factorB: true,
-      answer: true, // the correct answer
+      answer: true,
     },
     orderBy: { id: 'asc' },
   });

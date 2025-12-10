@@ -1,5 +1,8 @@
 import { prisma } from '@/data/prisma';
-import { AssignmentKind } from '@prisma/client';
+
+// Local constant for our only assignment kind for now
+export const FRIDAY_KIND = 'FRIDAY_TEST' as const;
+export type AssignmentKind = typeof FRIDAY_KIND;
 
 type CreateArgs = {
   classroomId: number;
@@ -35,7 +38,7 @@ export async function create(args: CreateArgs) {
     questionSetId,
     opensAt,
     closesAt,
-    kind = AssignmentKind.FRIDAY_TEST,
+    kind = FRIDAY_KIND,
     windowMinutes = 4,
   } = args;
 
