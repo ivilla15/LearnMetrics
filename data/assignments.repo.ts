@@ -6,7 +6,6 @@ export type AssignmentKind = typeof FRIDAY_KIND;
 
 type CreateArgs = {
   classroomId: number;
-  questionSetId: number;
   opensAt: Date;
   closesAt: Date;
   kind?: AssignmentKind; // defaults to FRIDAY_TEST if not provided
@@ -33,17 +32,10 @@ export async function findById(id: number) {
 }
 
 export async function create(args: CreateArgs) {
-  const {
-    classroomId,
-    questionSetId,
-    opensAt,
-    closesAt,
-    kind = FRIDAY_KIND,
-    windowMinutes = 4,
-  } = args;
+  const { classroomId, opensAt, closesAt, kind = FRIDAY_KIND, windowMinutes = 4 } = args;
 
   return prisma.assignment.create({
-    data: { classroomId, questionSetId, kind, opensAt, closesAt, windowMinutes },
+    data: { classroomId, kind, opensAt, closesAt, windowMinutes },
   });
 }
 

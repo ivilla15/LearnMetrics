@@ -19,20 +19,13 @@ export type AssignmentDTO = {
 
 type Params = {
   classroomId: number;
-  questionSetId: number; // required by your schema
   fridayDate?: string; // "YYYY-MM-DD" (PT)
   opensAtLocalTime?: string; // "HH:mm" (PT)
   windowMinutes?: number; // default 4
 };
 
 export async function createFridayAssignment(params: Params): Promise<AssignmentDTO> {
-  const {
-    classroomId,
-    questionSetId,
-    fridayDate,
-    opensAtLocalTime = '08:00',
-    windowMinutes = 4,
-  } = params;
+  const { classroomId, fridayDate, opensAtLocalTime = '08:00', windowMinutes = 4 } = params;
 
   // 1) Choose the PT calendar date to use (given or next Friday)
   const localDate = fridayDate ?? nextFridayLocalDate(new Date(), TZ);
@@ -69,7 +62,6 @@ export async function createFridayAssignment(params: Params): Promise<Assignment
   // 4) Create a new assignment row
   const created = await AssignmentsRepo.create({
     classroomId,
-    questionSetId,
     kind: FRIDAY_KIND,
     opensAt: opensAtUTC,
     closesAt: closesAtUTC,

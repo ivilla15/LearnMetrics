@@ -4,51 +4,40 @@ generator client {
 
 datasource db {
   provider  = "postgresql"
-  url       = env("POSTGRES_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  url       = env("DATABASE_URL")              // pooled
+  directUrl = env("DATABASE_URL_NON_POOLING")  // non-pooled
 }
 
 model Assignment {
   id            Int            @id @default(autoincrement())
   date          DateTime       @default(now())
   classroomId   Int
-  questionSetId Int
-  closesAt      DateTime
+  questionSetId Int?           // <- was Int
   kind          AssignmentKind @default(FRIDAY_TEST)
-
   opensAt       DateTime
+  closesAt      DateTime
   windowMinutes Int            @default(4)
-  Classroom     Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  QuestionSet   QuestionSet    @relation(fields: [questionSetId], references: [id])
-  Attempt       Attempt[]
 
-  @@unique([classroomId, kind, opensAt])
+  Classroom   Classroom   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  QuestionSet QuestionSet? @relation(fields: [questionSetId], references: [id])
+  Attempt     Attempt[]
+
   @@index([classroomId])
   @@index([questionSetId])
+  @@unique([classroomId, kind, opensAt])
 }
 
 model AssignmentSchedule {
-  id            Int      @id @default(autoincrement())
-  classroomId   Int
-  questionSetId Int
-
-  /// Local time-of-day string like "08:00" in PT
+  id              Int       @id @default(autoincrement())
+  classroomId     Int
   opensAtLocalTime String
+  windowMinutes    Int       @default(4)
+  isActive         Boolean   @default(true)
+  days             String[]
 
-  /// Window length in minutes (e.g. 4)
-  windowMinutes Int     @default(4)
-
-  /// Whether this schedule is currently active
-  isActive      Boolean @default(true)
-
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  Classroom     Classroom   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  QuestionSet   QuestionSet @relation(fields: [questionSetId], references: [id], onDelete: Restrict)
+  Classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
 
   @@index([classroomId])
-  @@index([questionSetId])
 }
 
 model Attempt {
@@ -56,8 +45,8 @@ model Attempt {
   studentId    Int
   assignmentId Int
   score        Int
-  total        Int
   completedAt  DateTime      @default(now())
+  total        Int
   Assignment   Assignment    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   Student      Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
   AttemptItem  AttemptItem[]
@@ -80,15 +69,13 @@ model AttemptItem {
 }
 
 model Classroom {
-  id         Int                  @id @default(autoincrement())
-  name       String
-  teacherId  Int
-  Assignment Assignment[]
-  // 👇 NEW: back-reference to schedules
+  id                 Int                  @id @default(autoincrement())
+  name               String
+  teacherId          Int
+  Assignment         Assignment[]
   AssignmentSchedule AssignmentSchedule[]
-
-  Teacher    Teacher              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
-  Student    Student[]
+  Teacher            Teacher              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  Student            Student[]
 
   @@index([teacherId])
 }
@@ -107,11 +94,9 @@ model Question {
 }
 
 model QuestionSet {
-  id         Int                  @id @default(autoincrement())
-  level      Int                  @unique
+  id         Int        @id @default(autoincrement())
+  level      Int        @unique
   Assignment Assignment[]
-  // 👇 NEW: back-reference to schedules
-  AssignmentSchedule AssignmentSchedule[]
   Question   Question[]
 }
 

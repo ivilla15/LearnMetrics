@@ -9,29 +9,26 @@ export class AuthError extends Error {
   }
 }
 
-// Read a header and coerce to a positive integer
-function parseIdFromHeader(value: string | null, headerName: string): number {
-  if (!value) {
+function parseIdFromHeader(raw: string | null, headerName: string): number {
+  if (!raw) {
     throw new AuthError(`Missing ${headerName} header`);
   }
 
-  const id = Number(value);
+  const id = Number(raw);
   if (!Number.isInteger(id) || id <= 0) {
-    throw new AuthError(`Invalid ${headerName} value`);
+    throw new AuthError(`Invalid ${headerName} header`);
   }
 
   return id;
 }
 
-// Teacher: use for teacher-only routes
-export async function requireTeacher(request: Request) {
-  const headerName = 'x-teacher-id';
-  const raw = request.headers.get(headerName);
-  const id = parseIdFromHeader(raw, headerName);
+export async function requireTeacher(_request: Request) {
+  // TEMP: dev-friendly behavior until NextAuth is wired in.
+  // We just use the first teacher in the DB.
+  const teacher = await prisma.teacher.findFirst();
 
-  const teacher = await prisma.teacher.findUnique({ where: { id } });
   if (!teacher) {
-    throw new NotFoundError('Teacher not found');
+    throw new AuthError('No teacher exists in database.');
   }
 
   return teacher;

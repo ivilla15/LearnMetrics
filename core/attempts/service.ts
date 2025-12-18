@@ -1,3 +1,5 @@
+// src/core/attempts/service.ts (or wherever this lives)
+
 import { SubmitAttemptBody } from '@/validation/attempts.schema';
 import * as AssignmentsRepo from '@/data/assignments.repo';
 import * as StudentRepo from '@/data/students.repo';
@@ -21,30 +23,33 @@ export type SubmitAttemptInput = SubmitAttemptBody & {
 
 export async function submitAttempt(params: SubmitAttemptInput): Promise<AttemptResultDTO> {
   const { studentId, assignmentId, answers } = params;
-  // 1) Load assignment, ensure exists
+
+  // 1) Load assignment, ensure exists and window is valid
   const assignment = await AssignmentsRepo.findById(assignmentId);
   if (!assignment) {
     throw new NotFoundError('Assignment not found');
   }
-  const now = new Date();
 
+  const now = new Date();
   if (now < assignment.opensAt) {
     throw new ConflictError('This assignment is not open yet');
   }
-
   if (now > assignment.closesAt) {
     throw new ConflictError('This assignment is already closed');
   }
+
   // 2) Load student, ensure exists
   const student = await StudentRepo.findById(studentId);
   if (!student) {
     throw new NotFoundError('Student not found');
   }
 
-  // 3) Load questions for the assignment's question set
-  const questions = await QuestionsRepo.findByQuestionSetId(assignment.questionSetId);
+  // 3) Load questions for the questionIds in the submission
+  const questionIds = answers.map((a) => a.questionId);
+  const questions = await QuestionsRepo.findByIds(questionIds);
+
   if (questions.length === 0) {
-    throw new NotFoundError('No questions found for this assignment');
+    throw new NotFoundError('No questions found for this submission');
   }
 
   const correctById = new Map<number, number>();
@@ -64,10 +69,10 @@ export async function submitAttempt(params: SubmitAttemptInput): Promise<Attempt
 
   for (const ans of answers) {
     const correctAnswer = correctById.get(ans.questionId);
-    const isCorrect = correctAnswer != undefined && ans.givenAnswer === correctAnswer;
+    const isCorrect = correctAnswer !== undefined && ans.givenAnswer === correctAnswer;
 
-    if (correctAnswer !== undefined && ans.givenAnswer === correctAnswer) {
-      score++;
+    if (isCorrect) {
+      score += 1;
     }
 
     itemsPayload.push({
@@ -80,7 +85,7 @@ export async function submitAttempt(params: SubmitAttemptInput): Promise<Attempt
   const percent = total > 0 ? Math.round((score / total) * 100) : 0;
   const wasMastery = score === total;
 
-  // 5) Insert Attempt
+  // 5) Insert Attempt + AttemptItems
   try {
     const attempt = await AttemptsRepo.createAttempt({
       studentId,
@@ -89,7 +94,6 @@ export async function submitAttempt(params: SubmitAttemptInput): Promise<Attempt
       total,
     });
 
-    // 6) Insert AttemptItems
     await AttemptsRepo.createAttemptItems(
       itemsPayload.map((item) => ({
         attemptId: attempt.id,
@@ -98,8 +102,8 @@ export async function submitAttempt(params: SubmitAttemptInput): Promise<Attempt
         isCorrect: item.isCorrect,
       })),
     );
-    // 7) Return AttemptResultDTO
 
+    // 6) Return AttemptResultDTO
     return {
       assignmentId,
       studentId,
@@ -110,6 +114,7 @@ export async function submitAttempt(params: SubmitAttemptInput): Promise<Attempt
     };
   } catch (err) {
     if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
+      // unique(studentId, assignmentId) violated
       throw new ConflictError('Student has already submitted an attempt for this assignment');
     }
     throw err;
