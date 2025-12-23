@@ -1,10 +1,11 @@
-// app/teacher/classrooms/[id]/ClassroomDashboardPage.tsx
 'use client';
 
+import { useState } from 'react';
+import { CreateManualTestDialog } from './CreateManualTestDialog';
 import { useClassroomDashboard } from './hooks';
-import RosterTable from './RosterTable';
-import { ScheduleCard } from './ScheduleCard';
+import { RosterTable } from './RosterTable';
 import { LatestAssignmentCard } from './LatestAssignmentCard';
+import { ScheduleCardList } from './ScheduleCardList';
 
 type Props = {
   classroomId: number;
@@ -15,14 +16,31 @@ export default function ClassroomDashboardPage({ classroomId }: Props) {
     classroom,
     students,
     latest,
-    schedule,
+    schedules,
     loading,
     error,
+
     creatingFriday,
-    createFridayNow,
     savingSchedule,
-    saveSchedule,
+    savingRoster,
+
+    // schedules
+    updateScheduleById,
+    deleteScheduleById,
+    createNewSchedule,
+
+    // roster
+    bulkAddStudents,
+    updateStudent,
+    deleteStudent,
+    deleteAllStudents,
+
+    // manual test
+    createManualTest,
   } = useClassroomDashboard(classroomId);
+
+  const busy = loading || savingSchedule || savingRoster;
+  const [manualOpen, setManualOpen] = useState(false);
 
   if (loading) return <div>Loading…</div>;
   if (error) return <div className="text-red-600">{error}</div>;
@@ -30,27 +48,46 @@ export default function ClassroomDashboardPage({ classroomId }: Props) {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
+      <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold">{classroom.name ?? `Classroom ${classroom.id}`}</h1>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <CreateManualTestDialog
+        open={manualOpen}
+        busy={creatingFriday}
+        onClose={() => setManualOpen(false)}
+        onCreate={async (input) => {
+          await createManualTest(input);
+          setManualOpen(false);
+        }}
+      />
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="col-span-2">
-          <RosterTable students={students} />
+          <RosterTable
+            students={students}
+            busy={busy}
+            onBulkAdd={bulkAddStudents}
+            onUpdateStudent={updateStudent}
+            onDeleteStudent={deleteStudent}
+            onDeleteAll={deleteAllStudents}
+          />
         </div>
 
-        <div className="space-y-6 col-span-1">
+        <div className="space-y-4">
           <LatestAssignmentCard
             latest={latest}
+            loading={loading}
             creating={creatingFriday}
-            onCreateFriday={createFridayNow}
+            onCreateSingleTest={() => setManualOpen(true)} // ✅ open dialog
           />
 
-          <ScheduleCard
-            schedule={schedule}
-            loading={loading}
-            saving={savingSchedule}
-            onSave={saveSchedule}
+          <ScheduleCardList
+            schedules={schedules}
+            savingSchedule={savingSchedule}
+            createNewSchedule={createNewSchedule}
+            updateScheduleById={updateScheduleById}
+            deleteScheduleById={deleteScheduleById}
           />
         </div>
       </div>

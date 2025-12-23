@@ -8,6 +8,7 @@ export type RosterDTO = {
     id: number;
     name: string;
     username: string;
+    password: string;
     level: number;
     lastAttempt: null | {
       assignmentId: number;
@@ -37,6 +38,7 @@ export async function getRosterWithLastAttempt(classroomId: number): Promise<Ros
       id: s.id,
       name: s.name,
       username: s.username,
+      password: s.password,
       level: s.level,
       lastAttempt: a
         ? {

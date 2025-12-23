@@ -8,6 +8,11 @@ datasource db {
   directUrl = env("DATABASE_URL_NON_POOLING")  // non-pooled
 }
 
+enum AssignmentMode {
+  SCHEDULED
+  MANUAL
+}
+
 model Assignment {
   id            Int            @id @default(autoincrement())
   date          DateTime       @default(now())
@@ -17,6 +22,7 @@ model Assignment {
   opensAt       DateTime
   closesAt      DateTime
   windowMinutes Int            @default(4)
+  assignmentMode AssignmentMode @default(SCHEDULED)
 
   Classroom   Classroom   @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   QuestionSet QuestionSet? @relation(fields: [questionSetId], references: [id])

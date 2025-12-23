@@ -7,16 +7,16 @@ type LatestAssignment = {
   id: number;
   classroomId: number;
   kind: string;
-  opensAt: string; // ISO
-  closesAt: string; // ISO
+  opensAt: string;
+  closesAt: string;
   windowMinutes: number;
 };
 
 type Props = {
   latest: LatestAssignment | null | undefined;
   loading?: boolean;
-  creating?: boolean; // are we currently creating?
-  onCreateFriday?: () => void; // callback to create a test
+  creating?: boolean;
+  onCreateSingleTest?: () => void;
 };
 
 function formatLocal(iso?: string) {
@@ -28,7 +28,7 @@ function formatLocal(iso?: string) {
   });
 }
 
-export function LatestAssignmentCard({ latest, loading, creating, onCreateFriday }: Props) {
+export function LatestAssignmentCard({ latest, loading, creating, onCreateSingleTest }: Props) {
   return (
     <Card>
       <CardHeader title="Latest assignment" subtitle="Most recent test" />
@@ -41,14 +41,14 @@ export function LatestAssignmentCard({ latest, loading, creating, onCreateFriday
         <div className="px-4 pb-4 space-y-3 text-xs text-gray-100">
           <p className="text-gray-500">No assignments have been created yet for this classroom.</p>
 
-          {onCreateFriday && (
+          {onCreateSingleTest && (
             <button
               type="button"
-              onClick={onCreateFriday}
+              onClick={onCreateSingleTest}
               disabled={creating}
               className="inline-flex items-center rounded bg-emerald-700 px-3 py-1 text-xs font-medium text-white hover:bg-emerald-500 disabled:opacity-60"
             >
-              {creating ? 'Creating…' : 'Create Friday test'}
+              Create single test
             </button>
           )}
         </div>
@@ -59,17 +59,17 @@ export function LatestAssignmentCard({ latest, loading, creating, onCreateFriday
               <span className="inline-flex rounded-full bg-emerald-900/50 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
                 {latest.kind === 'FRIDAY_TEST' ? 'Friday test' : latest.kind}
               </span>
-              <span className="text-black">Assignment #{latest.id}</span>
+              <span className="text-black">{formatLocal(latest.opensAt)}</span>
             </div>
 
-            {onCreateFriday && (
+            {onCreateSingleTest && (
               <button
                 type="button"
-                onClick={onCreateFriday}
+                onClick={onCreateSingleTest}
                 disabled={creating}
                 className="inline-flex items-center rounded bg-emerald-700 px-3 py-1 text-[11px] font-medium text-white hover:bg-emerald-500 disabled:opacity-60"
               >
-                {creating ? 'Creating…' : 'Create new test'}
+                Create single test
               </button>
             )}
           </div>

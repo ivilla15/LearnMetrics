@@ -2,6 +2,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import type { NewStudentInput } from '@/utils/students';
 
 export type Classroom = { id: number; name?: string };
 
@@ -9,6 +10,7 @@ export type StudentRow = {
   id: number;
   name: string;
   username: string;
+  password: string;
   level: number;
   lastAttempt: null | {
     assignmentId: number;
@@ -29,20 +31,28 @@ type LatestAssignment = {
   windowMinutes: number;
 } | null;
 
-type Schedule = {
+export type Schedule = {
   id: number;
   classroomId: number;
   opensAtLocalTime: string;
   windowMinutes: number;
   isActive: boolean;
   days: string[];
-} | null;
+};
+
+export type ScheduleInput = {
+  opensAtLocalTime: string;
+  windowMinutes: number;
+  isActive: boolean;
+  days: string[];
+};
 
 type DashboardState = {
   classroom: Classroom | null;
   students: StudentRow[];
   latest: LatestAssignment;
-  schedule: Schedule;
+  schedule: Schedule | null; // primary
+  schedules: Schedule[]; // all schedules
   loading: boolean;
   error: string | null;
 };
@@ -50,12 +60,25 @@ type DashboardState = {
 type DashboardResult = DashboardState & {
   creatingFriday: boolean;
   createFridayNow: () => Promise<void>;
+
   savingSchedule: boolean;
-  saveSchedule: (input: {
-    opensAtLocalTime: string;
-    windowMinutes: number;
-    isActive: boolean;
-    days: string[];
+  saveSchedule: (input: ScheduleInput) => Promise<void>;
+  createNewSchedule: (input: ScheduleInput) => Promise<void>;
+  updateScheduleById: (id: number, input: ScheduleInput) => Promise<void>;
+  deleteScheduleById: (id: number) => Promise<void>;
+
+  createManualTest: (input: { date: string; time: string; windowMinutes: number }) => Promise<void>;
+
+  savingRoster: boolean;
+  bulkAddStudents: (students: NewStudentInput[]) => Promise<void>;
+  updateStudent: (
+    id: number,
+    input: { name: string; username: string; level: number },
+  ) => Promise<void>;
+  deleteStudent: (id: number) => Promise<void>;
+  deleteAllStudents: (options: {
+    deleteAssignments: boolean;
+    deleteSchedules: boolean;
   }) => Promise<void>;
 };
 
@@ -65,14 +88,16 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
     students: [],
     latest: null,
     schedule: null,
+    schedules: [],
     loading: true,
     error: null,
   });
 
   const [creatingFriday, setCreatingFriday] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
+  const [savingRoster, setSavingRoster] = useState(false);
 
-  // ---- load dashboard data (unchanged) ----
+  // ---- load dashboard data ----
   useEffect(() => {
     let cancelled = false;
 
@@ -80,53 +105,84 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
       setState((prev) => ({ ...prev, loading: true, error: null }));
 
       try {
-        const [rosterRes, latestRes, scheduleRes] = await Promise.all([
+        const [rosterRes, latestRes, schedulesRes] = await Promise.all([
           fetch(`/api/classrooms/${classroomId}/roster`, {
             headers: { 'x-teacher-id': '2' }, // dev-only
           }),
           fetch(`/api/classrooms/${classroomId}/latest-assignment`, {
             headers: { 'x-teacher-id': '2' },
           }),
-          fetch(`/api/classrooms/${classroomId}/schedule`, {
+          fetch(`/api/classrooms/${classroomId}/schedules`, {
             headers: { 'x-teacher-id': '2' },
           }),
         ]);
 
         if (!rosterRes.ok) throw new Error('Failed to load roster');
         if (!latestRes.ok) throw new Error('Failed to load latest assignment');
-        if (!scheduleRes.ok) throw new Error('Failed to load schedule');
+        if (!schedulesRes.ok) throw new Error('Failed to load schedules');
 
-        const rosterJson = await rosterRes.json();
-        const latestJson = await latestRes.json();
-        const scheduleJson = await scheduleRes.json();
+        const rosterData = await rosterRes.json();
+        const latestData = await latestRes.json();
+        const schedulesJson = await schedulesRes.json();
 
         if (cancelled) return;
 
+        let classroom: Classroom | null = null;
+        let students: StudentRow[] = [];
+
+        if (Array.isArray(rosterData)) {
+          students = rosterData as StudentRow[];
+        } else {
+          if (Array.isArray(rosterData?.students)) {
+            students = rosterData.students as StudentRow[];
+          }
+          if (rosterData?.classroom && typeof rosterData.classroom.id === 'number') {
+            classroom = {
+              id: rosterData.classroom.id,
+              name: rosterData.classroom.name,
+            };
+          }
+        }
+
+        const latest = (
+          latestData && 'latest' in latestData ? (latestData as any).latest : latestData
+        ) as LatestAssignment;
+
+        const schedules = Array.isArray((schedulesJson as any).schedules)
+          ? ((schedulesJson as any).schedules as Schedule[])
+          : [];
+
+        if (!classroom) {
+          classroom = { id: classroomId };
+        }
+
         setState({
-          classroom: rosterJson.classroom ?? null,
-          students: rosterJson.students ?? [],
-          latest: latestJson.latest ?? null,
-          schedule: scheduleJson.schedule ?? null,
+          classroom,
+          students,
+          latest,
+          schedule: schedules[0] ?? null, // primary = first
+          schedules,
           loading: false,
           error: null,
         });
-      } catch (err: any) {
+      } catch (err) {
         if (cancelled) return;
+
         setState((prev) => ({
           ...prev,
           loading: false,
-          error: err?.message ?? 'Something went wrong loading classroom',
+          error: (err as Error).message ?? 'Failed to load classroom dashboard.',
         }));
       }
     }
 
     load();
+
     return () => {
       cancelled = true;
     };
   }, [classroomId]);
 
-  // ---- create Friday test (you already had this) ----
   async function createFridayNow() {
     const schedule = state.schedule;
     if (!schedule) {
@@ -139,6 +195,8 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
 
     try {
       setCreatingFriday(true);
+      setState((prev) => ({ ...prev, error: null }));
+
       const res = await fetch('/api/assignments/create-friday', {
         method: 'POST',
         headers: {
@@ -147,10 +205,24 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
         },
         body: JSON.stringify({
           classroomId,
+          // 👇 if your route later needs scheduleId, it's right here:
+          // scheduleId: schedule.id,
         }),
       });
 
-      if (!res.ok) throw new Error(`Failed with status ${res.status}`);
+      if (!res.ok) {
+        let details = '';
+        try {
+          const json = await res.json();
+          if (json && typeof json.error === 'string') {
+            details = `: ${json.error}`;
+          }
+        } catch {
+          // body might be empty or not JSON; ignore
+        }
+        throw new Error(`Failed to create Friday test (status ${res.status}${details})`);
+      }
+
       const data = await res.json();
 
       setState((prev) => ({
@@ -158,6 +230,7 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
         latest: data,
       }));
     } catch (err) {
+      console.error('createFridayNow error', err);
       setState((prev) => ({
         ...prev,
         error: (err as Error).message ?? prev.error,
@@ -167,13 +240,56 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
     }
   }
 
-  // ---- NEW: save schedule (create or update) ----
-  async function saveSchedule(input: {
-    opensAtLocalTime: string;
-    windowMinutes: number;
-    isActive: boolean;
-    days: string[];
-  }) {
+  async function createManualTest(input: { date: string; time: string; windowMinutes: number }) {
+    try {
+      setCreatingFriday(true);
+      setState((prev) => ({ ...prev, error: null }));
+
+      const res = await fetch('/api/assignments/create-friday', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-teacher-id': '2', // dev-only
+        },
+        body: JSON.stringify({
+          classroomId,
+          fridayDate: input.date,
+          opensAtLocalTime: input.time,
+          windowMinutes: input.windowMinutes,
+        }),
+      });
+
+      if (!res.ok) {
+        let details = '';
+        try {
+          const j = await res.json();
+          if (typeof j?.error === 'string') details = `: ${j.error}`;
+        } catch {
+          /* empty */
+        }
+        throw new Error(`Failed to create manual test (status ${res.status}${details})`);
+      }
+
+      const data = await res.json();
+      const created = (data?.assignment ?? data) as LatestAssignment;
+
+      setState((prev) => ({
+        ...prev,
+        latest: created,
+      }));
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: (err as Error).message ?? prev.error,
+      }));
+      throw err;
+    } finally {
+      setCreatingFriday(false);
+    }
+  }
+
+  // ---- save primary schedule (create or update) ----
+  async function saveSchedule(input: ScheduleInput) {
     try {
       setSavingSchedule(true);
       setState((prev) => ({ ...prev, error: null }));
@@ -192,19 +308,307 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
       }
 
       const data = await res.json();
+      const updatedSchedule = (data.schedule ?? null) as Schedule | null;
+
+      setState((prev) => {
+        const prevSchedules = prev.schedules ?? [];
+        let nextSchedules = prevSchedules;
+
+        if (updatedSchedule) {
+          if (!prevSchedules.length) {
+            nextSchedules = [updatedSchedule];
+          } else {
+            const idx = prevSchedules.findIndex((s) => s.id === updatedSchedule.id);
+            if (idx === -1) {
+              nextSchedules = [updatedSchedule, ...prevSchedules];
+            } else {
+              nextSchedules = [...prevSchedules];
+              nextSchedules[idx] = updatedSchedule;
+            }
+          }
+        }
+
+        return {
+          ...prev,
+          schedule: updatedSchedule,
+          schedules: nextSchedules,
+        };
+      });
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: (err as Error).message ?? prev.error,
+      }));
+      throw err;
+    } finally {
+      setSavingSchedule(false);
+    }
+  }
+
+  // ---- create a brand-new schedule (in addition to any existing ones) ----
+  async function createNewSchedule(input: ScheduleInput) {
+    try {
+      setSavingSchedule(true);
+      setState((prev) => ({ ...prev, error: null }));
+
+      const res = await fetch(`/api/classrooms/${classroomId}/schedule`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-teacher-id': '2', // dev-only
+        },
+        body: JSON.stringify(input),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to create schedule (status ${res.status})`);
+      }
+
+      const data = await res.json();
+      const newSchedule = data.schedule as Schedule;
 
       setState((prev) => ({
         ...prev,
-        schedule: data.schedule ?? null,
+        schedule: prev.schedule, // keep primary as-is
+        schedules: [...(prev.schedules ?? []), newSchedule],
       }));
     } catch (err) {
       setState((prev) => ({
         ...prev,
         error: (err as Error).message ?? prev.error,
       }));
-      throw err; // let the card know it failed if it wants
+      throw err;
     } finally {
       setSavingSchedule(false);
+    }
+  }
+
+  // ---- update a specific schedule by id ----
+  async function updateScheduleById(scheduleId: number, input: ScheduleInput) {
+    try {
+      setSavingSchedule(true);
+      setState((prev) => ({ ...prev, error: null }));
+
+      const res = await fetch(`/api/classrooms/${classroomId}/schedules/${scheduleId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-teacher-id': '2', // dev-only
+        },
+        body: JSON.stringify(input),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to update schedule (status ${res.status})`);
+      }
+
+      const data = await res.json();
+      const updated = data.schedule as Schedule;
+
+      setState((prev) => ({
+        ...prev,
+        schedules: prev.schedules.map((s) => (s.id === updated.id ? updated : s)),
+        schedule: prev.schedule?.id === updated.id ? updated : prev.schedule,
+      }));
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: (err as Error).message ?? prev.error,
+      }));
+      throw err;
+    } finally {
+      setSavingSchedule(false);
+    }
+  }
+
+  // ---- delete a specific schedule by id ----
+  async function deleteScheduleById(scheduleId: number) {
+    try {
+      setSavingSchedule(true);
+      setState((prev) => ({ ...prev, error: null }));
+
+      const res = await fetch(`/api/classrooms/${classroomId}/schedules/${scheduleId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-teacher-id': '2', // dev-only
+        },
+      });
+
+      if (!res.ok && res.status !== 204) {
+        throw new Error(`Failed to delete schedule (status ${res.status})`);
+      }
+
+      setState((prev) => {
+        const nextSchedules = prev.schedules.filter((s) => s.id !== scheduleId);
+        const nextPrimary =
+          prev.schedule && prev.schedule.id === scheduleId
+            ? (nextSchedules[0] ?? null)
+            : prev.schedule;
+
+        return {
+          ...prev,
+          schedules: nextSchedules,
+          schedule: nextPrimary,
+        };
+      });
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: (err as Error).message ?? prev.error,
+      }));
+      throw err;
+    } finally {
+      setSavingSchedule(false);
+    }
+  }
+
+  // ---- bulk add students ----
+  async function bulkAddStudents(newStudents: NewStudentInput[]) {
+    try {
+      setSavingRoster(true);
+      setState((prev) => ({ ...prev, error: null }));
+
+      const res = await fetch(`/api/classrooms/${classroomId}/students/bulk`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-teacher-id': '2', // dev-only
+        },
+        body: JSON.stringify({ students: newStudents }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to add students (status ${res.status})`);
+      }
+
+      const data = await res.json();
+      const roster = (data.students ?? []) as StudentRow[];
+
+      setState((prev) => ({
+        ...prev,
+        // 🔑 IMPORTANT: this is the full roster, so REPLACE, don't append
+        students: roster,
+      }));
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: (err as Error).message ?? prev.error,
+      }));
+      throw err;
+    } finally {
+      setSavingRoster(false);
+    }
+  }
+
+  // ---- update a specific student ----
+  async function updateStudent(
+    studentId: number,
+    input: { name: string; username: string; level: number },
+  ) {
+    try {
+      setSavingRoster(true);
+      setState((prev) => ({ ...prev, error: null }));
+
+      const res = await fetch(`/api/classrooms/${classroomId}/students/${studentId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-teacher-id': '2', // dev-only
+        },
+        body: JSON.stringify(input),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to update student (status ${res.status})`);
+      }
+
+      const data = await res.json();
+      const updated = data.student as StudentRow;
+
+      setState((prev) => ({
+        ...prev,
+        students: prev.students.map((s) => (s.id === updated.id ? updated : s)),
+      }));
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: (err as Error).message ?? prev.error,
+      }));
+      throw err;
+    } finally {
+      setSavingRoster(false);
+    }
+  }
+
+  // ---- delete a specific student ----
+  async function deleteStudent(studentId: number) {
+    try {
+      setSavingRoster(true);
+      setState((prev) => ({ ...prev, error: null }));
+
+      const res = await fetch(`/api/classrooms/${classroomId}/students/${studentId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-teacher-id': '2', // dev-only
+        },
+      });
+
+      if (!res.ok && res.status !== 204) {
+        throw new Error(`Failed to delete student (status ${res.status})`);
+      }
+
+      setState((prev) => ({
+        ...prev,
+        students: prev.students.filter((s) => s.id !== studentId),
+      }));
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: (err as Error).message ?? prev.error,
+      }));
+      throw err;
+    } finally {
+      setSavingRoster(false);
+    }
+  }
+
+  // ---- delete ALL students (optionally cascading) ----
+  async function deleteAllStudents(options: {
+    deleteAssignments: boolean;
+    deleteSchedules: boolean;
+  }) {
+    try {
+      setSavingRoster(true);
+      setState((prev) => ({ ...prev, error: null }));
+
+      const res = await fetch(`/api/classrooms/${classroomId}/students/delete-all`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-teacher-id': '2', // dev-only
+        },
+        body: JSON.stringify(options),
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to delete all students (status ${res.status})`);
+      }
+
+      setState((prev) => ({
+        ...prev,
+        students: [],
+        latest: null,
+        schedules: options.deleteSchedules ? [] : prev.schedules,
+        schedule: options.deleteSchedules && prev.schedules.length ? null : prev.schedule,
+      }));
+    } catch (err) {
+      setState((prev) => ({
+        ...prev,
+        error: (err as Error).message ?? prev.error,
+      }));
+      throw err;
+    } finally {
+      setSavingRoster(false);
     }
   }
 
@@ -212,7 +616,18 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
     ...state,
     creatingFriday,
     createFridayNow,
+    createManualTest,
+
     savingSchedule,
     saveSchedule,
+    createNewSchedule,
+    updateScheduleById,
+    deleteScheduleById,
+
+    savingRoster,
+    bulkAddStudents,
+    updateStudent,
+    deleteStudent,
+    deleteAllStudents,
   };
 }

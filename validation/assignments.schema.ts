@@ -2,8 +2,11 @@ import { z } from 'zod';
 
 export const createFridayRequestSchema = z.object({
   classroomId: z.coerce.number().int().positive(),
-  questionSetId: z.coerce.number().int().positive(),
 
+  // Optional: server can choose a default if not provided
+  questionSetId: z.coerce.number().int().positive().optional(),
+
+  // Optional overrides; if missing, use schedule / defaults
   fridayDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/) // "YYYY-MM-DD"

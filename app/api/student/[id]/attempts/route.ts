@@ -1,65 +1,46 @@
+import { getStudentHistory } from '@/core/students/service';
+import { jsonResponse, errorResponse } from '@/utils/http';
+import { requireTeacher, requireStudent, AuthError } from '@/core/auth';
+import { NotFoundError, ConflictError } from '@/core/errors';
 import * as StudentsRepo from '@/data/students.repo';
 import * as AttemptsRepo from '@/data/attempts.repo';
-import { NotFoundError } from '@/core/errors';
 
-export type AttemptHistoryItem = {
-  attemptId: number;
-  assignmentId: number;
-  classroomId: number;
-  kind: string;
-  score: number;
-  total: number;
-  percent: number;
-  completedAt: string;
-  wasMastery: boolean;
-  opensAt: string;
-  closesAt: string;
-};
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
+  try {
+    const { id } = await context.params;
+    const studentId = Number(id);
 
-export type StudentHistoryDTO = {
-  student: {
-    id: number;
-    name: string;
-    username: string;
-    level: number;
-  };
-  attempts: AttemptHistoryItem[];
-};
+    if (!Number.isInteger(studentId) || studentId <= 0) {
+      return errorResponse('Invalid student id', 400);
+    }
 
-export async function getStudentHistory(studentId: number): Promise<StudentHistoryDTO> {
-  const student = await StudentsRepo.findById(studentId);
-  if (!student) {
-    throw new NotFoundError('Student not found');
+    // For now, let teachers view any student, and students only view their own id
+    let viewer;
+    try {
+      viewer = await requireTeacher(request);
+    } catch {
+      const s = await requireStudent(request);
+      if (s.id !== studentId) {
+        throw new ConflictError('You are not allowed to view this student');
+      }
+      viewer = s;
+    }
+
+    const history = await getStudentHistory(studentId);
+    return jsonResponse(history, 200);
+  } catch (err) {
+    if (err instanceof AuthError) {
+      return errorResponse(err.message, 401);
+    }
+    if (err instanceof ConflictError) {
+      return errorResponse(err.message, 403);
+    }
+    if (err instanceof NotFoundError) {
+      return errorResponse(err.message, 404);
+    }
+    return errorResponse('Internal server error', 500);
   }
-
-  const attempts = await AttemptsRepo.findByStudentWithAssignment(studentId);
-
-  const history: AttemptHistoryItem[] = attempts.map((a) => ({
-    attemptId: a.id,
-    assignmentId: a.assignmentId,
-    classroomId: a.Assignment.classroomId,
-    kind: a.Assignment.kind,
-    score: a.score,
-    total: a.total,
-    percent: a.total > 0 ? Math.round((a.score / a.total) * 100) : 0,
-    completedAt: a.completedAt.toISOString(),
-    wasMastery: a.score === a.total,
-    opensAt: a.Assignment.opensAt.toISOString(),
-    closesAt: a.Assignment.closesAt.toISOString(),
-  }));
-
-  return {
-    student: {
-      id: student.id,
-      name: student.name,
-      username: student.username,
-      level: student.level,
-    },
-    attempts: history,
-  };
 }
-
-// --- Types for roster use (teacher dashboard) ---
 
 // --- Types for roster / teacher dashboard ---
 
@@ -67,8 +48,9 @@ export type StudentRosterRow = {
   id: number;
   name: string;
   username: string;
+  password: string;
   level: number;
-  lastAttempt: any | null; // matches findStudentsWithLatestAttempt
+  lastAttempt: any | null; // matches what findStudentsWithLatestAttempt returns
 };
 
 export type BulkCreateStudentArgs = {
@@ -89,10 +71,10 @@ export async function bulkCreateClassroomStudents(
 ): Promise<StudentRosterRow[]> {
   const { classroomId, students } = args;
 
-  // Optional: verify teacher owns this classroom
+  // TODO: If you enforce that teacher owns the classroom, check that here.
 
   const roster = await StudentsRepo.createManyForClassroom(classroomId, students);
-  return roster as StudentRosterRow[];
+  return roster;
 }
 
 export type UpdateStudentArgs = {
@@ -122,7 +104,7 @@ export async function updateClassroomStudentById(
     level: input.level,
   });
 
-  // Get updated roster row (keeps lastAttempt consistent)
+  // Reuse your existing roster helper so lastAttempt shape stays consistent
   const roster = await StudentsRepo.findStudentsWithLatestAttempt(classroomId);
   const updated = roster.find((s) => s.id === studentId);
   if (!updated) {
@@ -146,7 +128,9 @@ export async function deleteClassroomStudentById(args: DeleteStudentArgs): Promi
     throw new NotFoundError('Student not found');
   }
 
-  // If you later add an AttemptsRepo.deleteByStudent, you can call it here first.
+  // If you want to clean up attempts first, you can do that here:
+  // await AttemptsRepo.deleteByStudent(studentId); // if you add such a function
+
   await StudentsRepo.deleteById(studentId);
 }
 
@@ -160,7 +144,8 @@ export type DeleteAllStudentsArgs = {
 export async function deleteAllClassroomStudents(args: DeleteAllStudentsArgs): Promise<void> {
   const { classroomId, deleteAssignments, deleteSchedules } = args;
 
-  // TODO: add real cascading deletes when you’re ready
+  // Optional cascading behavior — you can wire these up later with Repos
+
   if (deleteAssignments) {
     // e.g. await AttemptsRepo.deleteByClassroom(classroomId);
     // e.g. await AssignmentsRepo.deleteByClassroom(classroomId);
