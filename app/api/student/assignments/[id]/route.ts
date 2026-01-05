@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/data/prisma';
 import { ensureQuestionsForLevel } from '@/core/questions/service';
 import { requireStudent } from '@/core/auth/requireStudent';
-import type { Prisma } from '@prisma/client';
 
 function jsonError(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status });
 }
+
+type Tx = Parameters<typeof prisma.$transaction>[0] extends (arg: infer A) => any ? A : never;
 
 function parseId(raw: string) {
   const n = Number(raw);
@@ -279,7 +280,7 @@ export async function POST(req: Request, { params }: RouteCtx) {
 
   const wasMastery = total > 0 && score === total;
 
-  const created = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+  const created = await prisma.$transaction(async (tx: Tx) => {
     const attempt = await tx.attempt.create({
       data: {
         studentId: student.id,
