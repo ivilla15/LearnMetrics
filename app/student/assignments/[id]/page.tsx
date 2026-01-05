@@ -3,7 +3,7 @@
 import { useParams, useRouter } from 'next/navigation';
 import { StudentShell } from '@/app/api/student/StudentShell';
 import { useToast } from '@/components/ToastProvider';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 type LoadResponse =
   | { status: 'NOT_OPEN' | 'CLOSED'; assignment: any }
@@ -39,12 +39,22 @@ export default function StudentAssignmentPage() {
 
   const [answers, setAnswers] = useState<Record<number, number | ''>>({});
 
-  // ✅ map of refs for every question input (used for scrolling + focusing)
+  // map of refs for every question input (used for scrolling + focusing)
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   const autoSubmittedRef = useRef(false);
 
   const assignment = (data as any)?.assignment;
+
+  // Stabilize questions ref (so deps are clean)
+  const readyQuestions = data?.status === 'READY' ? data.questions : null;
+
+  function jumpTo(qId: number) {
+    const el = inputRefs.current[qId];
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    requestAnimationFrame(() => el.focus());
+  }
 
   // Load assignment state
   useEffect(() => {
@@ -68,27 +78,12 @@ export default function StudentAssignmentPage() {
       setLoading(false);
     }
 
-    if (assignmentId) load();
+    if (assignmentId) void load();
 
     return () => {
       cancelled = true;
     };
   }, [assignmentId, toast]);
-
-  // When we enter READY, reset local UI state + allow future auto-submit
-  useEffect(() => {
-    if (data?.status === 'READY') {
-      setAnswers({});
-      autoSubmittedRef.current = false;
-
-      // focus first question input (after refs mount)
-      requestAnimationFrame(() => {
-        const first = data.questions[0];
-        if (!first) return;
-        inputRefs.current[first.id]?.focus();
-      });
-    }
-  }, [data?.status]);
 
   // Countdown ticker
   const [now, setNow] = useState(Date.now());
@@ -103,38 +98,55 @@ export default function StudentAssignmentPage() {
     return new Date(assignment.closesAt).getTime() - now;
   }, [assignment?.closesAt, now]);
 
-  async function handleSubmit(isAuto = false) {
-    if (submitting) return;
-    if (!data || data.status !== 'READY') return;
+  const handleSubmit = useCallback(
+    async (isAuto = false) => {
+      if (submitting) return;
+      if (!data || data.status !== 'READY') return;
 
-    const qs = data.questions;
-    const payload = qs.map((q) => ({
-      questionId: q.id,
-      givenAnswer: answers[q.id] === '' ? null : Number(answers[q.id]),
-    }));
+      const qs = data.questions;
+      const payload = qs.map((q) => ({
+        questionId: q.id,
+        givenAnswer: answers[q.id] === '' ? null : Number(answers[q.id]),
+      }));
 
-    try {
-      setSubmitting(true);
+      try {
+        setSubmitting(true);
 
-      const res = await fetch(`/api/student/assignments/${assignmentId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers: payload }),
-      });
+        const res = await fetch(`/api/student/assignments/${assignmentId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ answers: payload }),
+        });
 
-      const json = await res.json().catch(() => null);
+        const json = await res.json().catch(() => null);
 
-      if (!res.ok) {
-        toast(json?.error ?? 'Submit failed', 'error');
-        return;
+        if (!res.ok) {
+          toast(json?.error ?? 'Submit failed', 'error');
+          return;
+        }
+
+        toast(isAuto ? 'Time is up. Submitted.' : 'Submitted.', 'success');
+        router.push('/student/dashboard');
+      } finally {
+        setSubmitting(false);
       }
+    },
+    [answers, assignmentId, data, router, submitting, toast],
+  );
 
-      toast(isAuto ? 'Time is up. Submitted.' : 'Submitted.', 'success');
-      router.push('/student/dashboard');
-    } finally {
-      setSubmitting(false);
-    }
-  }
+  // When we enter READY, reset local UI state + allow future auto-submit
+  useEffect(() => {
+    if (!readyQuestions?.length) return;
+
+    setAnswers({});
+    autoSubmittedRef.current = false;
+
+    requestAnimationFrame(() => {
+      const first = readyQuestions[0];
+      if (!first) return;
+      inputRefs.current[first.id]?.focus();
+    });
+  }, [readyQuestions]);
 
   // Auto-submit ONCE when time hits 0 (READY only)
   useEffect(() => {
@@ -144,7 +156,7 @@ export default function StudentAssignmentPage() {
 
     autoSubmittedRef.current = true;
     void handleSubmit(true);
-  }, [msLeft, data?.status]);
+  }, [msLeft, data?.status, handleSubmit]);
 
   // Warn before leaving during READY
   useEffect(() => {
@@ -156,13 +168,6 @@ export default function StudentAssignmentPage() {
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [data?.status]);
-
-  function jumpTo(qId: number) {
-    const el = inputRefs.current[qId];
-    if (!el) return;
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    requestAnimationFrame(() => el.focus());
-  }
 
   // -----------------------------
   // Render states
@@ -222,7 +227,7 @@ export default function StudentAssignmentPage() {
     );
   }
 
-  // ✅ READY
+  // READY
   const questions = data.questions;
 
   const answeredCount = questions.filter(

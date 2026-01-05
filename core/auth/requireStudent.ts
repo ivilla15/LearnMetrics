@@ -18,7 +18,7 @@ export async function requireStudent() {
           name: true,
           username: true,
           level: true,
-          classroomId: true, // ✅ needed for auth checks
+          classroomId: true,
         },
       },
     },
