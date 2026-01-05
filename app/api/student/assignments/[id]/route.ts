@@ -33,11 +33,16 @@ function seededShuffle<T>(arr: T[], seed: number) {
 
 type RouteCtx = { params: Promise<{ id: string }> };
 
-async function getTableQuestionsForLevel(level: number) {
-  // Make sure the table exists (create if missing)
+type TableQuestion = {
+  id: number;
+  factorA: number;
+  factorB: number;
+  answer: number;
+};
+
+async function getTableQuestionsForLevel(level: number): Promise<TableQuestion[]> {
   await ensureQuestionsForLevel(level, 12);
 
-  // IMPORTANT: Only take the 12 table questions (level × 1..12)
   const set = await prisma.questionSet.findUnique({
     where: { level },
     select: {
@@ -47,12 +52,12 @@ async function getTableQuestionsForLevel(level: number) {
           factorB: { gte: 1, lte: 12 },
         },
         select: { id: true, factorA: true, factorB: true, answer: true },
-        orderBy: { factorB: 'asc' }, // stable: 1..12
+        orderBy: { factorB: 'asc' },
       },
     },
   });
 
-  return set?.Question ?? [];
+  return (set?.Question ?? []) as TableQuestion[];
 }
 
 export async function GET(_req: Request, { params }: RouteCtx) {

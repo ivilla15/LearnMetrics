@@ -1,4 +1,3 @@
-// src/core/auth/requireStudent.ts
 import { cookies } from 'next/headers';
 import { prisma } from '@/data/prisma';
 
@@ -12,7 +11,17 @@ export async function requireStudent() {
 
   const session = await prisma.studentSession.findUnique({
     where: { token },
-    include: { student: { select: { id: true, name: true, username: true, level: true } } },
+    include: {
+      student: {
+        select: {
+          id: true,
+          name: true,
+          username: true,
+          level: true,
+          classroomId: true, // ✅ needed for auth checks
+        },
+      },
+    },
   });
 
   if (!session) {
@@ -20,7 +29,7 @@ export async function requireStudent() {
   }
 
   if (session.expiresAt.getTime() <= Date.now()) {
-    await prisma.studentSession.delete({ where: { token } }).catch(() => undefined);
+    await prisma.studentSession.delete({ where: { token } }).catch(() => {});
     return { ok: false as const, status: 401, error: 'Session expired' };
   }
 
