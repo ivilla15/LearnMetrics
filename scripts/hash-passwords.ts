@@ -1,5 +1,5 @@
 import { prisma } from '@/data/prisma';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 
 async function main() {
   const teachers = await prisma.teacher.findMany({ select: { id: true, password: true } });

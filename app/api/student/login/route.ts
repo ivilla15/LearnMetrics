@@ -1,7 +1,7 @@
 // app/api/student/login/route.ts
 import { NextResponse } from 'next/server';
 import { prisma } from '@/data/prisma';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 
 const SESSION_TTL_DAYS = 14;
