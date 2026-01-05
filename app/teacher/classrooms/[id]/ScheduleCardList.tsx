@@ -35,9 +35,10 @@ export function ScheduleCardList({
 
   const [draft, setDraft] = useState<ScheduleInput>({
     opensAtLocalTime: '09:00',
-    windowMinutes: 30,
+    windowMinutes: 4,
     isActive: true,
     days: ['Friday'],
+    numQuestions: 12,
   });
 
   // --- create form handlers ---
@@ -56,6 +57,14 @@ export function ScheduleCardList({
     setDraft((prev) => ({
       ...prev,
       opensAtLocalTime: event.target.value,
+    }));
+  };
+
+  const handleChangeDraftNumQuestions: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+    const value = Number(event.target.value) || 0;
+    setDraft((prev) => ({
+      ...prev,
+      numQuestions: value,
     }));
   };
 
@@ -78,9 +87,10 @@ export function ScheduleCardList({
     // reset draft to a friendly default whenever we open the form
     setDraft({
       opensAtLocalTime: '09:00',
-      windowMinutes: 30,
+      windowMinutes: 3,
       isActive: true,
       days: ['Friday'],
+      numQuestions: 12,
     });
     setCreateError(null);
     setIsCreating(true);
@@ -92,8 +102,14 @@ export function ScheduleCardList({
   };
 
   const handleSaveCreate = async () => {
+    // ✅ validation FIRST
     if (draft.days.length === 0) {
       setCreateError('Please select at least one day.');
+      return;
+    }
+
+    if (draft.numQuestions < 1) {
+      setCreateError('Number of questions must be at least 1.');
       return;
     }
 
@@ -155,38 +171,55 @@ export function ScheduleCardList({
             </div>
           </div>
 
-          {/* Time + window + active */}
-          <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-            <div>
-              <p className="mb-1 text-xs font-medium text-gray-700">Opens at (local time)</p>
+          {/* Time + window + questions + active */}
+          <div className="mb-3 grid grid-cols-2 gap-3 xl:grid-cols-4">
+            <div className="rounded-xl border border-gray-200 bg-white p-3">
+              <p className="text-xs font-medium text-gray-700 leading-snug">Opens at</p>
               <input
                 type="time"
                 value={draft.opensAtLocalTime}
                 onChange={handleChangeDraftTime}
-                className="w-full rounded-lg border border-gray-200 px-2 py-1 text-sm"
+                className="mt-2 w-full rounded-lg border border-gray-200 px-2 py-1 text-sm"
               />
+              <p className="mt-1 text-[11px] text-gray-500">Local time</p>
             </div>
 
-            <div>
-              <p className="mb-1 text-xs font-medium text-gray-700">Window (minutes)</p>
+            <div className="rounded-xl border border-gray-200 bg-white p-3">
+              <p className="text-xs font-medium text-gray-700 leading-snug">Window</p>
               <input
                 type="number"
                 min={1}
                 value={draft.windowMinutes}
                 onChange={handleChangeDraftWindow}
-                className="w-full rounded-lg border border-gray-200 px-2 py-1 text-sm"
+                className="mt-2 w-full rounded-lg border border-gray-200 px-2 py-1 text-sm"
               />
+              <p className="mt-1 text-[11px] text-gray-500">Minutes</p>
             </div>
 
-            <div className="flex items-end">
-              <label className="flex items-center gap-2 text-xs font-medium text-gray-700">
+            <div className="rounded-xl border border-gray-200 bg-white p-3">
+              <p className="text-xs font-medium text-gray-700 leading-snug">Questions</p>
+              <input
+                type="number"
+                min={1}
+                max={60}
+                value={draft.numQuestions}
+                onChange={handleChangeDraftNumQuestions}
+                className="mt-2 w-full rounded-lg border border-gray-200 px-2 py-1 text-sm"
+              />
+              <p className="mt-1 text-[11px] text-gray-500">Default 20</p>
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-white p-3">
+              <p className="text-xs font-medium text-gray-700 leading-snug">Status</p>
+              <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-gray-900">
                 <input
                   type="checkbox"
                   checked={draft.isActive}
                   onChange={handleChangeDraftIsActive}
                 />
-                Active schedule
+                Active
               </label>
+              <p className="mt-1 text-[11px] text-gray-500">Used for auto tests</p>
             </div>
           </div>
 
@@ -217,7 +250,9 @@ export function ScheduleCardList({
 
       {/* Existing schedules list */}
       {schedules.length === 0 ? (
-        <p className="text-xs text-gray-500">No schedules yet. Create one to start Friday tests.</p>
+        <p className="text-xs text-gray-500">
+          No schedules yet. Create one to start scheduled tests.
+        </p>
       ) : (
         <div className="grid gap-3 md:grid-cols-2">
           {schedules.map((schedule) => (

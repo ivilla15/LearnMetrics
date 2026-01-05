@@ -1,6 +1,6 @@
 import * as ClassroomsRepo from '@/data/classrooms.repo';
 import * as StudentsRepo from '@/data/students.repo';
-import { NotFoundError } from '@/core/errors';
+import { NotFoundError, ConflictError } from '@/core/errors';
 
 export type RosterDTO = {
   classroom: { id: number; name?: string };
@@ -8,37 +8,46 @@ export type RosterDTO = {
     id: number;
     name: string;
     username: string;
-    password: string;
+    // ✅ do NOT return password
     level: number;
     lastAttempt: null | {
       assignmentId: number;
-      score: number; // 0–100 in your schema
-      total: number; // total questions
-      percent: number; // score / total * 100
-      completedAt: string; // ISO
-      wasMastery: boolean; // score === total
+      score: number;
+      total: number;
+      percent: number;
+      completedAt: string;
+      wasMastery: boolean;
     };
   }>;
 };
 
-export async function getRosterWithLastAttempt(classroomId: number): Promise<RosterDTO> {
-  // 1. Confirm classroom exists.
+export async function getRosterWithLastAttempt(params: {
+  classroomId: number;
+  teacherId: number;
+}): Promise<RosterDTO> {
+  const { classroomId, teacherId } = params;
+
+  // 1) Confirm classroom exists
   const classroom = await ClassroomsRepo.findClassroomById(classroomId);
   if (!classroom) {
     throw new NotFoundError('Classroom not found');
   }
 
-  // 2. Fetch students in classroom.
+  // 2) Ownership check
+  if (classroom.teacherId !== teacherId) {
+    throw new ConflictError('You are not allowed to view this classroom');
+  }
+
+  // 3) Fetch students
   const rows = await StudentsRepo.findStudentsWithLatestAttempt(classroomId);
 
-  // 3. Map to DTO, letting TS infer `s` type.
+  // 4) Map to DTO (no password)
   const students = rows.map((s) => {
     const a = s.lastAttempt;
     return {
       id: s.id,
       name: s.name,
       username: s.username,
-      password: s.password,
       level: s.level,
       lastAttempt: a
         ? {
@@ -53,9 +62,8 @@ export async function getRosterWithLastAttempt(classroomId: number): Promise<Ros
     };
   });
 
-  // 5. Return aggregated RosterDTO.
   return {
-    classroom: { id: classroom.id, name: (classroom as any).name },
+    classroom: { id: classroom.id, name: classroom.name },
     students,
   };
 }

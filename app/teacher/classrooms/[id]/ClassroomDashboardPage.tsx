@@ -20,7 +20,7 @@ export default function ClassroomDashboardPage({ classroomId }: Props) {
     loading,
     error,
 
-    creatingFriday,
+    creatingSchedule,
     savingSchedule,
     savingRoster,
 
@@ -54,7 +54,7 @@ export default function ClassroomDashboardPage({ classroomId }: Props) {
 
       <CreateManualTestDialog
         open={manualOpen}
-        busy={creatingFriday}
+        busy={creatingSchedule}
         onClose={() => setManualOpen(false)}
         onCreate={async (input) => {
           await createManualTest(input);
@@ -65,6 +65,7 @@ export default function ClassroomDashboardPage({ classroomId }: Props) {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="col-span-2">
           <RosterTable
+            classroomId={classroomId}
             students={students}
             busy={busy}
             onBulkAdd={bulkAddStudents}
@@ -78,7 +79,7 @@ export default function ClassroomDashboardPage({ classroomId }: Props) {
           <LatestAssignmentCard
             latest={latest}
             loading={loading}
-            creating={creatingFriday}
+            creating={creatingSchedule}
             onCreateSingleTest={() => setManualOpen(true)} // ✅ open dialog
           />
 

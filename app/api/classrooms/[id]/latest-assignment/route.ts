@@ -1,45 +1,29 @@
 import { getLatestAssignmentForClassroom } from '@/core/assignments/service';
-import { requireTeacher, AuthError } from '@/core/auth';
+import { requireTeacher } from '@/core/auth/requireTeacher';
 import { jsonResponse, errorResponse } from '@/utils/http';
-import { NotFoundError } from '@/core/errors';
+import { classroomIdParamSchema } from '@/validation/classrooms.schema';
+import * as ClassroomsRepo from '@/data/classrooms.repo';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-export async function GET(request: Request, context: RouteContext) {
-  try {
-    await requireTeacher(request); // dev stub, no Prisma
+export async function GET(_request: Request, context: RouteContext) {
+  // 0) Auth
+  const auth = await requireTeacher();
+  if (!auth.ok) return errorResponse(auth.error, auth.status);
 
-    const { id } = await context.params;
-    const classroomId = Number(id);
+  // 1) Params
+  const { id } = await context.params;
+  const { id: classroomId } = classroomIdParamSchema.parse({ id });
 
-    if (!Number.isInteger(classroomId) || classroomId <= 0) {
-      return errorResponse('Invalid classroom id', 400);
-    }
+  // 2) Ownership check
+  const classroom = await ClassroomsRepo.findClassroomById(classroomId);
+  if (!classroom) return errorResponse('Classroom not found', 404);
 
-    const latest = await getLatestAssignmentForClassroom(classroomId);
-
-    return jsonResponse({ latest }, 200);
-  } catch (err: any) {
-    console.error('GET /api/classrooms/[id]/latest-assignment error', err);
-
-    if (err instanceof AuthError) {
-      return errorResponse(err.message, 401);
-    }
-    if (err instanceof NotFoundError) {
-      return errorResponse(err.message, 404);
-    }
-
-    if (typeof err?.message === 'string' && err.message.includes('prepared statement')) {
-      return jsonResponse(
-        {
-          latest: null,
-          warning:
-            'Latest assignment temporarily unavailable (pooler/prepared-statement issue in dev).',
-        },
-        200,
-      );
-    }
-
-    return errorResponse('Internal server error', 500);
+  if (classroom.teacherId !== auth.teacher.id) {
+    return errorResponse('Not allowed', 403);
   }
+
+  // 3) Data
+  const latest = await getLatestAssignmentForClassroom(classroomId);
+  return jsonResponse({ latest }, 200);
 }

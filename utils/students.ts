@@ -56,3 +56,8 @@ export function generatePasswords(count: number): string[] {
   }
   return pwds;
 }
+
+export function parsePositiveInt(raw: string | undefined | null) {
+  const n = Number(raw);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}

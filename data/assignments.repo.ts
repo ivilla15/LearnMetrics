@@ -1,19 +1,8 @@
-import { LatestAssignmentDTO } from '@/core/assignments/service';
 import { prisma } from '@/data/prisma';
 
 // Local constant for our only assignment kind for now
-export const FRIDAY_KIND = 'FRIDAY_TEST' as const;
-export type AssignmentKind = typeof FRIDAY_KIND;
-
-type CreateArgs = {
-  classroomId: number;
-  opensAt: Date;
-  closesAt: Date;
-  kind?: AssignmentKind; // defaults to FRIDAY_TEST if not provided
-  windowMinutes?: number; // defaults to 4 in schema
-};
-
-// data/assignments.repo.ts
+export const SCHEDULE_KIND = 'SCHEDULED_TEST' as const;
+export type AssignmentKind = typeof SCHEDULE_KIND;
 
 export async function findByClassroomKindAndOpensAt(args: {
   classroomId: number;
@@ -26,7 +15,6 @@ export async function findByClassroomKindAndOpensAt(args: {
       kind: args.kind,
       opensAt: args.opensAt,
     },
-    // mode is included by default unless you have a select
   });
 }
 
@@ -38,6 +26,7 @@ export async function create(args: {
   closesAt: Date;
   windowMinutes: number;
   questionSetId?: number | null;
+  numQuestions: number;
 }) {
   return prisma.assignment.create({
     data: {
@@ -47,16 +36,21 @@ export async function create(args: {
       opensAt: args.opensAt,
       closesAt: args.closesAt,
       windowMinutes: args.windowMinutes,
-    } as any,
+      questionSetId: args.questionSetId ?? null,
+      numQuestions: args.numQuestions,
+    },
   });
 }
 
 export async function findLatestForClassroom(classroomId: number) {
-  const rows = await prisma.assignment.findMany({
+  return prisma.assignment.findFirst({
     where: { classroomId },
     orderBy: { opensAt: 'desc' },
-    take: 1,
   });
+}
 
-  return rows[0] ?? null;
+export async function findById(id: number) {
+  return prisma.assignment.findUnique({
+    where: { id },
+  });
 }

@@ -10,8 +10,10 @@ import {
   type NewStudentName,
   type NewStudentInput,
 } from '@/utils/students';
+import Link from 'next/link';
 
 type RosterTableProps = {
+  classroomId: number;
   students: StudentRow[];
   busy?: boolean;
   // Bulk add (teacher gives only names; we send full NewStudentInput list)
@@ -34,6 +36,7 @@ type EditingState = {
 };
 
 export function RosterTable({
+  classroomId,
   students,
   busy = false,
   onBulkAdd,
@@ -274,7 +277,7 @@ export function RosterTable({
           <tbody>
             {students.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-3 py-4 text-center text-xs text-gray-500">
+                <td colSpan={5} className="px-3 py-4 text-center text-xs text-gray-500">
                   No students yet. Use &quot;Add students&quot; to create your roster.
                 </td>
               </tr>
@@ -347,6 +350,13 @@ export function RosterTable({
                         </div>
                       ) : (
                         <div className="flex justify-end gap-2">
+                          <Link
+                            href={`/teacher/classrooms/${classroomId}/students/${student.id}/progress`}
+                            className="rounded border border-gray-200 px-2 py-1 text-[11px] text-gray-800 hover:bg-gray-100"
+                          >
+                            Progress
+                          </Link>
+
                           <button
                             type="button"
                             onClick={() => startEditing(student)}
@@ -355,6 +365,7 @@ export function RosterTable({
                           >
                             Edit
                           </button>
+
                           <button
                             type="button"
                             onClick={() => handleDeleteStudent(student.id)}

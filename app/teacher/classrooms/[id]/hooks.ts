@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from 'react';
 import type { NewStudentInput } from '@/utils/students';
+import { useToast } from '@/components/ToastProvider';
 
 export type Classroom = { id: number; name?: string };
 
@@ -29,6 +30,8 @@ type LatestAssignment = {
   opensAt: string;
   closesAt: string;
   windowMinutes: number;
+  assignmentMode: 'SCHEDULED' | 'MANUAL';
+  numQuestions: number;
 } | null;
 
 export type Schedule = {
@@ -38,6 +41,7 @@ export type Schedule = {
   windowMinutes: number;
   isActive: boolean;
   days: string[];
+  numQuestions: number;
 };
 
 export type ScheduleInput = {
@@ -45,6 +49,7 @@ export type ScheduleInput = {
   windowMinutes: number;
   isActive: boolean;
   days: string[];
+  numQuestions: number;
 };
 
 type DashboardState = {
@@ -58,8 +63,8 @@ type DashboardState = {
 };
 
 type DashboardResult = DashboardState & {
-  creatingFriday: boolean;
-  createFridayNow: () => Promise<void>;
+  creatingSchedule: boolean;
+  createScheduleNow: () => Promise<void>;
 
   savingSchedule: boolean;
   saveSchedule: (input: ScheduleInput) => Promise<void>;
@@ -67,7 +72,12 @@ type DashboardResult = DashboardState & {
   updateScheduleById: (id: number, input: ScheduleInput) => Promise<void>;
   deleteScheduleById: (id: number) => Promise<void>;
 
-  createManualTest: (input: { date: string; time: string; windowMinutes: number }) => Promise<void>;
+  createManualTest: (input: {
+    date: string;
+    time: string;
+    windowMinutes: number;
+    numQuestions: number;
+  }) => Promise<void>;
 
   savingRoster: boolean;
   bulkAddStudents: (students: NewStudentInput[]) => Promise<void>;
@@ -82,7 +92,21 @@ type DashboardResult = DashboardState & {
   }) => Promise<void>;
 };
 
+function clampScheduleNumQuestions(n: number) {
+  if (!Number.isFinite(n)) return 12;
+  return Math.min(Math.max(Math.floor(n), 1), 12);
+}
+
+function teacherHeaders(extra?: Record<string, string>) {
+  return {
+    ...(extra ?? {}),
+    // remove this line when real auth is ready
+    ...(process.env.NODE_ENV === 'development' ? { 'x-teacher-id': '2' } : {}),
+  };
+}
+
 export function useClassroomDashboard(classroomId: number): DashboardResult {
+  const toast = useToast();
   const [state, setState] = useState<DashboardState>({
     classroom: null,
     students: [],
@@ -93,7 +117,7 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
     error: null,
   });
 
-  const [creatingFriday, setCreatingFriday] = useState(false);
+  const [creatingSchedule, setCreatingSchedule] = useState(false);
   const [savingSchedule, setSavingSchedule] = useState(false);
   const [savingRoster, setSavingRoster] = useState(false);
 
@@ -107,13 +131,13 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
       try {
         const [rosterRes, latestRes, schedulesRes] = await Promise.all([
           fetch(`/api/classrooms/${classroomId}/roster`, {
-            headers: { 'x-teacher-id': '2' }, // dev-only
+            headers: teacherHeaders(), // dev-only
           }),
           fetch(`/api/classrooms/${classroomId}/latest-assignment`, {
-            headers: { 'x-teacher-id': '2' },
+            headers: teacherHeaders(),
           }),
           fetch(`/api/classrooms/${classroomId}/schedules`, {
-            headers: { 'x-teacher-id': '2' },
+            headers: teacherHeaders(),
           }),
         ]);
 
@@ -183,100 +207,107 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
     };
   }, [classroomId]);
 
-  async function createFridayNow() {
+  async function createScheduleNow() {
     const schedule = state.schedule;
     if (!schedule) {
       setState((prev) => ({
         ...prev,
-        error: 'Cannot create Friday test: no schedule configured for this classroom.',
+        error: 'Cannot create scheduled test: no schedule configured for this classroom.',
       }));
       return;
     }
 
     try {
-      setCreatingFriday(true);
+      setCreatingSchedule(true);
       setState((prev) => ({ ...prev, error: null }));
 
-      const res = await fetch('/api/assignments/create-friday', {
+      const res = await fetch('/api/assignments/create-schedule', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-teacher-id': '2', // dev-only
+          'x-teacher-id': '2',
         },
         body: JSON.stringify({
           classroomId,
-          // 👇 if your route later needs scheduleId, it's right here:
-          // scheduleId: schedule.id,
         }),
       });
 
-      if (!res.ok) {
-        let details = '';
-        try {
-          const json = await res.json();
-          if (json && typeof json.error === 'string') {
-            details = `: ${json.error}`;
-          }
-        } catch {
-          // body might be empty or not JSON; ignore
-        }
-        throw new Error(`Failed to create Friday test (status ${res.status}${details})`);
-      }
-
-      const data = await res.json();
-
-      setState((prev) => ({
-        ...prev,
-        latest: data,
-      }));
-    } catch (err) {
-      console.error('createFridayNow error', err);
-      setState((prev) => ({
-        ...prev,
-        error: (err as Error).message ?? prev.error,
-      }));
-    } finally {
-      setCreatingFriday(false);
-    }
-  }
-
-  async function createManualTest(input: { date: string; time: string; windowMinutes: number }) {
-    try {
-      setCreatingFriday(true);
-      setState((prev) => ({ ...prev, error: null }));
-
-      const res = await fetch('/api/assignments/create-friday', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-teacher-id': '2', // dev-only
-        },
-        body: JSON.stringify({
-          classroomId,
-          fridayDate: input.date,
-          opensAtLocalTime: input.time,
-          windowMinutes: input.windowMinutes,
-        }),
-      });
+      // ✅ read body ONCE
+      const json = await res.json().catch(() => null);
 
       if (!res.ok) {
-        let details = '';
-        try {
-          const j = await res.json();
-          if (typeof j?.error === 'string') details = `: ${j.error}`;
-        } catch {
-          /* empty */
-        }
-        throw new Error(`Failed to create manual test (status ${res.status}${details})`);
+        const details = typeof json?.error === 'string' ? `: ${json.error}` : '';
+        throw new Error(`Failed to create Scheduled test (status ${res.status}${details})`);
       }
 
-      const data = await res.json();
-      const created = (data?.assignment ?? data) as LatestAssignment;
+      const created = (json?.assignment ?? json) as LatestAssignment;
 
       setState((prev) => ({
         ...prev,
         latest: created,
       }));
+    } catch (err) {
+      console.error('createScheduleNow error', err);
+      setState((prev) => ({
+        ...prev,
+        error: (err as Error).message ?? prev.error,
+      }));
+    } finally {
+      setCreatingSchedule(false);
+    }
+  }
+
+  async function createManualTest(input: {
+    date: string;
+    time: string;
+    windowMinutes: number;
+    numQuestions: number;
+  }) {
+    const safeNumQuestions = clampScheduleNumQuestions(input.numQuestions);
+
+    if (safeNumQuestions !== input.numQuestions) {
+      toast('For level-up tests, number of questions is capped at 12.', 'error');
+    }
+
+    try {
+      setCreatingSchedule(true);
+      setState((prev) => ({ ...prev, error: null }));
+
+      const res = await fetch('/api/assignments/create-schedule', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-teacher-id': '2',
+        },
+        body: JSON.stringify({
+          classroomId,
+          scheduleDate: input.date,
+          opensAtLocalTime: input.time,
+          windowMinutes: input.windowMinutes,
+          numQuestions: safeNumQuestions,
+        }),
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        const details = typeof json?.error === 'string' ? `: ${json.error}` : '';
+        throw new Error(`Failed to create manual test (status ${res.status}${details})`);
+      }
+
+      // ✅ API returns AssignmentDTO with `wasCreated`
+      const created = (json?.assignment ?? json) as LatestAssignment & { wasCreated?: boolean };
+
+      setState((prev) => ({
+        ...prev,
+        latest: created,
+      }));
+
+      if (created?.wasCreated === false) {
+        toast('A test already exists for that exact date/time. Pick a different time.', 'error');
+      } else {
+        toast('Manual test created.', 'success');
+      }
     } catch (err) {
       setState((prev) => ({
         ...prev,
@@ -284,7 +315,7 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
       }));
       throw err;
     } finally {
-      setCreatingFriday(false);
+      setCreatingSchedule(false);
     }
   }
 
@@ -293,6 +324,10 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
     try {
       setSavingSchedule(true);
       setState((prev) => ({ ...prev, error: null }));
+      const safeInput = {
+        ...input,
+        numQuestions: clampScheduleNumQuestions(input.numQuestions),
+      };
 
       const res = await fetch(`/api/classrooms/${classroomId}/schedule`, {
         method: 'PUT',
@@ -300,7 +335,7 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
           'Content-Type': 'application/json',
           'x-teacher-id': '2', // dev-only
         },
-        body: JSON.stringify(input),
+        body: JSON.stringify(safeInput),
       });
 
       if (!res.ok) {
@@ -351,13 +386,18 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
       setSavingSchedule(true);
       setState((prev) => ({ ...prev, error: null }));
 
+      const safeInput = {
+        ...input,
+        numQuestions: clampScheduleNumQuestions(input.numQuestions),
+      };
+
       const res = await fetch(`/api/classrooms/${classroomId}/schedule`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'x-teacher-id': '2', // dev-only
         },
-        body: JSON.stringify(input),
+        body: JSON.stringify(safeInput),
       });
 
       if (!res.ok) {
@@ -389,13 +429,18 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
       setSavingSchedule(true);
       setState((prev) => ({ ...prev, error: null }));
 
+      const safeInput = {
+        ...input,
+        numQuestions: clampScheduleNumQuestions(input.numQuestions),
+      };
+
       const res = await fetch(`/api/classrooms/${classroomId}/schedules/${scheduleId}`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
           'x-teacher-id': '2', // dev-only
         },
-        body: JSON.stringify(input),
+        body: JSON.stringify(safeInput),
       });
 
       if (!res.ok) {
@@ -614,8 +659,8 @@ export function useClassroomDashboard(classroomId: number): DashboardResult {
 
   return {
     ...state,
-    creatingFriday,
-    createFridayNow,
+    creatingSchedule,
+    createScheduleNow: createScheduleNow,
     createManualTest,
 
     savingSchedule,

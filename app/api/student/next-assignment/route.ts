@@ -31,7 +31,7 @@ export async function GET() {
       opensAt: true,
       closesAt: true,
       windowMinutes: true,
-      assignmentMode: true, // ✅
+      assignmentMode: true,
     },
   });
 
@@ -44,7 +44,7 @@ export async function GET() {
       assignment: {
         id: assignment.id,
         kind: assignment.kind,
-        mode: assignment.assignmentMode, // ✅ expose as "mode" to UI if you want
+        mode: assignment.assignmentMode,
         opensAt: assignment.opensAt.toISOString(),
         closesAt: assignment.closesAt.toISOString(),
         windowMinutes: assignment.windowMinutes,

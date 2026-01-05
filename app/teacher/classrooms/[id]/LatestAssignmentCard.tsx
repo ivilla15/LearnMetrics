@@ -10,6 +10,7 @@ type LatestAssignment = {
   opensAt: string;
   closesAt: string;
   windowMinutes: number;
+  numQuestions: number;
 };
 
 type Props = {
@@ -57,7 +58,7 @@ export function LatestAssignmentCard({ latest, loading, creating, onCreateSingle
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2">
               <span className="inline-flex rounded-full bg-emerald-900/50 px-2 py-0.5 text-[11px] font-medium text-emerald-300">
-                {latest.kind === 'FRIDAY_TEST' ? 'Friday test' : latest.kind}
+                {latest.kind === 'SCHEDULED_TEST' ? 'Scheduled test' : latest.kind}
               </span>
               <span className="text-black">{formatLocal(latest.opensAt)}</span>
             </div>
@@ -87,6 +88,10 @@ export function LatestAssignmentCard({ latest, loading, creating, onCreateSingle
             <div>
               <span className="text-gray-900">Window:&nbsp;</span>
               <span>{latest.windowMinutes} minutes</span>
+            </div>
+            <div>
+              <span className="text-gray-900">Questions:&nbsp;</span>
+              <span>{latest.numQuestions}</span>
             </div>
           </div>
         </div>

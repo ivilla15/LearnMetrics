@@ -1,5 +1,3 @@
-// src/core/attempts/service.ts (or wherever this lives)
-
 import { SubmitAttemptBody } from '@/validation/attempts.schema';
 import * as AssignmentsRepo from '@/data/assignments.repo';
 import * as StudentRepo from '@/data/students.repo';

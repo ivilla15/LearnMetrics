@@ -1,52 +1,56 @@
 // src/core/assignments/service.ts
 import * as AssignmentsRepo from '@/data/assignments.repo';
-import { FRIDAY_KIND } from '@/data/assignments.repo';
-import { nextFridayLocalDate, localDateTimeToUtcRange, TZ } from '@/utils/time';
+import { SCHEDULE_KIND } from '@/data/assignments.repo';
+import { getNextScheduledDate, localDateTimeToUtcRange, TZ } from '@/utils/time';
 
-// Keep the response shape simple and stable for your handler
 export type AssignmentDTO = {
   id: number;
   classroomId: number;
-  kind: 'FRIDAY_TEST';
-  mode: 'SCHEDULED' | 'MANUAL'; // 👈 NEW
-  opensAt: string; // UTC ISO
-  closesAt: string; // UTC ISO
-  opensAtLocal: string; // PT ISO with offset
-  closesAtLocal: string; // PT ISO with offset
+  kind: 'SCHEDULED_TEST';
+  assignmentMode: 'SCHEDULED' | 'MANUAL';
+  opensAt: string;
+  closesAt: string;
+  opensAtLocal: string;
+  closesAtLocal: string;
   windowMinutes: number;
+  numQuestions: number;
   wasCreated: boolean;
 };
 
 type Params = {
   classroomId: number;
-  fridayDate?: string; // "YYYY-MM-DD" (PT)
-  opensAtLocalTime?: string; // "HH:mm" (PT)
-  windowMinutes?: number; // default 4
+  scheduleDate?: string;
+  opensAtLocalTime?: string;
+  windowMinutes?: number;
+  numQuestions?: number;
+  assignmentMode?: 'SCHEDULED' | 'MANUAL'; // ✅ NEW
 };
 
 export type LatestAssignmentDTO = {
   id: number;
   classroomId: number;
   kind: string;
-  mode: 'SCHEDULED' | 'MANUAL'; // 👈 NEW
-  opensAt: string; // UTC ISO
-  closesAt: string; // UTC ISO
+  assignmentMode: 'SCHEDULED' | 'MANUAL';
+  opensAt: string;
+  closesAt: string;
   windowMinutes: number;
+  numQuestions: number;
 };
 
-export async function createFridayAssignment(params: Params): Promise<AssignmentDTO> {
-  const { classroomId, fridayDate, opensAtLocalTime = '08:00', windowMinutes = 4 } = params;
+export async function createScheduledAssignment(params: Params): Promise<AssignmentDTO> {
+  const {
+    classroomId,
+    scheduleDate,
+    opensAtLocalTime = '08:00',
+    windowMinutes = 4,
+    numQuestions = 12,
+    assignmentMode = 'SCHEDULED',
+  } = params;
 
-  // 👇 Determine if caller provided explicit timing info
-  const hasManualTiming =
-    !!fridayDate || params.opensAtLocalTime !== undefined || params.windowMinutes !== undefined;
+  const safeNumQuestions = Math.min(numQuestions, 12);
 
-  const mode: 'SCHEDULED' | 'MANUAL' = hasManualTiming ? 'MANUAL' : 'SCHEDULED';
+  const localDate = scheduleDate ?? getNextScheduledDate(new Date(), TZ);
 
-  // 1) Choose the PT calendar date to use (given or next Friday)
-  const localDate = fridayDate ?? nextFridayLocalDate(new Date(), TZ);
-
-  // 2) Convert local PT date+time → UTC instants (+ readable local strings)
   const { opensAtUTC, closesAtUTC, opensAtLocalISO, closesAtLocalISO } = localDateTimeToUtcRange({
     localDate,
     localTime: opensAtLocalTime,
@@ -54,10 +58,9 @@ export async function createFridayAssignment(params: Params): Promise<Assignment
     tz: TZ,
   });
 
-  // 3) Idempotency check by composite unique (classroomId, kind, opensAt)
   const existing = await AssignmentsRepo.findByClassroomKindAndOpensAt({
     classroomId,
-    kind: FRIDAY_KIND,
+    kind: SCHEDULE_KIND,
     opensAt: opensAtUTC,
   });
 
@@ -65,8 +68,9 @@ export async function createFridayAssignment(params: Params): Promise<Assignment
     return {
       id: existing.id,
       classroomId: existing.classroomId,
-      kind: 'FRIDAY_TEST',
-      mode: (existing.mode ?? 'SCHEDULED') as 'SCHEDULED' | 'MANUAL', // 👈 NEW
+      kind: 'SCHEDULED_TEST',
+      assignmentMode: existing.assignmentMode as 'SCHEDULED' | 'MANUAL',
+      numQuestions: existing.numQuestions,
       opensAt: existing.opensAt.toISOString(),
       closesAt: existing.closesAt.toISOString(),
       opensAtLocal: opensAtLocalISO,
@@ -76,27 +80,27 @@ export async function createFridayAssignment(params: Params): Promise<Assignment
     };
   }
 
-  // 4) Create a new assignment row
   const created = await AssignmentsRepo.create({
     classroomId,
-    kind: FRIDAY_KIND,
-    assignmentMode: mode,
+    kind: SCHEDULE_KIND,
+    assignmentMode,
     opensAt: opensAtUTC,
     closesAt: closesAtUTC,
     windowMinutes,
+    numQuestions: safeNumQuestions,
   });
 
-  // 5) Return the DTO the API expects
   return {
     id: created.id,
     classroomId: created.classroomId,
-    kind: 'FRIDAY_TEST',
-    mode: (created.mode ?? mode) as 'SCHEDULED' | 'MANUAL', // 👈 NEW
+    kind: 'SCHEDULED_TEST',
+    assignmentMode: created.assignmentMode as 'SCHEDULED' | 'MANUAL',
     opensAt: created.opensAt.toISOString(),
     closesAt: created.closesAt.toISOString(),
     opensAtLocal: opensAtLocalISO,
     closesAtLocal: closesAtLocalISO,
     windowMinutes: created.windowMinutes,
+    numQuestions: created.numQuestions,
     wasCreated: true,
   };
 }
@@ -111,9 +115,10 @@ export async function getLatestAssignmentForClassroom(
     id: assignment.id,
     classroomId: assignment.classroomId,
     kind: assignment.kind,
-    mode: (assignment.mode ?? 'SCHEDULED') as 'SCHEDULED' | 'MANUAL', // 👈 NEW
+    assignmentMode: assignment.assignmentMode as 'SCHEDULED' | 'MANUAL',
     opensAt: assignment.opensAt.toISOString(),
     closesAt: assignment.closesAt.toISOString(),
     windowMinutes: assignment.windowMinutes,
+    numQuestions: assignment.numQuestions,
   };
 }

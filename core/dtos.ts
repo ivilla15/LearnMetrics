@@ -1,7 +1,7 @@
 export interface AssignmentDTO {
   id: string;
   classroomId: string;
-  kind: 'FRIDAY_TEST';
+  kind: 'SCHEDULED_TEST';
   opensAt: string; // UTC ISO
   closesAt: string; // UTC ISO
   opensAtLocal: string; // PT ISO

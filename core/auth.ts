@@ -1,6 +1,6 @@
 // src/core/auth.ts
 import { prisma } from '@/data/prisma';
-import { NotFoundError } from '@/core/errors';
+import { cookies } from 'next/headers';
 
 export class AuthError extends Error {
   constructor(message: string) {
@@ -35,15 +35,28 @@ export async function requireTeacher(_request: Request) {
 }
 
 // Student: use for student-only routes
-export async function requireStudent(request: Request) {
-  const headerName = 'x-student-id';
-  const raw = request.headers.get(headerName);
-  const id = parseIdFromHeader(raw, headerName);
 
-  const student = await prisma.student.findUnique({ where: { id } });
-  if (!student) {
-    throw new NotFoundError('Student not found');
+export async function requireStudent() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('teacher_session')?.value;
+
+  if (!token) {
+    return { ok: false as const, status: 401, error: 'Not signed in' };
   }
 
-  return student;
+  const session = await prisma.teacherSession.findUnique({
+    where: { token },
+    include: { teacher: { select: { id: true, name: true, email: true } } },
+  });
+
+  if (!session) {
+    return { ok: false as const, status: 401, error: 'Invalid session' };
+  }
+
+  if (session.expiresAt.getTime() <= Date.now()) {
+    await prisma.teacherSession.delete({ where: { token } }).catch(() => {});
+    return { ok: false as const, status: 401, error: 'Session expired' };
+  }
+
+  return { ok: true as const, teacher: session.teacher };
 }

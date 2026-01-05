@@ -5,7 +5,7 @@ Big Picture
 
 - **Framework:** Next.js (App Router) full-stack app; server and API routes live under `app/api/*` and pages/layouts under `app/`.
 - **Layers:** `app/api` (HTTP handlers) → `validation/*` (Zod schemas) → `core/*` (business services, return DTOs) → `data/*` (Prisma-powered repos) → `prisma/schema.prisma` (DB model).
-- **Data flow example:** `app/api/assignments/create-friday/route.ts` parses+validates request → calls `core/assignments/service.createFridayAssignment` → uses `data/assignments.repo` (Prisma) → persists to DB. Preserve this end-to-end shape when modifying behavior.
+- **Data flow example:** `app/api/assignments/create-schedule/route.ts` parses+validates request → calls `core/assignments/service.createScheduledAssignment` → uses `data/assignments.repo` (Prisma) → persists to DB. Preserve this end-to-end shape when modifying behavior.
 
 Key Files & Conventions
 

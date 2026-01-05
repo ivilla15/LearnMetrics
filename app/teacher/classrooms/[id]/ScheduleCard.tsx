@@ -35,6 +35,7 @@ export function ScheduleCard({
     windowMinutes: schedule.windowMinutes,
     isActive: schedule.isActive,
     days: schedule.days ?? [],
+    numQuestions: schedule.numQuestions,
   });
 
   const sortedDays = useMemo(
@@ -54,6 +55,14 @@ export function ScheduleCard({
         days: exists ? prev.days.filter((d) => d !== day) : [...prev.days, day],
       };
     });
+  };
+
+  const handleChangeNumQuestions: React.ChangeEventHandler<HTMLInputElement> = (event) => {
+    const value = Number(event.target.value) || 0;
+    setFormValues((prev) => ({
+      ...prev,
+      numQuestions: value,
+    }));
   };
 
   const handleChangeTime: React.ChangeEventHandler<HTMLInputElement> = (event) => {
@@ -87,6 +96,7 @@ export function ScheduleCard({
       windowMinutes: schedule.windowMinutes,
       isActive: schedule.isActive,
       days: schedule.days ?? [],
+      numQuestions: schedule.numQuestions,
     });
     setError(null);
     setIsEditing(true);
@@ -184,52 +194,94 @@ export function ScheduleCard({
         </div>
       </div>
 
-      {/* Time + window + active */}
-      <div className="mb-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div>
-          <p className="mb-1 text-xs font-medium text-gray-500">Opens at (local time)</p>
+      {/* Details */}
+      <div className="mb-3 grid grid-cols-2 gap-3 xl:grid-cols-2">
+        {/* Opens at */}
+        <div className="rounded-xl border border-gray-200 bg-white p-3">
+          <p className="text-xs font-medium text-gray-500 leading-snug">Opens at</p>
+
           {isEditing ? (
             <input
               type="time"
               value={formValues.opensAtLocalTime}
               onChange={handleChangeTime}
-              className="w-full rounded-lg border border-gray-200 px-2 py-1 text-sm"
+              className="mt-2 w-full rounded-lg border border-gray-200 px-2 py-1 text-sm"
             />
           ) : (
-            <p className="text-sm text-gray-800">{schedule.opensAtLocalTime || 'Not set'}</p>
+            <p className="mt-2 text-sm font-semibold text-gray-900">
+              {schedule.opensAtLocalTime || 'Not set'}
+            </p>
           )}
+
+          <p className="mt-1 text-[11px] text-gray-400">Local time</p>
         </div>
 
-        <div>
-          <p className="mb-1 text-xs font-medium text-gray-500">Window (minutes)</p>
+        {/* Window minutes */}
+        <div className="rounded-xl border border-gray-200 bg-white p-3">
+          <p className="text-xs font-medium text-gray-500 leading-snug">Window</p>
+
           {isEditing ? (
             <input
               type="number"
               min={1}
               value={formValues.windowMinutes}
               onChange={handleChangeWindowMinutes}
-              className="w-full rounded-lg border border-gray-200 px-2 py-1 text-sm"
+              className="mt-2 w-full rounded-lg border border-gray-200 px-2 py-1 text-sm"
             />
           ) : (
-            <p className="text-sm text-gray-800">{schedule.windowMinutes} minutes</p>
+            <p className="mt-2 text-sm font-semibold text-gray-900">{schedule.windowMinutes} min</p>
           )}
+
+          <p className="mt-1 text-[11px] text-gray-400">Minutes</p>
         </div>
 
-        <div className="flex items-end">
+        {/* Questions */}
+        <div className="rounded-xl border border-gray-200 bg-white p-3">
+          <p className="text-xs font-medium text-gray-500 leading-snug">Questions</p>
+
           {isEditing ? (
-            <label className="flex items-center gap-2 text-xs font-medium text-gray-600">
+            <input
+              type="number"
+              min={1}
+              max={60}
+              value={formValues.numQuestions}
+              onChange={(e) => {
+                const value = Number(e.target.value) || 0;
+                setFormValues((prev) => ({ ...prev, numQuestions: value }));
+              }}
+              className="mt-2 w-full rounded-lg border border-gray-200 px-2 py-1 text-sm"
+            />
+          ) : (
+            <p className="mt-2 text-sm font-semibold text-gray-900">
+              {schedule.numQuestions ?? 20}
+            </p>
+          )}
+
+          <p className="mt-1 text-[11px] text-gray-400">Per test</p>
+        </div>
+
+        {/* Status */}
+        <div className="rounded-xl border border-gray-200 bg-white p-3">
+          <p className="text-xs font-medium text-gray-500 leading-snug">Status</p>
+
+          {isEditing ? (
+            <label className="mt-2 flex items-center gap-2 text-sm font-semibold text-gray-900">
               <input
                 type="checkbox"
                 checked={formValues.isActive}
                 onChange={handleChangeIsActive}
               />
-              Active schedule
+              Active
             </label>
           ) : (
-            <p className="text-xs text-gray-500">
-              {schedule.isActive ? 'This schedule is active.' : 'This schedule is inactive.'}
+            <p className="mt-2 text-sm font-semibold text-gray-900">
+              {schedule.isActive ? 'Active' : 'Inactive'}
             </p>
           )}
+
+          <p className="mt-1 text-[11px] text-gray-400">
+            {schedule.isActive ? 'Used for auto tests' : 'Not used'}
+          </p>
         </div>
       </div>
 

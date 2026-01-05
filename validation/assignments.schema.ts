@@ -1,15 +1,15 @@
 import { z } from 'zod';
 
-export const createFridayRequestSchema = z.object({
+export const createScheduleRequestSchema = z.object({
   classroomId: z.coerce.number().int().positive(),
 
   // Optional: server can choose a default if not provided
   questionSetId: z.coerce.number().int().positive().optional(),
 
   // Optional overrides; if missing, use schedule / defaults
-  fridayDate: z
+  scheduleDate: z
     .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/) // "YYYY-MM-DD"
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
     .optional(),
 
   opensAtLocalTime: z
@@ -18,6 +18,7 @@ export const createFridayRequestSchema = z.object({
     .optional(),
 
   windowMinutes: z.coerce.number().int().positive().max(60).optional(),
+  numQuestions: z.coerce.number().int().min(1).max(12).default(12),
 });
 
-export type CreateFridayRequest = z.infer<typeof createFridayRequestSchema>;
+export type CreateScheduleRequest = z.infer<typeof createScheduleRequestSchema>;

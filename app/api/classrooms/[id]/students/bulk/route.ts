@@ -1,9 +1,9 @@
-import { requireTeacher, AuthError } from '@/core/auth';
+import { requireTeacher } from '@/core/auth/requireTeacher';
 import { classroomIdParamSchema } from '@/validation/classrooms.schema';
 import { jsonResponse, errorResponse } from '@/utils/http';
 import { NotFoundError, ConflictError } from '@/core/errors';
 import { ZodError, z } from 'zod';
-import { bulkCreateClassroomStudents } from '@/core/students/service';
+import { bulkCreateClassroomStudents } from '@/app/api/student/_lib/roster.service';
 
 type RouteParams = {
   params: Promise<{ id: string }>;
@@ -22,7 +22,6 @@ const bulkStudentsSchema = z.object({
 });
 
 function handleError(err: unknown): Response {
-  if (err instanceof AuthError) return errorResponse(err.message, 401);
   if (err instanceof ZodError) return errorResponse('Invalid request body', 400);
   if (err instanceof NotFoundError) return errorResponse(err.message, 404);
   if (err instanceof ConflictError) return errorResponse(err.message, 409);
@@ -32,7 +31,9 @@ function handleError(err: unknown): Response {
 
 export async function POST(request: Request, { params }: RouteParams) {
   try {
-    const teacher = await requireTeacher(request);
+    const auth = await requireTeacher();
+    if (!auth.ok) return errorResponse(auth.error, auth.status);
+    const teacher = auth.teacher;
     const { id } = await params;
 
     const { id: classroomId } = classroomIdParamSchema.parse({ id });

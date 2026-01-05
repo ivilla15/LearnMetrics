@@ -5,7 +5,7 @@ export const TZ = 'America/Los_Angeles' as const;
 
 // Return PT calendar date ("YYYY-MM-DD") for the next Friday.
 // If base is already Friday in PT, return that same date.
-export function nextFridayLocalDate(base: Date = new Date(), tz: string = TZ): string {
+export function getNextScheduledDate(base: Date = new Date(), tz: string = TZ): string {
   // reinterpret 'base' as Pacific time for weekday math
   const baseInTz = toZonedTime(base, tz); // v3: was utcToZonedTime
   const weekdayIso = Number(formatInTimeZone(baseInTz, tz, 'i')); // Mon=1 ... Fri=5

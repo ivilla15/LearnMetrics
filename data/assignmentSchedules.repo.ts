@@ -3,10 +3,11 @@ import type { AssignmentSchedule } from '@prisma/client';
 
 export type CreateScheduleArgs = {
   classroomId: number;
-  opensAtLocalTime: string; // "HH:mm"
+  opensAtLocalTime: string;
   windowMinutes: number;
   isActive?: boolean;
-  days: string[]; // required at create
+  days: string[];
+  numQuestions: number;
 };
 
 export type UpdateScheduleArgs = {
@@ -14,7 +15,8 @@ export type UpdateScheduleArgs = {
   opensAtLocalTime?: string;
   windowMinutes?: number;
   isActive?: boolean;
-  days?: string[]; // optional at update
+  days?: string[];
+  numQuestions: number;
 };
 
 export async function findByClassroomId(classroomId: number) {

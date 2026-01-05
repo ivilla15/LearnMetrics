@@ -1,4 +1,4 @@
-import { requireTeacher, AuthError } from '@/core/auth';
+import { requireTeacher } from '@/core/auth/requireTeacher';
 import { updateClassroomScheduleById, deleteClassroomScheduleById } from '@/core/schedules/service';
 import { classroomIdParamSchema } from '@/validation/classrooms.schema';
 import { upsertScheduleSchema } from '@/validation/assignmentSchedules.schema';
@@ -12,10 +12,6 @@ type RouteParams = {
 
 function handleError(err: unknown): Response {
   console.error('Schedule route error:', err);
-
-  if (err instanceof AuthError) {
-    return errorResponse(err.message, 401);
-  }
   if (err instanceof ZodError) {
     return errorResponse('Invalid request body', 400);
   }
@@ -36,7 +32,9 @@ function handleError(err: unknown): Response {
 // PATCH: update a specific schedule
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
-    const teacher = await requireTeacher(request);
+    const auth = await requireTeacher();
+    if (!auth.ok) return errorResponse(auth.error, auth.status);
+    const teacher = auth.teacher;
     const { id, scheduleId } = await params;
 
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
@@ -65,7 +63,9 @@ export async function PATCH(request: Request, { params }: RouteParams) {
 // DELETE: delete a specific schedule
 export async function DELETE(request: Request, { params }: RouteParams) {
   try {
-    const teacher = await requireTeacher(request);
+    const auth = await requireTeacher();
+    if (!auth.ok) return errorResponse(auth.error, auth.status);
+    const teacher = auth.teacher;
     const { id, scheduleId } = await params;
 
     const { id: classroomId } = classroomIdParamSchema.parse({ id });

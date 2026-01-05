@@ -7,6 +7,7 @@ export const upsertScheduleSchema = z.object({
   days: z
     .array(z.enum(['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']))
     .min(1, 'Select at least one day'),
+  numQuestions: z.coerce.number().int().min(1).max(12).default(12),
 });
 
 export type UpsertScheduleInput = z.infer<typeof upsertScheduleSchema>;

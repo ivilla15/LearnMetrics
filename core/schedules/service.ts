@@ -2,8 +2,8 @@ import { UpsertScheduleInput } from '@/validation/assignmentSchedules.schema';
 import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
 import * as ClassroomsRepo from '@/data/classrooms.repo';
 import { NotFoundError, ConflictError } from '@/core/errors';
-import { createFridayAssignment, AssignmentDTO } from '@/core/assignments/service';
-import { nextFridayLocalDate, TZ } from '@/utils/time';
+import { createScheduledAssignment, AssignmentDTO } from '@/core/assignments/service';
+import { getNextScheduledDate, TZ } from '@/utils/time';
 
 export type ScheduleDTO = {
   id: number;
@@ -12,6 +12,7 @@ export type ScheduleDTO = {
   windowMinutes: number;
   isActive: boolean;
   days: string[];
+  numQuestions: number;
 };
 
 export async function getClassroomScheduleForTeacher(params: {
@@ -42,6 +43,7 @@ export async function getClassroomScheduleForTeacher(params: {
     windowMinutes: existing.windowMinutes,
     isActive: existing.isActive,
     days: existing.days ?? [],
+    numQuestions: existing.numQuestions,
   };
 }
 
@@ -75,6 +77,7 @@ export async function getClassroomSchedulesForTeacher(params: {
     windowMinutes: row.windowMinutes,
     isActive: row.isActive,
     days: row.days ?? [],
+    numQuestions: row.numQuestions,
   }));
 }
 
@@ -108,6 +111,7 @@ export async function upsertClassroomSchedule(params: {
       windowMinutes: input.windowMinutes ?? 4,
       isActive: input.isActive ?? true,
       days: input.days,
+      numQuestions: input.numQuestions ?? 12,
     });
 
     return {
@@ -117,6 +121,7 @@ export async function upsertClassroomSchedule(params: {
       windowMinutes: created.windowMinutes,
       isActive: created.isActive,
       days: created.days ?? [],
+      numQuestions: created.numQuestions,
     };
   }
 
@@ -126,6 +131,7 @@ export async function upsertClassroomSchedule(params: {
     windowMinutes: input.windowMinutes ?? existing.windowMinutes,
     isActive: input.isActive ?? existing.isActive,
     days: input.days ?? existing.days,
+    numQuestions: input.numQuestions ?? 12,
   });
 
   return {
@@ -135,6 +141,7 @@ export async function upsertClassroomSchedule(params: {
     windowMinutes: updated.windowMinutes,
     isActive: updated.isActive,
     days: updated.days ?? [],
+    numQuestions: updated.numQuestions,
   };
 }
 
@@ -168,6 +175,7 @@ export async function createAdditionalClassroomSchedule(params: {
     windowMinutes: input.windowMinutes ?? 4,
     isActive: input.isActive ?? true,
     days: input.days,
+    numQuestions: input.numQuestions ?? 12,
   });
 
   return {
@@ -177,6 +185,7 @@ export async function createAdditionalClassroomSchedule(params: {
     windowMinutes: created.windowMinutes,
     isActive: created.isActive,
     days: created.days ?? [],
+    numQuestions: created.numQuestions,
   };
 }
 
@@ -184,18 +193,22 @@ export async function createAdditionalClassroomSchedule(params: {
  * Run all active schedules for a given "today" date.
  * (We can later filter by `days`; for now we just keep behavior simple.)
  */
-export async function runSchedulesForDate(baseDate: Date = new Date()): Promise<AssignmentDTO[]> {
+export async function runActiveSchedulesForDate(
+  baseDate: Date = new Date(),
+): Promise<AssignmentDTO[]> {
   const schedules = await SchedulesRepo.findAllActive();
   const results: AssignmentDTO[] = [];
 
-  const fridayLocalDate = nextFridayLocalDate(baseDate, TZ);
+  const scheduleLocalDate = getNextScheduledDate(baseDate, TZ);
 
   for (const sched of schedules) {
-    const dto = await createFridayAssignment({
+    const dto = await createScheduledAssignment({
       classroomId: sched.classroomId,
-      fridayDate: fridayLocalDate,
+      scheduleDate: scheduleLocalDate,
       opensAtLocalTime: sched.opensAtLocalTime,
       windowMinutes: sched.windowMinutes,
+      numQuestions: sched.numQuestions,
+      assignmentMode: 'SCHEDULED',
     });
 
     results.push(dto);
@@ -237,6 +250,7 @@ export async function updateClassroomScheduleById(params: {
     windowMinutes: input.windowMinutes ?? existing.windowMinutes,
     isActive: input.isActive ?? existing.isActive,
     days: input.days ?? existing.days,
+    numQuestions: input.numQuestions ?? 12,
   });
 
   return {
@@ -246,6 +260,7 @@ export async function updateClassroomScheduleById(params: {
     windowMinutes: updated.windowMinutes,
     isActive: updated.isActive,
     days: updated.days ?? [],
+    numQuestions: updated.numQuestions,
   };
 }
 
