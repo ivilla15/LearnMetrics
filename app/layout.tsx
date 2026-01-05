@@ -1,6 +1,6 @@
-import '@/app/ui/global.css';
-import { inter } from '@/app/ui/fonts';
+import './global.css';
 import { Metadata } from 'next';
+import { ToastProvider } from '@/components/ToastProvider';
 
 export const metadata: Metadata = {
   title: {
@@ -8,13 +8,15 @@ export const metadata: Metadata = {
     default: 'LearnMetrics Dashboard',
   },
   description: 'The official Next.js Learn Dashboard built with App Router.',
-  metadataBase: new URL('https://next-learn-dashboard.vercel.sh'),
+  metadataBase: new URL('https://learn-metrics.ivilla.dev/'),
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${inter.className} antialiased`}>{children}</body>
+      <body className="antialiased">
+        <ToastProvider>{children}</ToastProvider>
+      </body>
     </html>
   );
 }
