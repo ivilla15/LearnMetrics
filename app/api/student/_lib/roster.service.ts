@@ -63,13 +63,14 @@ export async function updateClassroomStudentById(
   });
 
   // Reuse your existing roster helper so lastAttempt shape stays consistent
-  const roster = await StudentsRepo.findStudentsWithLatestAttempt(classroomId);
+  const roster: StudentRosterRow[] = await StudentsRepo.findStudentsWithLatestAttempt(classroomId);
+
   const updated = roster.find((s) => s.id === studentId);
   if (!updated) {
     throw new NotFoundError('Student not found after update');
   }
 
-  return updated as StudentRosterRow;
+  return updated;
 }
 
 export type DeleteStudentArgs = {

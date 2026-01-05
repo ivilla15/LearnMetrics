@@ -17,6 +17,7 @@ module.exports = {
   },
   plugins: ['@typescript-eslint', 'react', 'jsx-a11y'],
   extends: [
+    'next/core-web-vitals',
     'eslint:recommended',
     'plugin:@typescript-eslint/recommended',
     'plugin:react/recommended',
