@@ -9,7 +9,6 @@ export type NewStudentInput = {
   firstName: string;
   lastName: string;
   username: string;
-  password: string;
   level: number;
 };
 

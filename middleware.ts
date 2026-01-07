@@ -1,8 +1,34 @@
+// middleware.ts
 import { NextResponse, type NextRequest } from 'next/server';
 
 function isAuthed(req: NextRequest, cookieName: string) {
   const v = req.cookies.get(cookieName)?.value;
   return typeof v === 'string' && v.length > 0;
+}
+
+function isPublicPath(pathname: string) {
+  // Next internals / assets
+  if (pathname.startsWith('/_next')) return true;
+  if (pathname === '/favicon.ico') return true;
+
+  // Home
+  if (pathname === '/') return true;
+
+  // Student public pages
+  if (pathname.startsWith('/student/login')) return true;
+  if (pathname.startsWith('/student/logout')) return true;
+
+  // (Soon) Student activation flow
+  if (pathname.startsWith('/student/activate')) return true;
+
+  // Teacher public pages
+  if (pathname.startsWith('/teacher/login')) return true;
+  if (pathname.startsWith('/teacher/logout')) return true;
+
+  // Teacher signup flow
+  if (pathname.startsWith('/teacher/signup')) return true;
+
+  return false;
 }
 
 export function middleware(req: NextRequest) {
@@ -12,16 +38,7 @@ export function middleware(req: NextRequest) {
   const isTeacher = isAuthed(req, 'teacher_session');
 
   // ---- Public routes ----
-  const isPublic =
-    pathname === '/' ||
-    pathname.startsWith('/student/login') ||
-    pathname.startsWith('/teacher/login') ||
-    pathname.startsWith('/student/logout') ||
-    pathname.startsWith('/teacher/logout') ||
-    pathname.startsWith('/_next') ||
-    pathname.startsWith('/favicon');
-
-  if (isPublic) return NextResponse.next();
+  if (isPublicPath(pathname)) return NextResponse.next();
 
   // ---- Protect student pages ----
   if (pathname.startsWith('/student')) {

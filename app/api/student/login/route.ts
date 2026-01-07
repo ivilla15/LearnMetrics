@@ -50,6 +50,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
   }
 
+  if (student.mustSetPassword) {
+    return NextResponse.json({ error: 'ACCOUNT_NOT_ACTIVATED' }, { status: 409 });
+  }
+
   const token = crypto.randomBytes(32).toString('base64url');
 
   await prisma.studentSession.create({

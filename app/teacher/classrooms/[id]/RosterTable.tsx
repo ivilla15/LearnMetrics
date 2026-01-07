@@ -4,28 +4,26 @@
 import { useMemo, useState } from 'react';
 import type { StudentRow } from './hooks';
 import { useToast } from '@/components/ToastProvider';
-import {
-  generateUsernames,
-  generatePasswords,
-  type NewStudentName,
-  type NewStudentInput,
-} from '@/utils/students';
+import { generateUsernames, type NewStudentName, type NewStudentInput } from '@/utils/students';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 type RosterTableProps = {
   classroomId: number;
   students: StudentRow[];
   busy?: boolean;
-  // Bulk add (teacher gives only names; we send full NewStudentInput list)
-  onBulkAdd: (students: NewStudentInput[]) => Promise<void>;
-  // Per-student update/delete
+
+  onBulkAdd: (students: NewStudentInput[]) => Promise<{ setupCodes: any[] }>;
   onUpdateStudent: (
     id: number,
     update: { name: string; username: string; level: number },
   ) => Promise<void>;
   onDeleteStudent: (id: number) => Promise<void>;
-  // Delete all students (with optional cascading)
   onDeleteAll: (options: { deleteAssignments: boolean; deleteSchedules: boolean }) => Promise<void>;
+
+  onResetAccess: (
+    studentId: number,
+  ) => Promise<{ studentId: number; username: string; setupCode: string }>;
 };
 
 type EditingState = {
@@ -43,8 +41,10 @@ export function RosterTable({
   onUpdateStudent,
   onDeleteStudent,
   onDeleteAll,
+  onResetAccess,
 }: RosterTableProps) {
   const toast = useToast();
+  const router = useRouter();
 
   const [isAdding, setIsAdding] = useState(false);
   const [bulkNamesText, setBulkNamesText] = useState('');
@@ -56,6 +56,21 @@ export function RosterTable({
   const [deleteAllSchedules, setDeleteAllSchedules] = useState(false);
 
   const existingUsernames = useMemo(() => students.map((s) => s.username), [students]);
+
+  const hasPrintableCodes = useMemo(() => {
+    try {
+      const raw = sessionStorage.getItem(`lm_setupCodes_${classroomId}`);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed?.setupCodes) && parsed.setupCodes.length > 0;
+    } catch {
+      return false;
+    }
+  }, [classroomId]);
+
+  const handlePrintCards = () => {
+    router.push(`/teacher/classrooms/${classroomId}/print-cards`);
+  };
 
   // ----- Bulk add -----
 
@@ -96,20 +111,30 @@ export function RosterTable({
       setBulkError(null);
 
       const usernames = generateUsernames(names, existingUsernames);
-      const passwords = generatePasswords(names.length);
 
+      // IMPORTANT: no passwords generated client-side anymore
       const payload: NewStudentInput[] = names.map((n, idx) => ({
         firstName: n.firstName,
         lastName: n.lastName,
         username: usernames[idx],
-        password: passwords[idx],
         level: 1,
-      }));
+      })) as any;
 
-      await onBulkAdd(payload);
+      const result = await onBulkAdd(payload);
+
       setIsAdding(false);
       setBulkNamesText('');
       toast(`Added ${payload.length} student${payload.length === 1 ? '' : 's'}`, 'success');
+
+      // go print immediately
+      if (Array.isArray((result as any)?.setupCodes) && (result as any).setupCodes.length > 0) {
+        router.push(`/teacher/classrooms/${classroomId}/print-cards`);
+      } else {
+        toast(
+          'Students added. No setup codes returned (duplicates may have been skipped).',
+          'error',
+        );
+      }
     } catch (err) {
       console.error(err);
       setBulkError('Could not add students. Please try again.');
@@ -128,9 +153,7 @@ export function RosterTable({
     });
   };
 
-  const cancelEditing = () => {
-    setEditing(null);
-  };
+  const cancelEditing = () => setEditing(null);
 
   const handleEditingChange = (field: keyof Omit<EditingState, 'id'>, value: string) => {
     setEditing((prev) =>
@@ -174,6 +197,23 @@ export function RosterTable({
     }
   };
 
+  // ----- Reset access -----
+  const handleResetAccess = async (student: StudentRow) => {
+    const confirmed = window.confirm(
+      `Reset access for ${student.name}? This will invalidate their current password and generate a new setup code.`,
+    );
+    if (!confirmed) return;
+
+    try {
+      const row = await onResetAccess(student.id);
+      toast(`New setup code generated for ${row.username}`, 'success');
+      router.push(`/teacher/classrooms/${classroomId}/print-cards`);
+    } catch (err) {
+      console.error(err);
+      toast('Failed to reset access', 'error');
+    }
+  };
+
   // ----- Delete all -----
 
   const handleDeleteAll = async () => {
@@ -201,7 +241,19 @@ export function RosterTable({
     <section className="space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-sm font-semibold text-gray-800">Roster</h2>
+        <div className="flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-gray-800">Roster</h2>
+          {hasPrintableCodes && (
+            <button
+              type="button"
+              onClick={handlePrintCards}
+              className="rounded-lg border border-gray-200 bg-white px-3 py-1 text-xs font-semibold text-gray-800 hover:bg-gray-50"
+            >
+              Print login cards
+            </button>
+          )}
+        </div>
+
         <button
           type="button"
           onClick={handleOpenAdd}
@@ -212,14 +264,14 @@ export function RosterTable({
         </button>
       </div>
 
-      {/* Bulk add modal-ish card */}
+      {/* Bulk add card */}
       {isAdding && (
         <div className="rounded-xl border border-blue-300 bg-blue-50/60 p-4 shadow-sm">
           <div className="mb-2 flex items-center justify-between gap-2">
             <span className="text-sm font-semibold text-gray-800">Add multiple students</span>
           </div>
           <p className="mb-2 text-xs text-gray-700">
-            Paste one student per line in the format:
+            Paste one student per line in the format:{' '}
             <span className="ml-1 rounded bg-white px-1 py-0.5 font-mono text-[11px]">
               First Last
             </span>
@@ -234,11 +286,8 @@ export function RosterTable({
           {bulkError && <p className="mb-2 text-xs text-red-600">{bulkError}</p>}
 
           <p className="mb-3 text-[11px] text-gray-600">
-            Usernames will be generated as{' '}
-            <span className="font-mono">firstInitial + lastName</span> (e.g. &nbsp;
-            <span className="font-mono">alovelace</span>), with numbers added if needed. Passwords
-            will be short, memorable words plus a number (e.g.{' '}
-            <span className="font-mono">apple10</span>).
+            Usernames are generated as <span className="font-mono">firstInitial + lastName</span>.
+            Students will receive a one-time setup code to choose their own password.
           </p>
 
           <div className="flex justify-end gap-2">
@@ -246,7 +295,7 @@ export function RosterTable({
               type="button"
               onClick={handleCancelAdd}
               disabled={busy}
-              className="rounded-lg border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+              className="rounded-lg border border-gray-200 px-3 py-1 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
             >
               Cancel
             </button>
@@ -254,7 +303,7 @@ export function RosterTable({
               type="button"
               onClick={handleSaveAdd}
               disabled={busy}
-              className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+              className="rounded-lg bg-blue-600 px-3 py-1 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-70"
             >
               {busy ? 'Saving…' : 'Add students'}
             </button>
@@ -269,7 +318,7 @@ export function RosterTable({
             <tr>
               <th className="px-3 py-2">Name</th>
               <th className="px-3 py-2">Username</th>
-              <th className="px-3 py-2">Password</th>
+              <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2 text-center">Level</th>
               <th className="px-3 py-2 text-right">Actions</th>
             </tr>
@@ -299,6 +348,7 @@ export function RosterTable({
                         <span className="text-sm text-gray-800">{student.name}</span>
                       )}
                     </td>
+
                     <td className="px-3 py-2">
                       {isEditingRow ? (
                         <input
@@ -311,10 +361,19 @@ export function RosterTable({
                         <span className="font-mono text-xs text-gray-800">{student.username}</span>
                       )}
                     </td>
-                    {/* Password (display only, no edit for now) */}
+
                     <td className="px-3 py-2">
-                      <span className="font-mono text-xs text-gray-800">{student.password}</span>
+                      <span
+                        className={`inline-flex rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                          student.mustSetPassword
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-green-100 text-green-800'
+                        }`}
+                      >
+                        {student.mustSetPassword ? 'Needs setup' : 'Active'}
+                      </span>
                     </td>
+
                     <td className="px-3 py-2 text-center">
                       {isEditingRow ? (
                         <input
@@ -328,6 +387,7 @@ export function RosterTable({
                         <span className="text-sm text-gray-800">{student.level}</span>
                       )}
                     </td>
+
                     <td className="px-3 py-2 text-right">
                       {isEditingRow ? (
                         <div className="flex justify-end gap-2">
@@ -335,7 +395,7 @@ export function RosterTable({
                             type="button"
                             onClick={cancelEditing}
                             disabled={busy}
-                            className="rounded border border-gray-200 px-2 py-1 text-[11px] text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded border border-gray-200 px-2 py-1 text-[11px] text-gray-700 hover:bg-gray-100 disabled:opacity-60"
                           >
                             Cancel
                           </button>
@@ -343,7 +403,7 @@ export function RosterTable({
                             type="button"
                             onClick={saveEditing}
                             disabled={busy}
-                            className="rounded bg-blue-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
+                            className="rounded bg-blue-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-blue-700 disabled:opacity-70"
                           >
                             Save
                           </button>
@@ -359,9 +419,18 @@ export function RosterTable({
 
                           <button
                             type="button"
+                            onClick={() => handleResetAccess(student)}
+                            disabled={busy}
+                            className="rounded border border-amber-200 px-2 py-1 text-[11px] text-amber-800 hover:bg-amber-50 disabled:opacity-60"
+                          >
+                            Reset access
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => startEditing(student)}
                             disabled={busy}
-                            className="rounded border border-gray-200 px-2 py-1 text-[11px] text-gray-800 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded border border-gray-200 px-2 py-1 text-[11px] text-gray-800 hover:bg-gray-100 disabled:opacity-60"
                           >
                             Edit
                           </button>
@@ -370,7 +439,7 @@ export function RosterTable({
                             type="button"
                             onClick={() => handleDeleteStudent(student.id)}
                             disabled={busy}
-                            className="rounded border border-red-200 px-2 py-1 text-[11px] text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="rounded border border-red-200 px-2 py-1 text-[11px] text-red-700 hover:bg-red-50 disabled:opacity-60"
                           >
                             Delete
                           </button>
@@ -415,7 +484,7 @@ export function RosterTable({
             type="button"
             onClick={handleDeleteAll}
             disabled={deleteAllBusy || busy}
-            className="rounded border border-red-400 bg-red-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded border border-red-400 bg-red-600 px-3 py-1 text-[11px] font-semibold text-white hover:bg-red-700 disabled:opacity-60"
           >
             {deleteAllBusy ? 'Deleting…' : 'Delete all students'}
           </button>
