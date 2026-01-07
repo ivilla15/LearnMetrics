@@ -14,15 +14,19 @@ function parseId(raw: string | undefined) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-export async function POST(
-  _req: Request,
-  { params }: { params: { id: string; studentId: string } },
-) {
+type RouteCtx = {
+  params: Promise<{ id: string; studentId: string }>;
+};
+
+export async function POST(_req: Request, { params }: RouteCtx) {
   const auth = await requireTeacher();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  const classroomId = parseId(params.id);
-  const studentId = parseId(params.studentId);
+  const { id, studentId: rawStudentId } = await params;
+
+  const classroomId = parseId(id);
+  const studentId = parseId(rawStudentId);
+
   if (!classroomId) return NextResponse.json({ error: 'Invalid classroom id' }, { status: 400 });
   if (!studentId) return NextResponse.json({ error: 'Invalid student id' }, { status: 400 });
 
@@ -36,24 +40,34 @@ export async function POST(
   // student belongs to classroom
   const student = await prisma.student.findFirst({
     where: { id: studentId, classroomId },
-    select: { id: true, username: true },
+    select: { id: true, username: true, name: true },
   });
   if (!student) return NextResponse.json({ error: 'Student not found' }, { status: 404 });
 
   const setupCode = generateSetupCode();
   const setupCodeHash = hashSetupCode(setupCode);
 
+  const expiresAt = expiresAtFromNowHours(SETUP_CODE_TTL_HOURS);
+
   await prisma.student.update({
     where: { id: student.id },
     data: {
       setupCodeHash,
-      setupCodeExpiresAt: expiresAtFromNowHours(SETUP_CODE_TTL_HOURS),
+      setupCodeExpiresAt: expiresAt,
       mustSetPassword: true,
     },
   });
 
   return NextResponse.json(
-    { setupCode: { studentId: student.id, username: student.username, setupCode } },
+    {
+      setupCode: {
+        studentId: student.id,
+        username: student.username,
+        setupCode,
+        expiresAt: expiresAt.toISOString(),
+        name: student.name,
+      },
+    },
     { status: 200 },
   );
 }
