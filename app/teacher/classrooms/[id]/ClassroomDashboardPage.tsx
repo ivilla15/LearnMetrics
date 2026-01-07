@@ -34,6 +34,7 @@ export default function ClassroomDashboardPage({ classroomId }: Props) {
     updateStudent,
     deleteStudent,
     deleteAllStudents,
+    resetStudentAccess,
 
     // manual test
     createManualTest,
@@ -72,6 +73,7 @@ export default function ClassroomDashboardPage({ classroomId }: Props) {
             onUpdateStudent={updateStudent}
             onDeleteStudent={deleteStudent}
             onDeleteAll={deleteAllStudents}
+            onResetAccess={resetStudentAccess}
           />
         </div>
 

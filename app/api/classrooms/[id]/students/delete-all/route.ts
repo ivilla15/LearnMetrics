@@ -3,7 +3,7 @@ import { classroomIdParamSchema } from '@/validation/classrooms.schema';
 import { jsonResponse, errorResponse } from '@/utils/http';
 import { NotFoundError, ConflictError } from '@/core/errors';
 import { ZodError, z } from 'zod';
-import { deleteAllClassroomStudents } from '@/app/api/student/_lib/roster.service';
+import { deleteAllClassroomStudents } from '@/core/students/service';
 
 type RouteParams = {
   params: Promise<{ id: string }>;

@@ -1,6 +1,13 @@
 import * as StudentsRepo from '@/data/students.repo';
 import * as AttemptsRepo from '@/data/attempts.repo';
-import { NotFoundError } from '@/core/errors';
+import * as ClassroomsRepo from '@/data/classrooms.repo';
+import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
+import * as AssignmentsRepo from '@/data/assignments.repo';
+import { ConflictError, NotFoundError } from '@/core/errors';
+
+// -----------------------------
+// Student history (student + teacher progress pages)
+// -----------------------------
 
 export type AttemptHistoryItem = {
   attemptId: number;
@@ -28,9 +35,7 @@ export type StudentHistoryDTO = {
 
 export async function getStudentHistory(studentId: number): Promise<StudentHistoryDTO> {
   const student = await StudentsRepo.findById(studentId);
-  if (!student) {
-    throw new NotFoundError('Student not found');
-  }
+  if (!student) throw new NotFoundError('Student not found');
 
   const attempts = await AttemptsRepo.findByStudentWithAssignment(studentId);
 
@@ -43,7 +48,7 @@ export async function getStudentHistory(studentId: number): Promise<StudentHisto
     total: a.total,
     percent: a.total > 0 ? Math.round((a.score / a.total) * 100) : 0,
     completedAt: a.completedAt.toISOString(),
-    wasMastery: a.score === a.total,
+    wasMastery: a.total > 0 && a.score === a.total,
     opensAt: a.Assignment.opensAt.toISOString(),
     closesAt: a.Assignment.closesAt.toISOString(),
   }));
@@ -59,17 +64,9 @@ export async function getStudentHistory(studentId: number): Promise<StudentHisto
   };
 }
 
-// --- Types for roster use (teacher dashboard) ---
-
-// --- Types for roster / teacher dashboard ---
-
-export type StudentRosterRow = {
-  id: number;
-  name: string;
-  username: string;
-  level: number;
-  lastAttempt: any | null; // matches findStudentsWithLatestAttempt
-};
+// -----------------------------
+// Roster + setup codes (teacher dashboard)
+// -----------------------------
 
 export type BulkCreateStudentArgs = {
   teacherId: number;
@@ -78,22 +75,64 @@ export type BulkCreateStudentArgs = {
     firstName: string;
     lastName: string;
     username: string;
-    password: string;
     level: number;
   }[];
 };
 
-// Bulk-create students for a classroom (Add students UI)
+export type SetupCodeCard = {
+  name: string;
+  username: string;
+  setupCode: string;
+  expiresAt: string;
+};
+
+export type BulkCreateStudentsResult = {
+  students: Awaited<ReturnType<typeof StudentsRepo.findStudentsWithLatestAttempt>>;
+  setupCodes: SetupCodeCard[];
+};
+
+export type StudentRosterRow = {
+  id: number;
+  name: string;
+  username: string;
+  level: number;
+  mustSetPassword?: boolean;
+  lastAttempt: any | null;
+};
+
+async function assertTeacherOwnsClassroom(teacherId: number, classroomId: number) {
+  const classroom = await ClassroomsRepo.findClassroomById(classroomId);
+  if (!classroom) throw new NotFoundError('Classroom not found');
+  if (classroom.teacherId !== teacherId) {
+    throw new ConflictError('You are not allowed to modify this classroom');
+  }
+}
+
 export async function bulkCreateClassroomStudents(
   args: BulkCreateStudentArgs,
-): Promise<StudentRosterRow[]> {
-  const { classroomId, students } = args;
+): Promise<BulkCreateStudentsResult> {
+  const { teacherId, classroomId, students } = args;
 
-  // Optional: verify teacher owns this classroom
+  await assertTeacherOwnsClassroom(teacherId, classroomId);
 
-  const roster = await StudentsRepo.createManyForClassroom(classroomId, students);
-  return roster as StudentRosterRow[];
+  const { created, roster } = await StudentsRepo.createManyForClassroom(classroomId, students);
+
+  const setupCodes: SetupCodeCard[] = created.map((c) => ({
+    name: c.name,
+    username: c.username,
+    setupCode: c.setupCode,
+    expiresAt: c.setupCodeExpiresAt.toISOString(),
+  }));
+
+  return {
+    students: roster,
+    setupCodes,
+  };
 }
+
+// -----------------------------
+// Update / delete single student
+// -----------------------------
 
 export type UpdateStudentArgs = {
   teacherId: number;
@@ -109,7 +148,9 @@ export type UpdateStudentArgs = {
 export async function updateClassroomStudentById(
   args: UpdateStudentArgs,
 ): Promise<StudentRosterRow> {
-  const { classroomId, studentId, input } = args;
+  const { teacherId, classroomId, studentId, input } = args;
+
+  await assertTeacherOwnsClassroom(teacherId, classroomId);
 
   const existing = await StudentsRepo.findById(studentId);
   if (!existing || existing.classroomId !== classroomId) {
@@ -122,14 +163,11 @@ export async function updateClassroomStudentById(
     level: input.level,
   });
 
-  // Get updated roster row (keeps lastAttempt consistent)
   const roster = await StudentsRepo.findStudentsWithLatestAttempt(classroomId);
   const updated = roster.find((s) => s.id === studentId);
-  if (!updated) {
-    throw new NotFoundError('Student not found after update');
-  }
+  if (!updated) throw new NotFoundError('Student not found after update');
 
-  return updated as StudentRosterRow;
+  return updated as unknown as StudentRosterRow;
 }
 
 export type DeleteStudentArgs = {
@@ -139,16 +177,21 @@ export type DeleteStudentArgs = {
 };
 
 export async function deleteClassroomStudentById(args: DeleteStudentArgs): Promise<void> {
-  const { classroomId, studentId } = args;
+  const { teacherId, classroomId, studentId } = args;
+
+  await assertTeacherOwnsClassroom(teacherId, classroomId);
 
   const existing = await StudentsRepo.findById(studentId);
   if (!existing || existing.classroomId !== classroomId) {
     throw new NotFoundError('Student not found');
   }
 
-  // If you later add an AttemptsRepo.deleteByStudent, you can call it here first.
   await StudentsRepo.deleteById(studentId);
 }
+
+// -----------------------------
+// Delete ALL students in classroom (+ optional cascade)
+// -----------------------------
 
 export type DeleteAllStudentsArgs = {
   teacherId: number;
@@ -158,17 +201,23 @@ export type DeleteAllStudentsArgs = {
 };
 
 export async function deleteAllClassroomStudents(args: DeleteAllStudentsArgs): Promise<void> {
-  const { classroomId, deleteAssignments, deleteSchedules } = args;
+  const { teacherId, classroomId, deleteAssignments, deleteSchedules } = args;
 
-  // TODO: add real cascading deletes when you’re ready
+  await assertTeacherOwnsClassroom(teacherId, classroomId);
+
+  // ✅ Delete students (Attempt, AttemptItem, StudentSession cascade via schema)
+  await StudentsRepo.deleteByClassroomId(classroomId);
+
+  // Optional classroom-level cleanup
   if (deleteAssignments) {
-    // e.g. await AttemptsRepo.deleteByClassroom(classroomId);
-    // e.g. await AssignmentsRepo.deleteByClassroom(classroomId);
+    // You probably don’t have this yet. Add it to assignments.repo when ready.
+    // For now, safest fallback is to do nothing OR implement deleteMany in the repo.
+    if (typeof (AssignmentsRepo as any).deleteByClassroomId === 'function') {
+      await (AssignmentsRepo as any).deleteByClassroomId(classroomId);
+    }
   }
 
   if (deleteSchedules) {
-    // e.g. await SchedulesRepo.deleteByClassroom(classroomId);
+    await SchedulesRepo.deleteByClassroomId(classroomId);
   }
-
-  await StudentsRepo.deleteByClassroomId(classroomId);
 }

@@ -1,25 +1,12 @@
-import { prisma } from '@/data/prisma';
-import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { prisma } from '@/data/prisma';
+import { requireStudent } from '@/core/auth/requireStudent';
 
 export async function GET() {
-  const cookieStore = await cookies();
-  const raw = cookieStore.get('student_session')?.value;
-  const studentId = Number(raw);
+  const auth = await requireStudent();
+  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
-  if (!Number.isFinite(studentId)) {
-    return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
-  }
-
-  const student = await prisma.student.findUnique({
-    where: { id: studentId },
-    select: { id: true, classroomId: true },
-  });
-
-  if (!student) {
-    return NextResponse.json({ error: 'Student not found' }, { status: 404 });
-  }
-
+  const student = auth.student;
   const now = new Date();
 
   const assignment = await prisma.assignment.findFirst({
@@ -32,6 +19,7 @@ export async function GET() {
       closesAt: true,
       windowMinutes: true,
       assignmentMode: true,
+      numQuestions: true,
     },
   });
 
@@ -48,6 +36,7 @@ export async function GET() {
         opensAt: assignment.opensAt.toISOString(),
         closesAt: assignment.closesAt.toISOString(),
         windowMinutes: assignment.windowMinutes,
+        numQuestions: assignment.numQuestions,
       },
     },
     { status: 200 },

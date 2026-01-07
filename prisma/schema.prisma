@@ -118,7 +118,12 @@ model Student {
   level       Int              @default(1)
   classroomId Int
   createdAt   DateTime         @default(now())
-  updatedAt   DateTime
+  updatedAt   DateTime         @updatedAt
+
+  setupCodeHash      String?
+  setupCodeExpiresAt DateTime?
+  mustSetPassword     Boolean   @default(true)
+
   Attempt     Attempt[]
   Classroom   Classroom        @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   sessions    StudentSession[]
@@ -132,7 +137,8 @@ model Teacher {
   email     String           @unique
   password  String
   createdAt DateTime         @default(now())
-  updatedAt DateTime
+  updatedAt DateTime         @updatedAt
+
   Classroom Classroom[]
   sessions  TeacherSession[]
 }

@@ -1,10 +1,13 @@
 import Link from 'next/link';
 
 type Props = {
-  classroomId?: number;
+  classroom?: {
+    id: number;
+    name: string;
+  };
 };
 
-export function TeacherNav({ classroomId }: Props) {
+export function TeacherNav({ classroom }: Props) {
   return (
     <header className="border-b border-gray-200 bg-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3">
@@ -18,13 +21,16 @@ export function TeacherNav({ classroomId }: Props) {
               Classrooms
             </Link>
 
-            {typeof classroomId === 'number' && classroomId > 0 && (
-              <Link
-                href={`/teacher/classrooms/${classroomId}`}
-                className="text-gray-700 hover:underline"
-              >
-                Classroom {classroomId}
-              </Link>
+            {classroom && (
+              <>
+                <span className="text-gray-400">/</span>
+                <Link
+                  href={`/teacher/classrooms/${classroom.id}`}
+                  className="font-medium text-gray-900 hover:underline"
+                >
+                  {classroom.name}
+                </Link>
+              </>
             )}
           </nav>
         </div>

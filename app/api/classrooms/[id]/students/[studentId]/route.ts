@@ -3,10 +3,7 @@ import { classroomIdParamSchema } from '@/validation/classrooms.schema';
 import { jsonResponse, errorResponse } from '@/utils/http';
 import { NotFoundError, ConflictError } from '@/core/errors';
 import { ZodError, z } from 'zod';
-import {
-  updateClassroomStudentById,
-  deleteClassroomStudentById,
-} from '@/app/api/student/_lib/roster.service';
+import { updateClassroomStudentById, deleteClassroomStudentById } from '@/core/students/service';
 
 type RouteParams = {
   params: Promise<{ id: string; studentId: string }>;
@@ -15,13 +12,13 @@ type RouteParams = {
 const updateStudentSchema = z.object({
   name: z.string().min(1),
   username: z.string().min(1),
-  level: z.number().int().min(1),
+  level: z.number().int().min(1).max(12),
 });
 
 function handleError(err: unknown): Response {
   if (err instanceof ZodError) return errorResponse('Invalid request body', 400);
   if (err instanceof NotFoundError) return errorResponse(err.message, 404);
-  if (err instanceof ConflictError) return errorResponse(err.message, 409);
+  if (err instanceof ConflictError) return errorResponse(err.message, 403);
   console.error('student route error', err);
   return errorResponse('Internal server error', 500);
 }
@@ -30,12 +27,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
-    const teacher = auth.teacher;
-    const { id, studentId } = await params;
 
+    const { id, studentId } = await params;
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
+
     const studentIdNum = Number(studentId);
-    if (!Number.isFinite(studentIdNum)) {
+    if (!Number.isFinite(studentIdNum) || studentIdNum <= 0) {
       return errorResponse('Invalid student id', 400);
     }
 
@@ -43,7 +40,7 @@ export async function PATCH(request: Request, { params }: RouteParams) {
     const input = updateStudentSchema.parse(body);
 
     const student = await updateClassroomStudentById({
-      teacherId: teacher.id,
+      teacherId: auth.teacher.id,
       classroomId,
       studentId: studentIdNum,
       input,
@@ -55,21 +52,21 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(request: Request, { params }: RouteParams) {
+export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
-    const teacher = auth.teacher;
-    const { id, studentId } = await params;
 
+    const { id, studentId } = await params;
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
+
     const studentIdNum = Number(studentId);
-    if (!Number.isFinite(studentIdNum)) {
+    if (!Number.isFinite(studentIdNum) || studentIdNum <= 0) {
       return errorResponse('Invalid student id', 400);
     }
 
     await deleteClassroomStudentById({
-      teacherId: teacher.id,
+      teacherId: auth.teacher.id,
       classroomId,
       studentId: studentIdNum,
     });

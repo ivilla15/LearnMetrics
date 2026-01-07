@@ -16,7 +16,7 @@ export type UpdateScheduleArgs = {
   windowMinutes?: number;
   isActive?: boolean;
   days?: string[];
-  numQuestions: number;
+  numQuestions?: number;
 };
 
 export async function findByClassroomId(classroomId: number) {
@@ -34,9 +34,7 @@ export async function findAllByClassroomId(classroomId: number): Promise<Assignm
 }
 
 export async function createSchedule(data: CreateScheduleArgs) {
-  return prisma.assignmentSchedule.create({
-    data,
-  });
+  return prisma.assignmentSchedule.create({ data });
 }
 
 export async function updateSchedule({ id, ...data }: UpdateScheduleArgs) {
@@ -61,5 +59,14 @@ export async function findById(id: number): Promise<AssignmentSchedule | null> {
 export async function deleteSchedule(id: number): Promise<void> {
   await prisma.assignmentSchedule.delete({
     where: { id },
+  });
+}
+
+/**
+ * ✅ Needed for "Delete all students" optional cascade.
+ */
+export async function deleteByClassroomId(classroomId: number): Promise<void> {
+  await prisma.assignmentSchedule.deleteMany({
+    where: { classroomId },
   });
 }

@@ -54,3 +54,9 @@ export async function findById(id: number) {
     where: { id },
   });
 }
+
+export async function deleteByClassroomId(classroomId: number) {
+  return prisma.assignment.deleteMany({
+    where: { classroomId },
+  });
+}
