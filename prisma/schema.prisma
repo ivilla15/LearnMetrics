@@ -17,7 +17,7 @@ model Assignment {
   id             Int            @id @default(autoincrement())
   date           DateTime       @default(now())
   classroomId    Int
-  questionSetId  Int? // <- was Int
+  questionSetId  Int?
   kind           AssignmentKind @default(SCHEDULED_TEST)
   opensAt        DateTime
   closesAt       DateTime

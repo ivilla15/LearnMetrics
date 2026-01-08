@@ -3,8 +3,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { StudentShell } from '@/app/api/student/StudentShell';
+import { StudentPage } from '@/components/student/StudentPage';
 import { useToast } from '@/components/ToastProvider';
+import { Button } from '@/components/ui/button';
 
 export default function StudentLoginPage() {
   const router = useRouter();
@@ -35,14 +36,14 @@ export default function StudentLoginPage() {
       }
 
       toast('Welcome', 'success');
-      router.push('/student');
+      router.push('/student/dashboard');
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <StudentShell
+    <StudentPage
       title="Student login"
       subtitle="Sign in to take your next test and track your progress."
     >
@@ -76,18 +77,18 @@ export default function StudentLoginPage() {
           />
         </div>
 
-        <button
+        <Button
           type="submit"
           disabled={busy || !username.trim() || !password.trim()}
           className="h-11 w-full rounded-xl bg-white px-4 text-sm font-semibold text-slate-950 disabled:opacity-60"
         >
           {busy ? 'Signing in' : 'Sign in'}
-        </button>
+        </Button>
 
         <p className="text-xs text-slate-400">
           Ask your teacher if you do not know your login info.
         </p>
       </form>
-    </StudentShell>
+    </StudentPage>
   );
 }

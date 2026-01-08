@@ -20,7 +20,7 @@ export default async function HomePage() {
         {student ? (
           <Link
             className="rounded-lg bg-blue-600 px-4 py-2 text-white font-semibold text-center"
-            href="/student"
+            href="/student/dashboard"
           >
             Continue as Student
           </Link>

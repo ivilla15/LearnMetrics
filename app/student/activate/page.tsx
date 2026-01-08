@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { StudentShell } from '@/app/api/student/StudentShell';
+import { StudentPage } from '@/components/student/StudentPage';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ToastProvider';
 
 export default function StudentActivatePage() {
@@ -69,74 +71,78 @@ export default function StudentActivatePage() {
   }
 
   return (
-    <StudentShell
+    <StudentPage
       title="First-time setup"
       subtitle="Enter your setup code and choose a new password."
     >
-      <form onSubmit={onSubmit} className="space-y-4">
-        <div className="grid gap-2">
-          <label htmlFor="username" className="text-xs font-medium text-slate-200">
-            Username
-          </label>
-          <input
-            id="username"
-            className="h-11 rounded-xl border border-white/10 bg-black/30 px-3 text-sm outline-none"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            autoComplete="username"
-            disabled={busy}
-          />
-        </div>
+      <Card>
+        <CardContent className="py-6">
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="grid gap-2">
+              <label htmlFor="username" className="text-xs font-medium text-slate-200">
+                Username
+              </label>
+              <input
+                id="username"
+                className="h-11 rounded-xl border border-white/10 bg-black/30 px-3 text-sm outline-none"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                disabled={busy}
+              />
+            </div>
 
-        <div className="grid gap-2">
-          <label htmlFor="setupCode" className="text-xs font-medium text-slate-200">
-            Setup code
-          </label>
-          <input
-            id="setupCode"
-            className="h-11 rounded-xl border border-white/10 bg-black/30 px-3 text-sm outline-none font-mono tracking-wider"
-            placeholder="6-digit code"
-            value={setupCode}
-            onChange={(e) => setSetupCode(normalizeSetupCode(e.target.value))}
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            disabled={busy}
-          />
-        </div>
+            <div className="grid gap-2">
+              <label htmlFor="setupCode" className="text-xs font-medium text-slate-200">
+                Setup code
+              </label>
+              <input
+                id="setupCode"
+                className="h-11 rounded-xl border border-white/10 bg-black/30 px-3 text-sm outline-none font-mono tracking-wider"
+                placeholder="6-digit code"
+                value={setupCode}
+                onChange={(e) => setSetupCode(normalizeSetupCode(e.target.value))}
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                disabled={busy}
+              />
+            </div>
 
-        <div className="grid gap-2">
-          <label htmlFor="newPassword" className="text-xs font-medium text-slate-200">
-            New password
-          </label>
-          <input
-            id="newPassword"
-            type="password"
-            className="h-11 rounded-xl border border-white/10 bg-black/30 px-3 text-sm outline-none"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            autoComplete="new-password"
-            disabled={busy}
-          />
-          <p className="text-[11px] text-slate-400">At least 8 characters.</p>
-        </div>
+            <div className="grid gap-2">
+              <label htmlFor="newPassword" className="text-xs font-medium text-slate-200">
+                New password
+              </label>
+              <input
+                id="newPassword"
+                type="password"
+                className="h-11 rounded-xl border border-white/10 bg-black/30 px-3 text-sm outline-none"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                autoComplete="new-password"
+                disabled={busy}
+              />
+              <p className="text-[11px] text-slate-400">At least 8 characters.</p>
+            </div>
 
-        <button
-          type="submit"
-          disabled={
-            busy ||
-            !username.trim() ||
-            setupCode.trim().length !== 6 ||
-            newPassword.trim().length < 8
-          }
-          className="h-11 w-full rounded-xl bg-white px-4 text-sm font-semibold text-slate-950 disabled:opacity-60"
-        >
-          {busy ? 'Activating' : 'Activate'}
-        </button>
+            <Button
+              type="submit"
+              disabled={
+                busy ||
+                !username.trim() ||
+                setupCode.trim().length !== 6 ||
+                newPassword.trim().length < 8
+              }
+              className="h-11 w-full rounded-xl bg-white px-4 text-sm font-semibold text-slate-950 disabled:opacity-60"
+            >
+              {busy ? 'Activating' : 'Activate'}
+            </Button>
 
-        <p className="text-xs text-slate-400">
-          If your setup code expired, ask your teacher to reset your access.
-        </p>
-      </form>
-    </StudentShell>
+            <p className="text-xs text-slate-400">
+              If your setup code expired, ask your teacher to reset your access.
+            </p>
+          </form>
+        </CardContent>
+      </Card>
+    </StudentPage>
   );
 }

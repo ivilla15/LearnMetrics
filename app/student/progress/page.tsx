@@ -1,8 +1,16 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { usePathname } from 'next/navigation';
+
+import { StudentShell } from '@/components/shell/StudentShell';
+import { PageHeader } from '@/components/ui/page-header';
+import { Section } from '@/components/ui/section';
+
 import { LevelProgressChart } from '@/components/LevelProgressChart';
-import { StudentNav } from '@/components/StudentNav';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type AttemptRow = {
   attemptId: number;
@@ -34,7 +42,50 @@ type AttemptDetail = {
   }[];
 };
 
+function ProgressSkeleton() {
+  return (
+    <>
+      <Section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Level progression</CardTitle>
+            <CardDescription>Loading your chart…</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-48 w-full" />
+          </CardContent>
+        </Card>
+      </Section>
+
+      <Section>
+        <Card>
+          <CardHeader>
+            <CardTitle>Attempts</CardTitle>
+            <CardDescription>Loading your history…</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-full" />
+          </CardContent>
+        </Card>
+      </Section>
+    </>
+  );
+}
+
 export default function StudentProgressPage() {
+  const pathname = usePathname();
+
+  const navItems = useMemo(
+    () => [
+      { label: 'Dashboard', href: '/student/dashboard' },
+      { label: 'Progress', href: '/student/progress' },
+      { label: 'Logout', href: '/student/logout' },
+    ],
+    [],
+  );
+
   const [attempts, setAttempts] = useState<AttemptRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,16 +93,13 @@ export default function StudentProgressPage() {
   const [attemptDetail, setAttemptDetail] = useState<AttemptDetail | null>(null);
   const [showIncorrectOnly, setShowIncorrectOnly] = useState(false);
 
-  // NEW: filter + pagination
   const [filter, setFilter] = useState<'ALL' | 'MASTERY' | 'NOT_MASTERY'>('ALL');
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
 
-  // NEW: detail UX hardening
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
 
-  // Load first page (re-runs when filter changes)
   useEffect(() => {
     async function loadFirstPage() {
       setLoading(true);
@@ -70,14 +118,13 @@ export default function StudentProgressPage() {
       setNextCursor(typeof data?.nextCursor === 'string' ? data.nextCursor : null);
       setLoading(false);
 
-      // If filter changes, clear any open detail view
       setSelectedAttemptId(null);
       setAttemptDetail(null);
       setDetailError(null);
       setDetailLoading(false);
     }
 
-    loadFirstPage();
+    void loadFirstPage();
   }, [filter]);
 
   async function loadMore() {
@@ -101,7 +148,6 @@ export default function StudentProgressPage() {
     setLoadingMore(false);
   }
 
-  // Load attempt detail when selected
   useEffect(() => {
     if (!selectedAttemptId) return;
 
@@ -124,143 +170,199 @@ export default function StudentProgressPage() {
       setDetailLoading(false);
     }
 
-    loadDetail();
+    void loadDetail();
   }, [selectedAttemptId]);
 
-  if (loading) {
-    return <p>Loading progress…</p>;
-  }
-
   return (
-    <>
-      <StudentNav />
-      <div style={{ padding: 24 }}>
-        <h1>Your Progress</h1>
+    <StudentShell navItems={navItems} currentPath={pathname} width="wide">
+      <PageHeader
+        title="Progress"
+        subtitle="Review your past tests and see how your level changes over time."
+      />
 
-        <div style={{ marginTop: 12, marginBottom: 12 }}>
-          <div style={{ marginBottom: 6 }}>
-            <h2 style={{ fontSize: 16, fontWeight: 600 }}>Level progression</h2>
-            <p style={{ fontSize: 12, color: '#555' }}>
-              Each point represents the student’s level at the time of a completed test.
-            </p>
-          </div>
+      {loading ? (
+        <ProgressSkeleton />
+      ) : (
+        <>
+          {/* Chart */}
+          <Section>
+            <Card>
+              <CardHeader>
+                <CardTitle>Level progression</CardTitle>
+                <CardDescription>
+                  Each point shows your level at the time you completed a test.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <LevelProgressChart attempts={attempts} />
+              </CardContent>
+            </Card>
+          </Section>
 
-          <LevelProgressChart attempts={attempts} />
-        </div>
+          {/* Attempts */}
+          <Section>
+            <Card>
+              <CardHeader>
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <CardTitle>Attempts</CardTitle>
+                    <CardDescription>Select one to view details.</CardDescription>
+                  </div>
 
-        {/* Filter */}
-        <div style={{ marginTop: 12, marginBottom: 12 }}>
-          <label htmlFor="filter-select" style={{ marginRight: 8 }}>
-            Filter
-          </label>
-          <select
-            id="filter-select"
-            value={filter}
-            onChange={(e) => setFilter(e.target.value as 'ALL' | 'MASTERY' | 'NOT_MASTERY')}
-          >
-            <option value="ALL">All</option>
-            <option value="MASTERY">Mastery only</option>
-            <option value="NOT_MASTERY">Not mastery only</option>
-          </select>
-        </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm text-[hsl(var(--muted-fg))]" htmlFor="filter-select">
+                      Filter
+                    </label>
+                    <select
+                      id="filter-select"
+                      className="h-10 rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+                      value={filter}
+                      onChange={(e) =>
+                        setFilter(e.target.value as 'ALL' | 'MASTERY' | 'NOT_MASTERY')
+                      }
+                    >
+                      <option value="ALL">All</option>
+                      <option value="MASTERY">Mastery only</option>
+                      <option value="NOT_MASTERY">Not mastery only</option>
+                    </select>
+                  </div>
+                </div>
+              </CardHeader>
 
-        {attempts.length === 0 ? (
-          <p>No attempts yet.</p>
-        ) : (
-          <>
-            <table border={1} cellPadding={8}>
-              <thead>
-                <tr>
-                  <th>Date</th>
-                  <th>Level</th>
-                  <th>Score</th>
-                  <th>Result</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {attempts.map((a) => {
-                  const isThisRowLoading = detailLoading && selectedAttemptId === a.attemptId;
+              <CardContent className="space-y-4">
+                {attempts.length === 0 ? (
+                  <div className="text-sm text-[hsl(var(--muted-fg))]">No attempts yet.</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-left border-b border-[hsl(var(--border))]">
+                          <th className="py-2 pr-3">Date</th>
+                          <th className="py-2 pr-3">Level</th>
+                          <th className="py-2 pr-3">Score</th>
+                          <th className="py-2 pr-3">Result</th>
+                          <th className="py-2 pr-3"></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {attempts.map((a) => {
+                          const isThisRowLoading =
+                            detailLoading && selectedAttemptId === a.attemptId;
 
-                  return (
-                    <tr key={a.attemptId}>
-                      <td>{new Date(a.completedAt).toLocaleString()}</td>
-                      <td>{a.levelAtTime}</td>
-                      <td>
-                        {a.score}/{a.total} ({a.percent}%)
-                      </td>
-                      <td>{a.wasMastery ? 'Mastery' : 'Not mastery'}</td>
-                      <td>
-                        <button
-                          onClick={() => {
-                            setAttemptDetail(null);
-                            setDetailError(null);
-                            setSelectedAttemptId(a.attemptId);
-                          }}
-                          disabled={isThisRowLoading}
+                          return (
+                            <tr
+                              key={a.attemptId}
+                              className="border-b border-[hsl(var(--border))] hover:bg-[hsl(var(--surface-2))]"
+                            >
+                              <td className="py-2 pr-3 whitespace-nowrap">
+                                {new Date(a.completedAt).toLocaleString()}
+                              </td>
+                              <td className="py-2 pr-3">{a.levelAtTime}</td>
+                              <td className="py-2 pr-3">
+                                {a.score}/{a.total} ({a.percent}%)
+                              </td>
+                              <td className="py-2 pr-3">
+                                {a.wasMastery ? 'Mastery' : 'Not mastery'}
+                              </td>
+                              <td className="py-2 pr-3">
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  disabled={isThisRowLoading}
+                                  onClick={() => {
+                                    setAttemptDetail(null);
+                                    setDetailError(null);
+                                    setSelectedAttemptId(a.attemptId);
+                                  }}
+                                >
+                                  {isThisRowLoading ? 'Loading…' : 'View details'}
+                                </Button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {nextCursor ? (
+                  <div>
+                    <Button variant="secondary" disabled={loadingMore} onClick={loadMore}>
+                      {loadingMore ? 'Loading…' : 'Load more'}
+                    </Button>
+                  </div>
+                ) : null}
+              </CardContent>
+            </Card>
+          </Section>
+
+          {/* Detail loading / error */}
+          {detailLoading ? (
+            <Section>
+              <Card>
+                <CardContent className="py-6">
+                  <div className="text-sm text-[hsl(var(--muted-fg))]">
+                    Loading attempt details…
+                  </div>
+                </CardContent>
+              </Card>
+            </Section>
+          ) : null}
+
+          {detailError ? (
+            <Section>
+              <Card>
+                <CardContent className="py-6">
+                  <div className="text-sm text-[hsl(var(--danger))]">{detailError}</div>
+                </CardContent>
+              </Card>
+            </Section>
+          ) : null}
+
+          {/* Detail panel */}
+          {attemptDetail ? (
+            <Section>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Attempt details</CardTitle>
+                  <CardDescription>
+                    Score: {attemptDetail.score}/{attemptDetail.total} ({attemptDetail.percent}%)
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="space-y-4">
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={showIncorrectOnly}
+                      onChange={(e) => setShowIncorrectOnly(e.target.checked)}
+                    />
+                    Show incorrect only
+                  </label>
+
+                  <ul className="space-y-2 text-sm">
+                    {attemptDetail.items
+                      .filter((it) => !showIncorrectOnly || !it.isCorrect)
+                      .map((it) => (
+                        <li
+                          key={it.id}
+                          className="rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.6)] p-3"
                         >
-                          {isThisRowLoading ? 'Loading…' : 'View details'}
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-
-            {/* Load more */}
-            {nextCursor && (
-              <button
-                onClick={loadMore}
-                disabled={loadingMore}
-                style={{ marginTop: 12, padding: '6px 10px' }}
-              >
-                {loadingMore ? 'Loading…' : 'Load more'}
-              </button>
-            )}
-
-            {/* Hint */}
-            {attempts.length > 0 && !attemptDetail && !detailLoading && !detailError && (
-              <p style={{ marginTop: 16 }}>Select an attempt to view details.</p>
-            )}
-          </>
-        )}
-
-        {/* Detail states */}
-        {detailLoading && <p style={{ marginTop: 12 }}>Loading attempt details…</p>}
-        {detailError && <p style={{ marginTop: 12, color: 'red' }}>{detailError}</p>}
-
-        {/* Detail panel */}
-        {attemptDetail && (
-          <div style={{ marginTop: 32 }}>
-            <h2>Attempt Details</h2>
-
-            <p>
-              Score: {attemptDetail.score}/{attemptDetail.total} ({attemptDetail.percent}%)
-            </p>
-
-            <label>
-              <input
-                type="checkbox"
-                checked={showIncorrectOnly}
-                onChange={(e) => setShowIncorrectOnly(e.target.checked)}
-              />{' '}
-              Show incorrect only
-            </label>
-
-            <ul>
-              {attemptDetail.items
-                .filter((it) => !showIncorrectOnly || !it.isCorrect)
-                .map((it) => (
-                  <li key={it.id}>
-                    {it.prompt} → your answer: {it.studentAnswer === -1 ? '—' : it.studentAnswer},{' '}
-                    correct: {it.correctAnswer} {it.isCorrect ? '✅' : '❌'}
-                  </li>
-                ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    </>
+                          <div className="font-medium">{it.prompt}</div>
+                          <div className="text-[hsl(var(--muted-fg))]">
+                            Your answer: {it.studentAnswer === -1 ? '—' : it.studentAnswer} ·
+                            Correct: {it.correctAnswer} {it.isCorrect ? '✅' : '❌'}
+                          </div>
+                        </li>
+                      ))}
+                  </ul>
+                </CardContent>
+              </Card>
+            </Section>
+          ) : null}
+        </>
+      )}
+    </StudentShell>
   );
 }

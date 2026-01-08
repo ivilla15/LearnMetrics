@@ -1,11 +1,14 @@
-// app/student/dashboard/page.tsx
 'use client';
 
-import { useEffect, useState } from 'react';
-import { StudentShell } from '@/app/api/student/StudentShell';
-import { useToast } from '@/components/ToastProvider';
-import { useRouter } from 'next/navigation';
-import { StudentNav } from '@/components/StudentNav';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+
+import { StudentShell } from '@/components/shell/StudentShell';
+import { PageHeader } from '@/components/ui/page-header';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Section } from '@/components/ui/section';
 
 type MeDTO = { id: number; name: string; username: string; level: number };
 type NextAssignmentDTO = null | {
@@ -17,6 +20,8 @@ type NextAssignmentDTO = null | {
   windowMinutes: number;
 };
 
+type AssignmentStatus = null | 'NOT_OPEN' | 'CLOSED' | 'READY' | 'ALREADY_SUBMITTED';
+
 function formatLocal(iso: string) {
   return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
@@ -26,16 +31,65 @@ function statusFor(a: NextAssignmentDTO) {
   const now = Date.now();
   const opens = new Date(a.opensAt).getTime();
   const closes = new Date(a.closesAt).getTime();
-
   if (now < opens) return { label: 'Not open yet', canStart: false };
   if (now > closes) return { label: 'Closed', canStart: false };
   return { label: 'Open now', canStart: true };
 }
 
-type AssignmentStatus = null | 'NOT_OPEN' | 'CLOSED' | 'READY' | 'ALREADY_SUBMITTED';
+function DashboardSkeleton() {
+  return (
+    <div>
+      <div className="space-y-3">
+        <Skeleton className="h-10 w-72" />
+        <Skeleton className="h-6 w-48" />
+      </div>
+
+      <Section tone="subtle">
+        <div className="grid gap-6 md:grid-cols-2">
+          {[0, 1].map((i) => (
+            <Card key={i}>
+              <CardHeader>
+                <Skeleton className="h-6 w-36" />
+                <Skeleton className="h-5 w-52" />
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Skeleton className="h-5 w-60" />
+                <Skeleton className="h-5 w-48" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </Section>
+
+      <Section>
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+            <Skeleton className="h-5 w-72" />
+          </CardHeader>
+          <CardContent className="grid gap-5 md:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <Skeleton key={i} className="h-24 w-full rounded-[var(--radius)]" />
+            ))}
+          </CardContent>
+        </Card>
+      </Section>
+    </div>
+  );
+}
 
 export default function StudentDashboardPage() {
   const router = useRouter();
+  const pathname = usePathname();
+
+  const navItems = useMemo(
+    () => [
+      { label: 'Dashboard', href: '/student/dashboard' },
+      { label: 'Progress', href: '/student/progress' },
+      { label: 'Logout', href: '/student/logout' },
+    ],
+    [],
+  );
 
   const [nextStatus, setNextStatus] = useState<AssignmentStatus>(null);
   const [me, setMe] = useState<MeDTO | null>(null);
@@ -47,13 +101,14 @@ export default function StudentDashboardPage() {
 
     async function load() {
       setLoading(true);
+
       const [meRes, nextRes] = await Promise.all([
         fetch('/api/student/me'),
         fetch('/api/student/next-assignment'),
       ]);
 
       if (!meRes.ok) {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
         return;
       }
 
@@ -63,6 +118,7 @@ export default function StudentDashboardPage() {
       if (cancelled) return;
 
       setMe(meJson?.student ?? meJson);
+
       const raw = nextJson?.assignment ?? nextJson ?? null;
       const normalized =
         raw && typeof raw === 'object' && Number.isFinite((raw as any).id)
@@ -73,11 +129,13 @@ export default function StudentDashboardPage() {
       setLoading(false);
     }
 
-    load();
+    void load();
+
     return () => {
       cancelled = true;
     };
   }, []);
+
   useEffect(() => {
     let cancelled = false;
 
@@ -108,89 +166,107 @@ export default function StudentDashboardPage() {
     };
   }, [nextAssignment?.id]);
 
-  if (loading) {
-    return <StudentShell title="Dashboard">Loading</StudentShell>;
-  }
-
-  if (!me) {
-    return (
-      <StudentShell title="Dashboard" subtitle="Please sign in again.">
-        <div className="text-sm text-slate-300">Not signed in.</div>
-      </StudentShell>
-    );
-  }
   const s = statusFor(nextAssignment);
 
   const id = nextAssignment?.id;
-  const hasId = Number.isFinite(id);
-
   const alreadySubmitted = nextStatus === 'ALREADY_SUBMITTED';
   const buttonLabel = alreadySubmitted ? 'See results' : 'Start test';
-
-  // allow results anytime; otherwise only allow during open window
-  const canClick = hasId && (alreadySubmitted || s.canStart);
+  const canClick = Number.isFinite(id) && (alreadySubmitted || s.canStart);
 
   return (
-    <>
-      <StudentNav />
-      <div className="space-y-6">
-        <StudentShell title={`Welcome, ${me.name}`} subtitle={`Level ${me.level}`}>
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <div className="text-xs text-slate-300">Account</div>
-              <div className="mt-1 text-sm font-semibold">{me.username}</div>
-            </div>
+    <StudentShell navItems={navItems} currentPath={pathname}>
+      {loading ? (
+        <DashboardSkeleton />
+      ) : !me ? (
+        <Section>
+          <Card>
+            <CardContent className="py-8 text-[15px] text-[hsl(var(--muted-fg))]">
+              Not signed in.
+            </CardContent>
+          </Card>
+        </Section>
+      ) : (
+        <>
+          <PageHeader title={`Welcome, ${me.name}`} subtitle={`Level ${me.level}`} />
 
-            <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
-              <div className="text-xs text-slate-300">Next test status</div>
-              <div className="mt-1 text-sm font-semibold">{s.label}</div>
-            </div>
-          </div>
-        </StudentShell>
+          <Section>
+            <div className="grid gap-6 md:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Account</CardTitle>
+                  <CardDescription>Your student login</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+                    Username
+                  </div>
+                  <div className="mt-2 text-[17px] font-semibold">{me.username}</div>
+                </CardContent>
+              </Card>
 
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl backdrop-blur">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h2 className="text-lg font-semibold">Next test</h2>
-              <p className="mt-1 text-sm text-slate-300">
-                {nextAssignment
-                  ? nextAssignment.mode === 'MANUAL'
-                    ? 'Manual test'
-                    : 'Weekly scheduled test'
-                  : 'No upcoming tests'}
-              </p>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Next test status</CardTitle>
+                  <CardDescription>Availability right now</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-[17px] font-semibold">{s.label}</div>
+                </CardContent>
+              </Card>
             </div>
-            <button
-              type="button"
-              disabled={!canClick}
-              className="h-10 rounded-xl bg-white px-4 text-sm font-semibold text-slate-950 disabled:opacity-60"
-              onClick={() => {
-                if (!canClick) return;
-                router.push(`/student/assignments/${id}`);
-              }}
-            >
-              {buttonLabel}
-            </button>
-          </div>
+          </Section>
 
-          {nextAssignment ? (
-            <div className="mt-4 grid gap-3 text-sm text-slate-200 md:grid-cols-3">
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                <div className="text-xs text-slate-400">Opens</div>
-                <div className="mt-1 font-medium">{formatLocal(nextAssignment.opensAt)}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                <div className="text-xs text-slate-400">Closes</div>
-                <div className="mt-1 font-medium">{formatLocal(nextAssignment.closesAt)}</div>
-              </div>
-              <div className="rounded-xl border border-white/10 bg-black/20 p-3">
-                <div className="text-xs text-slate-400">Duration</div>
-                <div className="mt-1 font-medium">{nextAssignment.windowMinutes} minutes</div>
-              </div>
-            </div>
-          ) : null}
-        </div>
-      </div>
-    </>
+          <Section>
+            <Card>
+              <CardHeader>
+                <div className="flex items-start justify-between gap-6">
+                  <div>
+                    <CardTitle>Next test</CardTitle>
+                    <CardDescription>
+                      {nextAssignment
+                        ? nextAssignment.mode === 'MANUAL'
+                          ? 'Manual test'
+                          : 'Weekly scheduled test'
+                        : 'No upcoming tests'}
+                    </CardDescription>
+                  </div>
+
+                  <Button
+                    size="lg"
+                    disabled={!canClick}
+                    onClick={() => {
+                      if (!canClick) return;
+                      router.push(`/student/assignments/${id}`);
+                    }}
+                  >
+                    {buttonLabel}
+                  </Button>
+                </div>
+              </CardHeader>
+
+              {nextAssignment ? (
+                <CardContent className="grid gap-5 md:grid-cols-3">
+                  {[
+                    { label: 'Opens', value: formatLocal(nextAssignment.opensAt) },
+                    { label: 'Closes', value: formatLocal(nextAssignment.closesAt) },
+                    { label: 'Duration', value: `${nextAssignment.windowMinutes} minutes` },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-[var(--radius)] bg-[hsl(var(--surface-2))] p-5"
+                    >
+                      <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+                        {item.label}
+                      </div>
+                      <div className="mt-2 text-[15px] font-medium">{item.value}</div>
+                    </div>
+                  ))}
+                </CardContent>
+              ) : null}
+            </Card>
+          </Section>
+        </>
+      )}
+    </StudentShell>
   );
 }

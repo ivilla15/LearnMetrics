@@ -1,7 +1,9 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { StudentShell } from '@/app/api/student/StudentShell';
+import { StudentPage } from '@/components/student/StudentPage';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ToastProvider';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -173,57 +175,57 @@ export default function StudentAssignmentPage() {
   // Render states
   // -----------------------------
   if (loading) {
-    return <StudentShell title="Test">Loading</StudentShell>;
+    return <StudentPage title="Test">Loading</StudentPage>;
   }
 
   if (!data) {
     return (
-      <StudentShell title="Test">
+      <StudentPage title="Test">
         <div className="text-sm text-slate-300">Unable to load.</div>
-      </StudentShell>
+      </StudentPage>
     );
   }
 
   if (data.status === 'NOT_OPEN') {
     return (
-      <StudentShell title="Test not open yet" subtitle="Come back when the test window opens.">
+      <StudentPage title="Test not open yet" subtitle="Come back when the test window opens.">
         <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-200">
           <div className="font-semibold">Opens</div>
           <div className="mt-1 text-slate-300">{formatLocal(assignment.opensAt)}</div>
         </div>
-      </StudentShell>
+      </StudentPage>
     );
   }
 
   if (data.status === 'CLOSED') {
     return (
-      <StudentShell title="Test closed" subtitle="This test window is over.">
+      <StudentPage title="Test closed" subtitle="This test window is over.">
         <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-200">
           <div className="font-semibold">Closed</div>
           <div className="mt-1 text-slate-300">{formatLocal(assignment.closesAt)}</div>
         </div>
-      </StudentShell>
+      </StudentPage>
     );
   }
 
   if (data.status === 'ALREADY_SUBMITTED') {
     return (
-      <StudentShell title="Already submitted" subtitle="You already completed this test.">
+      <StudentPage title="Already submitted" subtitle="You already completed this test.">
         <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-200">
           <div className="font-semibold">Score</div>
           <div className="mt-1 text-slate-300">
             {data.result.score}/{data.result.total} ({data.result.percent}%)
           </div>
         </div>
-      </StudentShell>
+      </StudentPage>
     );
   }
 
   if (data.status !== 'READY') {
     return (
-      <StudentShell title="Test">
+      <StudentPage title="Test">
         <div className="text-sm text-slate-300">Unexpected state.</div>
-      </StudentShell>
+      </StudentPage>
     );
   }
 
@@ -235,7 +237,7 @@ export default function StudentAssignmentPage() {
   ).length;
 
   return (
-    <StudentShell title="Test">
+    <StudentPage title="Test">
       <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
         {/* MAIN */}
         <main className="space-y-4">
@@ -317,14 +319,14 @@ export default function StudentAssignmentPage() {
                 Answered {answeredCount}/{questions.length}
               </div>
 
-              <button
+              <Button
                 type="button"
                 onClick={() => void handleSubmit(false)}
                 disabled={submitting}
                 className="h-10 w-full rounded-xl bg-white text-sm font-semibold text-slate-950 disabled:opacity-60"
               >
                 {submitting ? 'Submitting…' : 'Submit'}
-              </button>
+              </Button>
             </div>
 
             <div className="mt-4 border-t border-white/10 pt-4">
@@ -335,7 +337,7 @@ export default function StudentAssignmentPage() {
                   {questions.map((q, i) => {
                     const done = answers[q.id] !== undefined && answers[q.id] !== '';
                     return (
-                      <button
+                      <Button
                         key={q.id}
                         type="button"
                         onClick={() => jumpTo(q.id)}
@@ -352,7 +354,7 @@ export default function StudentAssignmentPage() {
                             ✓
                           </span>
                         )}
-                      </button>
+                      </Button>
                     );
                   })}
                 </div>
@@ -363,6 +365,6 @@ export default function StudentAssignmentPage() {
           </div>
         </aside>
       </div>
-    </StudentShell>
+    </StudentPage>
   );
 }
