@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { prisma } from '@/data/prisma';
+import { prisma } from '@/data';
 
 export async function requireTeacher() {
   const cookieStore = await cookies();
@@ -11,7 +11,15 @@ export async function requireTeacher() {
 
   const session = await prisma.teacherSession.findUnique({
     where: { token },
-    include: { teacher: { select: { id: true, name: true, email: true } } },
+    include: {
+      teacher: {
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      },
+    },
   });
 
   if (!session) {

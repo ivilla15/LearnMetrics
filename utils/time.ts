@@ -42,3 +42,13 @@ export function localDateTimeToUtcRange(params: {
 
   return { opensAtUTC, closesAtUTC, opensAtLocalISO, closesAtLocalISO };
 }
+
+export function expiresAtFromNow(days: number): Date {
+  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+}
+
+export function isoDay(d: Date | string) {
+  const date = typeof d === 'string' ? new Date(d) : d;
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return 'invalid';
+  return date.toISOString().slice(0, 10); // YYYY-MM-DD
+}

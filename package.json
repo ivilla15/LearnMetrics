@@ -4,8 +4,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
-    "lint:fix": "next lint --fix",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix --max-warnings=0",
     "typecheck": "tsc --noEmit",
     "format": "prettier . --write",
     "prepare": "husky",
@@ -41,7 +41,7 @@
     "@typescript-eslint/eslint-plugin": "^8.50.0",
     "@typescript-eslint/parser": "^8.50.0",
     "autoprefixer": "^10.4.23",
-    "eslint": "^9.0.0",
+    "eslint": "^8.57.0",
     "eslint-config-next": "15.5.9",
     "eslint-plugin-jsx-a11y": "^6.9.0",
     "eslint-plugin-react": "^7.36.1",
@@ -56,7 +56,7 @@
   },
   "lint-staged": {
     "*.{js,jsx,ts,tsx}": [
-      "eslint --fix --max-warnings=0"
+      "pnpm exec eslint --fix --max-warnings=0"
     ],
     "*.{json,md,mdx,css,scss,html,yml,yaml}": [
       "prettier --write"

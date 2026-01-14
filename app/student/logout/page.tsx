@@ -2,6 +2,8 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { StudentAuthShell } from '@/modules';
+import { Card, CardContent } from '@/components';
 
 export default function StudentLogoutPage() {
   const router = useRouter();
@@ -11,9 +13,14 @@ export default function StudentLogoutPage() {
       await fetch('/api/student/logout', { method: 'POST' });
       router.replace('/');
     }
-
     logout();
   }, [router]);
 
-  return <p className="p-6 text-slate-300">Signing out…</p>;
+  return (
+    <StudentAuthShell>
+      <Card>
+        <CardContent className="py-8 text-sm text-[hsl(var(--muted-fg))]">Signing out…</CardContent>
+      </Card>
+    </StudentAuthShell>
+  );
 }

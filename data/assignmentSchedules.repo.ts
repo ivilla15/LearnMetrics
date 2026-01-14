@@ -1,3 +1,4 @@
+// data/assignmentSchedules.repo.ts
 import { prisma } from '@/data/prisma';
 import type { AssignmentSchedule } from '@prisma/client';
 
@@ -19,17 +20,25 @@ export type UpdateScheduleArgs = {
   numQuestions?: number;
 };
 
-export async function findByClassroomId(classroomId: number) {
+export async function findPrimaryScheduleByClassroomId(classroomId: number) {
   return prisma.assignmentSchedule.findFirst({
     where: { classroomId },
     orderBy: { id: 'asc' },
   });
 }
 
-export async function findAllByClassroomId(classroomId: number): Promise<AssignmentSchedule[]> {
+export async function findAllSchedulesByClassroomId(
+  classroomId: number,
+): Promise<AssignmentSchedule[]> {
   return prisma.assignmentSchedule.findMany({
     where: { classroomId },
     orderBy: { id: 'asc' },
+  });
+}
+
+export async function findScheduleById(scheduleId: number): Promise<AssignmentSchedule | null> {
+  return prisma.assignmentSchedule.findUnique({
+    where: { id: scheduleId },
   });
 }
 
@@ -44,28 +53,19 @@ export async function updateSchedule({ id, ...data }: UpdateScheduleArgs) {
   });
 }
 
-export async function findAllActive() {
+export async function findAllActiveSchedules() {
   return prisma.assignmentSchedule.findMany({
     where: { isActive: true },
   });
 }
 
-export async function findById(id: number): Promise<AssignmentSchedule | null> {
-  return prisma.assignmentSchedule.findUnique({
-    where: { id },
-  });
-}
-
-export async function deleteSchedule(id: number): Promise<void> {
+export async function deleteScheduleById(scheduleId: number): Promise<void> {
   await prisma.assignmentSchedule.delete({
-    where: { id },
+    where: { id: scheduleId },
   });
 }
 
-/**
- * ✅ Needed for "Delete all students" optional cascade.
- */
-export async function deleteByClassroomId(classroomId: number): Promise<void> {
+export async function deleteSchedulesByClassroomId(classroomId: number): Promise<void> {
   await prisma.assignmentSchedule.deleteMany({
     where: { classroomId },
   });

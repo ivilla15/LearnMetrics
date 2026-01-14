@@ -1,42 +1,44 @@
 // app/teacher/classrooms/[id]/page.tsx
-import { TeacherNav } from 'components/TeacherNav';
-import ClassroomDashboardPage from './ClassroomDashboardPage';
-import { prisma } from '@/data/prisma';
-import { requireTeacher } from '@/core/auth/requireTeacher';
+import * as React from 'react';
+
+import { requireTeacher } from '@/core';
+import { ClassroomShell, ClassroomStatsGrid } from '@/modules';
+import { getTeacherClassroomOverview } from '@/core/classrooms';
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const auth = await requireTeacher();
   if (!auth.ok) {
-    return <div>{auth.error}</div>;
+    return <div className="p-6 text-sm text-[hsl(var(--danger))]">{auth.error}</div>;
   }
 
   const { id } = await params;
   const classroomId = Number(id);
 
   if (!Number.isFinite(classroomId) || classroomId <= 0) {
-    return <div>Invalid classroom id</div>;
+    return <div className="p-6 text-sm text-[hsl(var(--danger))]">Invalid classroom id</div>;
   }
 
-  // ✅ Fetch classroom once, enforce ownership
-  const classroom = await prisma.classroom.findFirst({
-    where: {
-      id: classroomId,
+  let overview: Awaited<ReturnType<typeof getTeacherClassroomOverview>>;
+
+  try {
+    overview = await getTeacherClassroomOverview({
+      classroomId,
       teacherId: auth.teacher.id,
-    },
-    select: {
-      id: true,
-      name: true,
-    },
-  });
-
-  if (!classroom) {
-    return <div>Classroom not found</div>;
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to load classroom';
+    return <div className="p-6 text-sm text-[hsl(var(--danger))]">{message}</div>;
   }
+
+  const currentPath = `/teacher/classrooms/${classroomId}`;
 
   return (
-    <>
-      <TeacherNav classroom={classroom} />
-      <ClassroomDashboardPage classroomId={classroom.id} />
-    </>
+    <ClassroomShell
+      classroomId={classroomId}
+      classroomName={overview.classroom.name}
+      currentPath={currentPath}
+    >
+      <ClassroomStatsGrid stats={overview} />
+    </ClassroomShell>
   );
 }

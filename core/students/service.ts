@@ -1,9 +1,10 @@
+// core/students/service.ts
 import * as StudentsRepo from '@/data/students.repo';
 import * as AttemptsRepo from '@/data/attempts.repo';
-import * as ClassroomsRepo from '@/data/classrooms.repo';
 import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
 import * as AssignmentsRepo from '@/data/assignments.repo';
-import { ConflictError, NotFoundError } from '@/core/errors';
+import { NotFoundError } from '@/core/errors';
+import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 
 // -----------------------------
 // Student history (student + teacher progress pages)
@@ -33,8 +34,24 @@ export type StudentHistoryDTO = {
   attempts: AttemptHistoryItem[];
 };
 
+export type StudentRosterLastAttempt = {
+  attemptId: number;
+  completedAt: string;
+  percent: number;
+  wasMastery: boolean;
+} | null;
+
+export type StudentRosterRow = {
+  id: number;
+  name: string;
+  username: string;
+  level: number;
+  mustSetPassword?: boolean;
+  lastAttempt: StudentRosterLastAttempt;
+};
+
 export async function getStudentHistory(studentId: number): Promise<StudentHistoryDTO> {
-  const student = await StudentsRepo.findById(studentId);
+  const student = await StudentsRepo.findStudentById(studentId);
   if (!student) throw new NotFoundError('Student not found');
 
   const attempts = await AttemptsRepo.findByStudentWithAssignment(studentId);
@@ -91,23 +108,6 @@ export type BulkCreateStudentsResult = {
   setupCodes: SetupCodeCard[];
 };
 
-export type StudentRosterRow = {
-  id: number;
-  name: string;
-  username: string;
-  level: number;
-  mustSetPassword?: boolean;
-  lastAttempt: any | null;
-};
-
-async function assertTeacherOwnsClassroom(teacherId: number, classroomId: number) {
-  const classroom = await ClassroomsRepo.findClassroomById(classroomId);
-  if (!classroom) throw new NotFoundError('Classroom not found');
-  if (classroom.teacherId !== teacherId) {
-    throw new ConflictError('You are not allowed to modify this classroom');
-  }
-}
-
 export async function bulkCreateClassroomStudents(
   args: BulkCreateStudentArgs,
 ): Promise<BulkCreateStudentsResult> {
@@ -124,10 +124,7 @@ export async function bulkCreateClassroomStudents(
     expiresAt: c.setupCodeExpiresAt.toISOString(),
   }));
 
-  return {
-    students: roster,
-    setupCodes,
-  };
+  return { students: roster, setupCodes };
 }
 
 // -----------------------------
@@ -152,10 +149,8 @@ export async function updateClassroomStudentById(
 
   await assertTeacherOwnsClassroom(teacherId, classroomId);
 
-  const existing = await StudentsRepo.findById(studentId);
-  if (!existing || existing.classroomId !== classroomId) {
-    throw new NotFoundError('Student not found');
-  }
+  const existing = await StudentsRepo.findStudentByIdInClassroom(classroomId, studentId);
+  if (!existing) throw new NotFoundError('Student not found');
 
   await StudentsRepo.updateById(studentId, {
     name: input.name,
@@ -181,10 +176,8 @@ export async function deleteClassroomStudentById(args: DeleteStudentArgs): Promi
 
   await assertTeacherOwnsClassroom(teacherId, classroomId);
 
-  const existing = await StudentsRepo.findById(studentId);
-  if (!existing || existing.classroomId !== classroomId) {
-    throw new NotFoundError('Student not found');
-  }
+  const existing = await StudentsRepo.findStudentByIdInClassroom(classroomId, studentId);
+  if (!existing) throw new NotFoundError('Student not found');
 
   await StudentsRepo.deleteById(studentId);
 }
@@ -205,19 +198,19 @@ export async function deleteAllClassroomStudents(args: DeleteAllStudentsArgs): P
 
   await assertTeacherOwnsClassroom(teacherId, classroomId);
 
-  // ✅ Delete students (Attempt, AttemptItem, StudentSession cascade via schema)
-  await StudentsRepo.deleteByClassroomId(classroomId);
+  await StudentsRepo.deleteStudentsByClassroomId(classroomId);
 
-  // Optional classroom-level cleanup
   if (deleteAssignments) {
-    // You probably don’t have this yet. Add it to assignments.repo when ready.
-    // For now, safest fallback is to do nothing OR implement deleteMany in the repo.
-    if (typeof (AssignmentsRepo as any).deleteByClassroomId === 'function') {
-      await (AssignmentsRepo as any).deleteByClassroomId(classroomId);
+    const maybeDelete = (AssignmentsRepo as Record<string, unknown>)[
+      'deleteAssignmentsByClassroomId'
+    ];
+
+    if (typeof maybeDelete === 'function') {
+      await (maybeDelete as (id: number) => Promise<unknown>)(classroomId);
     }
   }
 
   if (deleteSchedules) {
-    await SchedulesRepo.deleteByClassroomId(classroomId);
+    await SchedulesRepo.deleteSchedulesByClassroomId(classroomId);
   }
 }

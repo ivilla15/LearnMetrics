@@ -1,10 +1,44 @@
-import { prisma } from '@/data/prisma';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
-import { hashSetupCode } from '@/core/auth/setupCodes';
 
-export async function findStudentsWithLatestAttempt(classroomId: number) {
+import { prisma } from '@/data/prisma';
+import { generateSetupCode, hashSetupCode } from '@/core';
+
+import type { StudentRosterRow } from '@/types/roster';
+import type { AttemptSummary } from '@/types/attempts';
+
+/* -------------------------------------------------------------------------- */
+/* Basic queries                                                               */
+/* -------------------------------------------------------------------------- */
+
+export async function findStudentById(studentId: number) {
+  return prisma.student.findUnique({
+    where: { id: studentId },
+  });
+}
+
+export async function findStudentByIdInClassroom(classroomId: number, studentId: number) {
+  return prisma.student.findFirst({
+    where: { id: studentId, classroomId },
+    select: {
+      id: true,
+      name: true,
+      username: true,
+      level: true,
+      mustSetPassword: true,
+      classroomId: true,
+    },
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Roster with latest attempt                                                  */
+/* -------------------------------------------------------------------------- */
+
+export async function findStudentsWithLatestAttempt(
+  classroomId: number,
+): Promise<StudentRosterRow[]> {
   const students = await prisma.student.findMany({
     where: { classroomId },
     include: {
@@ -23,23 +57,19 @@ export async function findStudentsWithLatestAttempt(classroomId: number) {
     orderBy: { name: 'asc' },
   });
 
-  return students.map((s: (typeof students)[number]) => ({
+  return students.map((s) => ({
     id: s.id,
     name: s.name,
     username: s.username,
     level: s.level,
     mustSetPassword: s.mustSetPassword,
-    lastAttempt: s.Attempt.length ? s.Attempt[0] : null,
+    lastAttempt: s.Attempt.length ? (s.Attempt[0] as AttemptSummary) : null,
   }));
 }
 
-export async function findById(id: number) {
-  return prisma.student.findUnique({
-    where: { id },
-  });
-}
-
-// Extra helpers for teacher dashboard (roster CRUD)
+/* -------------------------------------------------------------------------- */
+/* Bulk create                                                                 */
+/* -------------------------------------------------------------------------- */
 
 export type CreateStudentData = {
   firstName: string;
@@ -53,15 +83,9 @@ export type CreatedStudentWithSetupCode = {
   name: string;
   username: string;
   level: number;
-  setupCode: string; // plaintext returned ONLY once
+  setupCode: string;
   setupCodeExpiresAt: Date;
 };
-
-function generateSetupCode(): string {
-  // 6-digit numeric (easy to type)
-  const n = crypto.randomInt(0, 1_000_000);
-  return String(n).padStart(6, '0');
-}
 
 function expiresAtFromNowDays(days: number) {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
@@ -72,23 +96,23 @@ export async function createManyForClassroom(
   students: CreateStudentData[],
 ): Promise<{
   created: CreatedStudentWithSetupCode[];
-  roster: ReturnType<typeof findStudentsWithLatestAttempt> extends Promise<infer R> ? R : never;
+  roster: StudentRosterRow[];
 }> {
   if (!students.length) {
-    return { created: [], roster: await findStudentsWithLatestAttempt(classroomId) };
+    return {
+      created: [],
+      roster: await findStudentsWithLatestAttempt(classroomId),
+    };
   }
 
   const created: CreatedStudentWithSetupCode[] = [];
   const setupExpiresAt = expiresAtFromNowDays(7);
 
-  // Create students one-by-one so we can return setup codes for ONLY the ones actually created.
-  // (createMany can't return created rows/ids).
   for (const s of students) {
     const name = `${s.firstName} ${s.lastName}`.trim();
     const setupCode = generateSetupCode();
     const setupCodeHash = hashSetupCode(setupCode);
 
-    // Placeholder password hash prevents login until activation sets a real password.
     const placeholderPasswordHash = await bcrypt.hash(
       crypto.randomBytes(24).toString('base64url'),
       10,
@@ -124,8 +148,8 @@ export async function createManyForClassroom(
         setupCodeExpiresAt: row.setupCodeExpiresAt ?? setupExpiresAt,
       });
     } catch (err) {
-      // If username already exists, skip it (matches old skipDuplicates behavior)
       if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
+        // duplicate username → skip
         continue;
       }
       throw err;
@@ -135,6 +159,10 @@ export async function createManyForClassroom(
   const roster = await findStudentsWithLatestAttempt(classroomId);
   return { created, roster };
 }
+
+/* -------------------------------------------------------------------------- */
+/* Mutations                                                                   */
+/* -------------------------------------------------------------------------- */
 
 export async function updateById(
   id: number,
@@ -152,7 +180,7 @@ export async function deleteById(id: number) {
   });
 }
 
-export async function deleteByClassroomId(classroomId: number) {
+export async function deleteStudentsByClassroomId(classroomId: number) {
   return prisma.student.deleteMany({
     where: { classroomId },
   });

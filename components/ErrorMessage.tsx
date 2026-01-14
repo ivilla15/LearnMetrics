@@ -1,7 +1,17 @@
-// components/ErrorMessage.tsx
-export function ErrorMessage({ message }: { message: string }) {
+import { cn } from '@/lib/utils';
+
+export function ErrorMessage({ message, className }: { message: string; className?: string }) {
   return (
-    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+    <div
+      className={cn(
+        'rounded-[var(--radius)]',
+        'bg-[hsl(var(--danger)/0.12)]',
+        'border border-[hsl(var(--danger)/0.25)]',
+        'px-3 py-2',
+        'text-sm text-[hsl(var(--danger))]',
+        className,
+      )}
+    >
       {message}
     </div>
   );

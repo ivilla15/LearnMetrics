@@ -1,8 +1,8 @@
-// app/api/admin/scheduler/run/route.ts
+import crypto from 'crypto';
 
 import { runActiveSchedulesForDate } from '@/core/schedules/service';
 import { jsonResponse, errorResponse } from '@/utils/http';
-import { timingSafeEqual } from 'crypto';
+import { handleApiError } from '@/app';
 
 function isAuthorized(request: Request): boolean {
   const secret = process.env.SCHEDULER_SECRET;
@@ -11,11 +11,11 @@ function isAuthorized(request: Request): boolean {
   const auth = request.headers.get('authorization') ?? '';
   const expected = `Bearer ${secret}`;
 
-  // constant-time compare (avoid leaking info via timing)
   const a = Buffer.from(auth);
   const b = Buffer.from(expected);
   if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+
+  return crypto.timingSafeEqual(a, b);
 }
 
 export async function POST(request: Request) {
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
 
   try {
     const results = await runActiveSchedulesForDate(new Date());
+
     return jsonResponse(
       {
         ranAt: new Date().toISOString(),
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
       },
       200,
     );
-  } catch {
-    return errorResponse('Internal server error', 500);
+  } catch (err: unknown) {
+    return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }
 }

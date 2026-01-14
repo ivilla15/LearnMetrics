@@ -1,14 +1,8 @@
-// app/api/classrooms/[id]/students/bulk/route.ts
-import { requireTeacher } from '@/core/auth/requireTeacher';
-import { classroomIdParamSchema } from '@/validation/classrooms.schema';
-import { jsonResponse, errorResponse } from '@/utils/http';
-import { NotFoundError, ConflictError } from '@/core/errors';
-import { ZodError, z } from 'zod';
-import { bulkCreateClassroomStudents } from '@/core/students/service';
-
-type RouteParams = {
-  params: Promise<{ id: string }>;
-};
+import { bulkCreateClassroomStudents, requireTeacher } from '@/core';
+import { classroomIdParamSchema } from '@/validation';
+import { errorResponse, jsonResponse } from '@/utils';
+import { handleApiError, readJson, RouteContext } from '@/app';
+import { z } from 'zod';
 
 const bulkStudentsSchema = z.object({
   students: z
@@ -24,15 +18,7 @@ const bulkStudentsSchema = z.object({
     .max(200),
 });
 
-function handleError(err: unknown): Response {
-  if (err instanceof ZodError) return errorResponse('Invalid request body', 400);
-  if (err instanceof NotFoundError) return errorResponse(err.message, 404);
-  if (err instanceof ConflictError) return errorResponse(err.message, 409);
-  console.error('bulk students error', err);
-  return errorResponse('Internal server error', 500);
-}
-
-export async function POST(request: Request, { params }: RouteParams) {
+export async function POST(request: Request, { params }: RouteContext) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -40,7 +26,7 @@ export async function POST(request: Request, { params }: RouteParams) {
     const { id } = await params;
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
 
-    const body = await request.json();
+    const body = await readJson(request);
     const { students } = bulkStudentsSchema.parse(body);
 
     const result = await bulkCreateClassroomStudents({
@@ -51,7 +37,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
     // returns: { students, setupCodes }
     return jsonResponse(result, 201);
-  } catch (err) {
-    return handleError(err);
+  } catch (err: unknown) {
+    return handleApiError(err);
   }
 }

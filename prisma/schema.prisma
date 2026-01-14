@@ -28,6 +28,8 @@ model Assignment {
   QuestionSet    QuestionSet?   @relation(fields: [questionSetId], references: [id])
   Attempt        Attempt[]
 
+  recipients     AssignmentRecipient[]
+
   @@unique([classroomId, kind, opensAt])
   @@index([classroomId])
   @@index([questionSetId])
@@ -124,6 +126,8 @@ model Student {
   setupCodeExpiresAt DateTime?
   mustSetPassword     Boolean   @default(true)
 
+  assignments AssignmentRecipient[]
+
   Attempt     Attempt[]
   Classroom   Classroom        @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   sessions    StudentSession[]
@@ -145,6 +149,18 @@ model Teacher {
 
 enum AssignmentKind {
   SCHEDULED_TEST
+}
+
+model AssignmentRecipient {
+  assignmentId Int
+  studentId    Int
+  createdAt    DateTime @default(now())
+
+  Assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  Student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([assignmentId, studentId])
+  @@index([studentId])
 }
 
 model TeacherSession {

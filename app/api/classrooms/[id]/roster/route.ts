@@ -1,20 +1,17 @@
-import { getRosterWithLastAttempt } from '@/core/classrooms/service';
+import { getRosterWithLastAttempt, requireTeacher } from '@/core';
 import { classroomIdParamSchema } from '@/validation/classrooms.schema';
 import { jsonResponse, errorResponse } from '@/utils/http';
-import { ZodError } from 'zod';
-import { NotFoundError, ConflictError } from '@/core/errors';
-import { requireTeacher } from '@/core/auth/requireTeacher'; // adjust to your actual path
-
-type RouteContext = { params: Promise<{ id: string }> };
+import { RouteContext, handleApiError } from '@/app';
 
 export async function GET(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
+
   try {
     // 0) Auth (cookie + TeacherSession)
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
 
     // 1) Validate params
-    const { id } = await context.params;
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
 
     // 2) Service call must enforce ownership using teacherId
@@ -24,21 +21,15 @@ export async function GET(_request: Request, context: RouteContext) {
     });
 
     return jsonResponse(roster, 200);
-  } catch (err: any) {
-    console.error('GET /api/classrooms/[id]/roster error', err);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('GET /api/classrooms/[id]/roster error', message, err);
 
-    if (err instanceof ZodError) {
-      return errorResponse('Invalid classroom id', 400);
-    }
-    if (err instanceof ConflictError) {
-      return errorResponse(err.message, 403);
-    }
-    if (err instanceof NotFoundError) {
-      return errorResponse(err.message, 404);
-    }
-
-    if (typeof err?.message === 'string' && err.message.includes('prepared statement')) {
-      const { id } = await context.params;
+    if (
+      err instanceof Error &&
+      err.message.includes('prepared statement') &&
+      process.env.NODE_ENV === 'development'
+    ) {
       const classroomId = Number(id);
 
       return jsonResponse(
@@ -51,6 +42,9 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
-    return errorResponse('Internal server error', 500);
+    return handleApiError(err, {
+      defaultMessage: 'Internal server error',
+      defaultStatus: 500,
+    });
   }
 }

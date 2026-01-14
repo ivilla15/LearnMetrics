@@ -1,100 +1,95 @@
-// app/api/student/attempts/[attemptId]/route.ts
 import { NextResponse } from 'next/server';
+
 import { prisma } from '@/data/prisma';
-import { requireStudent } from '@/core/auth/requireStudent';
+import { requireStudent } from '@/core';
+import { jsonError, parseId } from '@/utils';
+import { handleApiError, type RouteContext } from '@/app';
 
-function jsonError(message: string, status = 400) {
-  return NextResponse.json({ error: message }, { status });
-}
+export async function GET(_req: Request, { params }: RouteContext) {
+  try {
+    const auth = await requireStudent();
+    if (!auth.ok) return jsonError(auth.error, auth.status);
+    const student = auth.student;
 
-function parseId(raw: string) {
-  const n = Number(raw);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
+    const { id: rawAttemptId } = await params;
+    const attemptId = parseId(rawAttemptId);
+    if (!attemptId) return jsonError('Invalid attempt id', 400);
 
-type RouteCtx = { params: Promise<{ attemptId: string }> };
-
-export async function GET(_req: Request, { params }: RouteCtx) {
-  const auth = await requireStudent();
-  if (!auth.ok) return jsonError(auth.error, auth.status);
-  const student = auth.student;
-
-  const { attemptId: rawAttemptId } = await params;
-  const attemptId = parseId(rawAttemptId);
-  if (!attemptId) return jsonError('Invalid attempt id', 400);
-
-  const attempt = await prisma.attempt.findUnique({
-    where: { id: attemptId },
-    select: {
-      id: true,
-      studentId: true,
-      assignmentId: true,
-      score: true,
-      total: true,
-      completedAt: true,
-      levelAtTime: true,
-      Assignment: {
-        select: {
-          kind: true,
-          assignmentMode: true,
-          opensAt: true,
-          closesAt: true,
-          windowMinutes: true,
+    const attempt = await prisma.attempt.findUnique({
+      where: { id: attemptId },
+      select: {
+        id: true,
+        studentId: true,
+        assignmentId: true,
+        score: true,
+        total: true,
+        completedAt: true,
+        levelAtTime: true,
+        Assignment: {
+          select: {
+            kind: true,
+            assignmentMode: true,
+            opensAt: true,
+            closesAt: true,
+            windowMinutes: true,
+          },
         },
-      },
-      AttemptItem: {
-        orderBy: { id: 'asc' },
-        select: {
-          id: true,
-          questionId: true,
-          givenAnswer: true,
-          isCorrect: true,
-          Question: {
-            select: {
-              factorA: true,
-              factorB: true,
-              answer: true,
+        AttemptItem: {
+          orderBy: { id: 'asc' },
+          select: {
+            id: true,
+            questionId: true,
+            givenAnswer: true,
+            isCorrect: true,
+            Question: {
+              select: {
+                factorA: true,
+                factorB: true,
+                answer: true,
+              },
             },
           },
         },
       },
-    },
-  });
+    });
 
-  if (!attempt) return jsonError('Attempt not found', 404);
+    if (!attempt) return jsonError('Attempt not found', 404);
 
-  // Ownership enforcement (critical)
-  if (attempt.studentId !== student.id) return jsonError('Not allowed', 403);
+    // Ownership enforcement (critical)
+    if (attempt.studentId !== student.id) return jsonError('Not allowed', 403);
 
-  const percent = attempt.total > 0 ? Math.round((attempt.score / attempt.total) * 100) : 0;
-  const wasMastery = attempt.total > 0 && attempt.score === attempt.total;
+    const percent = attempt.total > 0 ? Math.round((attempt.score / attempt.total) * 100) : 0;
+    const wasMastery = attempt.total > 0 && attempt.score === attempt.total;
 
-  return NextResponse.json(
-    {
-      attemptId: attempt.id,
-      studentId: attempt.studentId,
-      assignmentId: attempt.assignmentId,
-      completedAt: attempt.completedAt.toISOString(),
-      levelAtTime: attempt.levelAtTime ?? student.level,
-      score: attempt.score,
-      total: attempt.total,
-      percent,
-      wasMastery,
-      assignment: {
-        kind: attempt.Assignment.kind,
-        assignmentMode: attempt.Assignment.assignmentMode,
-        opensAt: attempt.Assignment.opensAt.toISOString(),
-        closesAt: attempt.Assignment.closesAt.toISOString(),
-        windowMinutes: attempt.Assignment.windowMinutes,
+    return NextResponse.json(
+      {
+        attemptId: attempt.id,
+        studentId: attempt.studentId,
+        assignmentId: attempt.assignmentId,
+        completedAt: attempt.completedAt.toISOString(),
+        levelAtTime: attempt.levelAtTime ?? student.level,
+        score: attempt.score,
+        total: attempt.total,
+        percent,
+        wasMastery,
+        assignment: {
+          kind: attempt.Assignment.kind,
+          assignmentMode: attempt.Assignment.assignmentMode,
+          opensAt: attempt.Assignment.opensAt.toISOString(),
+          closesAt: attempt.Assignment.closesAt.toISOString(),
+          windowMinutes: attempt.Assignment.windowMinutes,
+        },
+        items: attempt.AttemptItem.map((it) => ({
+          id: it.id,
+          prompt: `${it.Question.factorA} × ${it.Question.factorB}`,
+          studentAnswer: it.givenAnswer,
+          correctAnswer: it.Question.answer,
+          isCorrect: it.isCorrect,
+        })),
       },
-      items: attempt.AttemptItem.map((it) => ({
-        id: it.id,
-        prompt: `${it.Question.factorA} × ${it.Question.factorB}`,
-        studentAnswer: it.givenAnswer,
-        correctAnswer: it.Question.answer,
-        isCorrect: it.isCorrect,
-      })),
-    },
-    { status: 200 },
-  );
+      { status: 200 },
+    );
+  } catch (err: unknown) {
+    return handleApiError(err);
+  }
 }

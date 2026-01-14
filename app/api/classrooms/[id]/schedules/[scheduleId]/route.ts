@@ -1,90 +1,60 @@
-import { requireTeacher } from '@/core/auth/requireTeacher';
-import { updateClassroomScheduleById, deleteClassroomScheduleById } from '@/core/schedules/service';
-import { classroomIdParamSchema } from '@/validation/classrooms.schema';
-import { upsertScheduleSchema } from '@/validation/assignmentSchedules.schema';
+import { updateClassroomScheduleById, deleteClassroomScheduleById, requireTeacher } from '@/core';
+import { classroomIdParamSchema, upsertScheduleSchema } from '@/validation';
 import { jsonResponse, errorResponse } from '@/utils/http';
-import { NotFoundError, ConflictError } from '@/core/errors';
-import { ZodError } from 'zod';
+import { handleApiError, readJson, RouteParams } from '@/app';
 
-type RouteParams = {
-  params: Promise<{ id: string; scheduleId: string }>;
-};
+async function getTeacherClassroomAndScheduleId(params: RouteParams['params']) {
+  const auth = await requireTeacher();
+  if (!auth.ok) return { ok: false as const, response: errorResponse(auth.error, auth.status) };
 
-function handleError(err: unknown): Response {
-  console.error('Schedule route error:', err);
-  if (err instanceof ZodError) {
-    return errorResponse('Invalid request body', 400);
-  }
-  if (err instanceof NotFoundError) {
-    return errorResponse(err.message, 404);
-  }
-  if (err instanceof ConflictError) {
-    return errorResponse(err.message, 409);
+  const { id, scheduleId } = await params;
+
+  const { id: classroomId } = classroomIdParamSchema.parse({ id });
+  const scheduleIdNum = Number(scheduleId);
+
+  if (!Number.isFinite(scheduleIdNum)) {
+    return { ok: false as const, response: errorResponse('Invalid schedule id', 400) };
   }
 
-  // In dev you *might* temporarily expose the actual message:
-  // const msg = err instanceof Error ? err.message : 'Internal server error';
-  // return errorResponse(msg, 500);
-
-  return errorResponse('Internal server error', 500);
+  return { ok: true as const, teacher: auth.teacher, classroomId, scheduleIdNum };
 }
 
 // PATCH: update a specific schedule
 export async function PATCH(request: Request, { params }: RouteParams) {
   try {
-    const auth = await requireTeacher();
-    if (!auth.ok) return errorResponse(auth.error, auth.status);
-    const teacher = auth.teacher;
-    const { id, scheduleId } = await params;
+    const ctx = await getTeacherClassroomAndScheduleId(params);
+    if (!ctx.ok) return ctx.response;
 
-    const { id: classroomId } = classroomIdParamSchema.parse({ id });
-    const scheduleIdNum = Number(scheduleId);
-
-    if (!Number.isFinite(scheduleIdNum)) {
-      return errorResponse('Invalid schedule id', 400);
-    }
-
-    const body = await request.json();
+    const body = await readJson(request);
     const input = upsertScheduleSchema.parse(body);
 
     const schedule = await updateClassroomScheduleById({
-      teacherId: teacher.id,
-      classroomId,
-      scheduleId: scheduleIdNum,
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
+      scheduleId: ctx.scheduleIdNum,
       input,
     });
 
     return jsonResponse({ schedule }, 200);
-  } catch (err) {
-    return handleError(err);
+  } catch (err: unknown) {
+    return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }
 }
 
 // DELETE: delete a specific schedule
-export async function DELETE(request: Request, { params }: RouteParams) {
+export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
-    const auth = await requireTeacher();
-    if (!auth.ok) return errorResponse(auth.error, auth.status);
-    const teacher = auth.teacher;
-    const { id, scheduleId } = await params;
-
-    const { id: classroomId } = classroomIdParamSchema.parse({ id });
-    const scheduleIdNum = Number(scheduleId);
-
-    if (!Number.isFinite(scheduleIdNum)) {
-      return errorResponse('Invalid schedule id', 400);
-    }
+    const ctx = await getTeacherClassroomAndScheduleId(params);
+    if (!ctx.ok) return ctx.response;
 
     await deleteClassroomScheduleById({
-      teacherId: teacher.id,
-      classroomId,
-      scheduleId: scheduleIdNum,
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
+      scheduleId: ctx.scheduleIdNum,
     });
 
-    // 204 should not have a body; avoid JSON helper here.
     return new Response(null, { status: 204 });
-  } catch (err) {
-    console.error('DELETE /classrooms/[id]/schedules/[scheduleId] error', err);
-    return handleError(err);
+  } catch (err: unknown) {
+    return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }
 }

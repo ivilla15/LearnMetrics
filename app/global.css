@@ -115,3 +115,22 @@ hr {
   border: 0;
   border-top: 1px solid hsl(var(--border));
 }
+
+.lm-print-only {
+  display: none;
+}
+
+@media print {
+  .lm-no-print {
+    display: none !important;
+  }
+
+  .lm-print-only {
+    display: block !important;
+  }
+
+  /* optional: reduce shadows for print */
+  * {
+    box-shadow: none !important;
+  }
+}

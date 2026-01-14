@@ -1,96 +1,75 @@
-// app/api/classrooms/[id]/schedule/route.ts
-import { requireTeacher } from '@/core/auth/requireTeacher';
 import {
+  requireTeacher,
   upsertClassroomSchedule,
   getClassroomScheduleForTeacher,
   createAdditionalClassroomSchedule,
-} from '@/core/schedules/service';
-import { upsertScheduleSchema } from '@/validation/assignmentSchedules.schema';
-import { classroomIdParamSchema } from '@/validation/classrooms.schema';
-import { jsonResponse, errorResponse } from '@/utils/http';
-import { NotFoundError, ConflictError } from '@/core/errors';
-import { ZodError } from 'zod';
+} from '@/core';
+import { upsertScheduleSchema, classroomIdParamSchema } from '@/validation';
+import { jsonResponse, errorResponse } from '@/utils/';
+import { RouteContext, handleApiError, readJson } from '@/app';
 
-type RouteParams = {
-  params: Promise<{ id: string }>;
-};
+async function getTeacherAndClassroomId(params: RouteContext['params']) {
+  const auth = await requireTeacher();
+  if (!auth.ok) return { ok: false as const, response: errorResponse(auth.error, auth.status) };
 
-function handleError(err: unknown): Response {
-  if (err instanceof ZodError) return errorResponse('Invalid request body', 400);
-  if (err instanceof NotFoundError) return errorResponse(err.message, 404);
-  if (err instanceof ConflictError) return errorResponse(err.message, 409);
-  return errorResponse('Internal server error', 500);
+  const { id } = await params;
+  const { id: classroomId } = classroomIdParamSchema.parse({ id });
+
+  return { ok: true as const, teacher: auth.teacher, classroomId };
 }
 
-// Get the *primary* schedule (for backwards compatibility)
-export async function GET(request: Request, { params }: RouteParams) {
+export async function GET(_request: Request, { params }: RouteContext) {
   try {
-    const auth = await requireTeacher();
-    if (!auth.ok) return errorResponse(auth.error, auth.status);
-    const teacher = auth.teacher;
-
-    const { id } = await params;
-    const { id: classroomId } = classroomIdParamSchema.parse({ id });
+    const ctx = await getTeacherAndClassroomId(params);
+    if (!ctx.ok) return ctx.response;
 
     const schedule = await getClassroomScheduleForTeacher({
-      teacherId: teacher.id,
-      classroomId,
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
     });
 
     return jsonResponse({ schedule }, 200);
-  } catch (err) {
-    return handleError(err);
+  } catch (err: unknown) {
+    return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }
 }
 
-// Upsert the existing primary schedule (used by "Edit schedule")
-export async function PUT(request: Request, { params }: RouteParams) {
+export async function PUT(request: Request, { params }: RouteContext) {
   try {
-    const auth = await requireTeacher();
-    if (!auth.ok) return errorResponse(auth.error, auth.status);
-    const teacher = auth.teacher;
-    const body = await request.json();
+    const ctx = await getTeacherAndClassroomId(params);
+    if (!ctx.ok) return ctx.response;
 
-    // ✅ input now includes numQuestions (via your zod schema default(12))
+    const body = await readJson(request);
     const input = upsertScheduleSchema.parse(body);
 
-    const { id } = await params;
-    const { id: classroomId } = classroomIdParamSchema.parse({ id });
-
     const schedule = await upsertClassroomSchedule({
-      teacherId: teacher.id,
-      classroomId,
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
       input,
     });
 
     return jsonResponse({ schedule }, 200);
-  } catch (err) {
-    return handleError(err);
+  } catch (err: unknown) {
+    return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }
 }
 
-// Create an additional schedule row (used by "Create new weekly test schedule")
-export async function POST(request: Request, { params }: RouteParams) {
+export async function POST(request: Request, { params }: RouteContext) {
   try {
-    const auth = await requireTeacher();
-    if (!auth.ok) return errorResponse(auth.error, auth.status);
-    const teacher = auth.teacher;
-    const body = await request.json();
+    const ctx = await getTeacherAndClassroomId(params);
+    if (!ctx.ok) return ctx.response;
 
-    // ✅ input includes numQuestions
+    const body = await readJson(request);
     const input = upsertScheduleSchema.parse(body);
 
-    const { id } = await params;
-    const { id: classroomId } = classroomIdParamSchema.parse({ id });
-
     const schedule = await createAdditionalClassroomSchedule({
-      teacherId: teacher.id,
-      classroomId,
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
       input,
     });
 
     return jsonResponse({ schedule }, 201);
-  } catch (err) {
-    return handleError(err);
+  } catch (err: unknown) {
+    return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }
 }

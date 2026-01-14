@@ -1,8 +1,14 @@
+// data/assignments.repo.ts
 import { prisma } from '@/data/prisma';
 
-// Local constant for our only assignment kind for now
 export const SCHEDULE_KIND = 'SCHEDULED_TEST' as const;
 export type AssignmentKind = typeof SCHEDULE_KIND;
+
+export async function findAssignmentById(assignmentId: number) {
+  return prisma.assignment.findUnique({
+    where: { id: assignmentId },
+  });
+}
 
 export async function findByClassroomKindAndOpensAt(args: {
   classroomId: number;
@@ -18,7 +24,7 @@ export async function findByClassroomKindAndOpensAt(args: {
   });
 }
 
-export async function create(args: {
+export async function createAssignment(args: {
   classroomId: number;
   kind: AssignmentKind;
   assignmentMode: 'SCHEDULED' | 'MANUAL';
@@ -42,20 +48,14 @@ export async function create(args: {
   });
 }
 
-export async function findLatestForClassroom(classroomId: number) {
+export async function findLatestAssignmentForClassroom(classroomId: number) {
   return prisma.assignment.findFirst({
     where: { classroomId },
     orderBy: { opensAt: 'desc' },
   });
 }
 
-export async function findById(id: number) {
-  return prisma.assignment.findUnique({
-    where: { id },
-  });
-}
-
-export async function deleteByClassroomId(classroomId: number) {
+export async function deleteAssignmentsByClassroomId(classroomId: number) {
   return prisma.assignment.deleteMany({
     where: { classroomId },
   });
