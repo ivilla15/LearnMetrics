@@ -56,7 +56,6 @@ export type StudentProgressRow = {
   nonMasteryStreak: number;
   trendLast3: 'improving' | 'regressing' | 'flat' | 'insufficient';
   daysSinceLastAttempt: number | null;
-
   flags: {
     atRisk: boolean;
     noAttemptsInRange: boolean;
@@ -64,8 +63,10 @@ export type StudentProgressRow = {
     nonMasteryStreak2: boolean;
     needsSetup: boolean;
 
-    // NEW:
+    // last test flags
     missedLastTest: boolean;
+    lastTestAttempted: boolean;
+    lastTestMastery: boolean;
   };
 };
 
@@ -75,10 +76,8 @@ export type RecentTest = {
   assignmentMode: 'SCHEDULED' | 'MANUAL';
   numQuestions: number;
   attemptedCount: number;
-  masteryRate: number; // 0..100
-  avgPercent: number; // 0..100
-
-  // NEW (optional; UI can show if present):
+  masteryRate: number;
+  avgPercent: number;
   missedCount: number;
 };
 
@@ -175,15 +174,15 @@ export async function getTeacherClassroomProgress(params: {
     arr.push(a);
     attemptsByAssignment.set(a.assignmentId, arr);
   }
-
-  // Determine "last test" (most recent assignment in range)
   const lastTest = lastAssignments[0] ?? null;
+
+  const lastTestAttemptedStudentIds = new Set<number>();
   const lastTestMasteredStudentIds = new Set<number>();
 
   if (lastTest) {
     const attemptsForLast = attemptsByAssignment.get(lastTest.id) ?? [];
     for (const a of attemptsForLast) {
-      lastTestMasteredStudentIds.add(a.studentId);
+      lastTestAttemptedStudentIds.add(a.studentId);
       if (a.total > 0 && a.score === a.total) lastTestMasteredStudentIds.add(a.studentId);
     }
   }
@@ -334,12 +333,10 @@ export async function getTeacherClassroomProgress(params: {
     const atRisk =
       noAttemptsInRange || stale14Days || nonMasteryStreak2 || (range.length > 0 && medRange < 70);
 
-    const lastTestAttempted = !!lastTest && lastTestMasteredStudentIds.has(s.id);
+    const lastTestAttempted = !!lastTest && lastTestAttemptedStudentIds.has(s.id);
     const lastTestMastery = !!lastTest && lastTestMasteredStudentIds.has(s.id);
 
-    // NEW: missed last test (only meaningful if there IS a last test in range)
-    // Treat "needsSetup" as NOT counted for missed (optional). If you want to count them, remove `!needsSetup`.
-    const missedLastTest = !!lastTest && !needsSetup && !lastTestMasteredStudentIds.has(s.id);
+    const missedLastTest = !!lastTest && !needsSetup && !lastTestAttemptedStudentIds.has(s.id);
 
     return {
       id: s.id,

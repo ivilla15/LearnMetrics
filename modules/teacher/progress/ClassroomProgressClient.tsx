@@ -23,6 +23,7 @@ import {
 
 import { formatLocal } from '@/lib/date';
 import { ClassroomProgressDTO, FactDetailDTO, FilterKey, MissedFact } from '@/types';
+import { AssignMakeupTestModal } from '@/modules';
 
 type Props = {
   classroomId: number;
@@ -53,6 +54,8 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
   const [factDetail, setFactDetail] = React.useState<FactDetailDTO | null>(null);
 
   const studentsTableRef = React.useRef<HTMLDivElement | null>(null);
+
+  const [assignOpen, setAssignOpen] = React.useState(false);
 
   async function reload(nextDays: number) {
     setLoading(true);
@@ -115,11 +118,16 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
 
     return { attemptedCount, total, pct };
   }, [students]);
+  const lastTestMeta = React.useMemo(
+    () =>
+      last3Tests[0]
+        ? { numQuestions: last3Tests[0].numQuestions, windowMinutes: 4, questionSetId: null }
+        : null,
+    [last3Tests],
+  );
 
-  // --- High-value addition #2: missed last scheduled test (based on last assignment in last3Tests) ---
-  // This assumes server sends last3Tests with attemptedCount, and (optionally) a rosterAttemptedIds.
-  // If you DON’T have rosterAttemptedIds yet, we still provide a per-student flag if server includes it.
-  const lastTestMeta = last3Tests[0] ?? null; // most recent in your server order
+  const hasLastTest = last3Tests.length > 0;
+
   const missedLastTestCount = Number.isFinite(data?.summary?.missedLastTestCount)
     ? (data.summary!.missedLastTestCount as number)
     : null;
@@ -238,7 +246,15 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                   setPickerOpen(true);
                 }}
               >
-                View student…
+                View student
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setAssignOpen(true);
+                }}
+              >
+                Assign test
               </Button>
             </div>
           </div>
@@ -847,7 +863,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                           <div className="flex flex-col gap-1">
                             <div>{formatLocal(s.lastAttemptAt)}</div>
 
-                            {lastTestMeta
+                            {hasLastTest
                               ? s.flags?.missedLastTest
                                 ? Badge('Missing', 'warning')
                                 : s.flags?.lastTestMastery
@@ -946,6 +962,18 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
           </CardContent>
         </Card>
       </div>
+
+      <AssignMakeupTestModal
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        classroomId={classroomId}
+        students={students}
+        lastTestMeta={lastTestMeta}
+        onCreated={async () => {
+          const days = Number(data?.range?.days) || 30;
+          await reload(days);
+        }}
+      />
 
       {/* Student picker modal */}
       <Modal

@@ -10,7 +10,10 @@ import {
   CardDescription,
   HelpText,
   pill,
+  Button,
 } from '@/components';
+
+import { AssignMakeupTestModal } from '../progress';
 
 import { AttemptDetailModal, AttemptResultsTable, type AttemptResultsRow } from '@/modules';
 
@@ -40,6 +43,61 @@ export function AssignmentDetailClient({
   const [detailLoading, setDetailLoading] = React.useState(false);
   const [detailError, setDetailError] = React.useState<string | null>(null);
   const [showIncorrectOnly, setShowIncorrectOnly] = React.useState(false);
+
+  // assign test modal state
+  const [assignOpen, setAssignOpen] = React.useState(false);
+  const [assignStudents, setAssignStudents] = React.useState<
+    Array<{
+      id: number;
+      name: string;
+      username: string;
+      flags?: { missedLastTest?: boolean; needsSetup?: boolean };
+    }>
+  >([]);
+  const [assignLoading, setAssignLoading] = React.useState(false);
+  const [assignError, setAssignError] = React.useState<string | null>(null);
+  const [defaultSelectedIds, setDefaultSelectedIds] = React.useState<number[]>([]);
+
+  async function openAssignModal() {
+    setAssignError(null);
+    setAssignOpen(true);
+
+    setAssignLoading(true);
+    try {
+      // 1) load roster from existing progress endpoint
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}/progress?days=30`, {
+        cache: 'no-store',
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(typeof json?.error === 'string' ? json.error : 'Failed to load roster');
+      }
+
+      const roster = (json?.students ?? []) as Array<{
+        id: number;
+        name: string;
+        username: string;
+        flags?: { missedLastTest?: boolean; needsSetup?: boolean };
+      }>;
+
+      setAssignStudents(roster);
+
+      // 2) compute "missing for THIS assignment" from the current assignment rows
+      // attempted = has attemptId
+      const attempted = new Set(rows.filter((r) => r.attemptId !== null).map((r) => r.studentId));
+
+      // eligible = not needsSetup (matches your modal rule)
+      const eligible = roster.filter((s) => !s.flags?.needsSetup);
+
+      const missingIds = eligible.filter((s) => !attempted.has(s.id)).map((s) => s.id);
+
+      setDefaultSelectedIds(missingIds);
+    } catch (e) {
+      setAssignError(e instanceof Error ? e.message : 'Failed to load');
+    } finally {
+      setAssignLoading(false);
+    }
+  }
 
   const [selected, setSelected] = React.useState<{
     studentName: string;
@@ -153,8 +211,16 @@ export function AssignmentDetailClient({
       {/* Header summary */}
       <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
         <CardHeader>
-          <CardTitle>Assignment summary</CardTitle>
-          <CardDescription>Overview for this specific assignment.</CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>Assignment summary</CardTitle>
+              <CardDescription>Overview for this specific assignment.</CardDescription>
+            </div>
+
+            <Button variant="primary" onClick={() => void openAssignModal()}>
+              Assign test
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex flex-wrap gap-2">
@@ -229,6 +295,29 @@ export function AssignmentDetailClient({
           />
         </CardContent>
       </Card>
+      <AssignMakeupTestModal
+        open={assignOpen}
+        onClose={() => setAssignOpen(false)}
+        classroomId={classroomId}
+        students={assignStudents}
+        lastTestMeta={{
+          numQuestions: assignment?.numQuestions ?? 12,
+          windowMinutes: assignment?.windowMinutes ?? 4,
+          questionSetId: null,
+        }}
+        defaultAudience="CUSTOM"
+        defaultSelectedIds={defaultSelectedIds}
+        onCreated={async () => {
+          // reload this assignment attempts so the "Missing" count updates
+          await reload(filter);
+        }}
+      />
+
+      {assignLoading ? (
+        <div className="text-xs text-[hsl(var(--muted-fg))]">Loading students…</div>
+      ) : null}
+
+      {assignError ? <div className="text-xs text-[hsl(var(--danger))]">{assignError}</div> : null}
 
       <AttemptDetailModal
         open={open}
@@ -244,7 +333,6 @@ export function AssignmentDetailClient({
         studentId={selected?.studentId ?? null}
         studentName={selected?.studentName ?? null}
         studentUsername={selected?.studentUsername ?? null}
-        // AttemptDetailModal can keep its own internal typing; we avoid `any` here.
         detail={detail as never}
         loading={detailLoading}
         error={detailError}

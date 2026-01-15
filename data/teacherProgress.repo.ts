@@ -29,8 +29,12 @@ export type MissedFactRow = {
 export type ProgressAssignmentRow = {
   id: number;
   opensAt: Date;
+  closesAt: Date;
+  windowMinutes: number | null;
   assignmentMode: 'SCHEDULED' | 'MANUAL';
   numQuestions: number;
+  questionSetId: number | null;
+  kind: string;
 };
 
 export type AssignmentAttemptRow = {
@@ -56,6 +60,10 @@ export async function getRecentAssignmentsForClassroomInRange(params: {
     select: {
       id: true,
       opensAt: true,
+      closesAt: true,
+      windowMinutes: true,
+      questionSetId: true,
+      kind: true,
       assignmentMode: true,
       numQuestions: true,
     },

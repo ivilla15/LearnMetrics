@@ -23,6 +23,7 @@ import type {
 
 import { RecentAssignmentsCards, AssignmentsTable } from './';
 import { formatLocal } from '@/lib/date';
+import { AssignMakeupTestModal } from '../progress';
 
 export function AssignmentsClient({
   classroomId,
@@ -38,6 +39,64 @@ export function AssignmentsClient({
 
   const [status, setStatus] = React.useState<AssignmentStatusFilter>('all');
   const [search, setSearch] = React.useState('');
+
+  const [assignOpen, setAssignOpen] = React.useState(false);
+  const [assignStudents, setAssignStudents] = React.useState<
+    Array<{
+      id: number;
+      name: string;
+      username: string;
+      flags?: { missedLastTest?: boolean; needsSetup?: boolean };
+    }>
+  >([]);
+  const [assignLastMeta, setAssignLastMeta] = React.useState<{
+    numQuestions?: number;
+    windowMinutes?: number | null;
+    questionSetId?: number | null;
+  } | null>(null);
+  const [assignLoading, setAssignLoading] = React.useState(false);
+  const [assignError, setAssignError] = React.useState<string | null>(null);
+
+  async function openAssignModal() {
+    setAssignError(null);
+    setAssignOpen(true);
+
+    // already loaded
+    if (assignStudents.length > 0) return;
+
+    setAssignLoading(true);
+    try {
+      const res = await fetch(`/api/teacher/classrooms/${classroomId}/progress?days=30`, {
+        cache: 'no-store',
+      });
+      const json = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(typeof json?.error === 'string' ? json.error : 'Failed to load');
+
+      const students = (json?.students ?? []) as Array<{
+        id: number;
+        name: string;
+        username: string;
+        flags?: { missedLastTest?: boolean; needsSetup?: boolean };
+      }>;
+
+      setAssignStudents(students);
+
+      const last = json?.recent?.last3Tests?.[0] ?? null;
+      setAssignLastMeta(
+        last
+          ? {
+              numQuestions: last.numQuestions,
+              windowMinutes: 4,
+              questionSetId: null,
+            }
+          : null,
+      );
+    } catch (e) {
+      setAssignError(e instanceof Error ? e.message : 'Failed to load');
+    } finally {
+      setAssignLoading(false);
+    }
+  }
 
   async function reload(nextStatus: AssignmentStatusFilter) {
     setLoading(true);
@@ -122,8 +181,20 @@ export function AssignmentsClient({
       {/* All assignments (Canvas-style table) */}
       <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
         <CardHeader>
-          <CardTitle>All assignments</CardTitle>
-          <CardDescription>Browse every assignment in this classroom.</CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle>All assignments</CardTitle>
+              <CardDescription>Browse every assignment in this classroom.</CardDescription>
+            </div>
+
+            <Button
+              variant="primary"
+              className="cursor-pointer"
+              onClick={() => void openAssignModal()}
+            >
+              Assign test
+            </Button>
+          </div>
         </CardHeader>
 
         <CardContent className="space-y-4">
@@ -195,6 +266,23 @@ export function AssignmentsClient({
           ) : null}
         </CardContent>
       </Card>
+
+      {assignOpen ? (
+        <AssignMakeupTestModal
+          open={assignOpen}
+          onClose={() => setAssignOpen(false)}
+          classroomId={classroomId}
+          students={assignStudents}
+          lastTestMeta={assignLastMeta}
+          defaultAudience="ALL"
+        />
+      ) : null}
+
+      {assignLoading ? (
+        <div className="text-xs text-[hsl(var(--muted-fg))]">Loading students…</div>
+      ) : null}
+
+      {assignError ? <div className="text-xs text-[hsl(var(--danger))]">{assignError}</div> : null}
     </div>
   );
 }
