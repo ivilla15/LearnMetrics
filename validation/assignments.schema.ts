@@ -35,3 +35,20 @@ export const createManualAssignmentRequestSchema = z.object({
 });
 
 export type CreateManualAssignmentRequest = z.infer<typeof createManualAssignmentRequestSchema>;
+
+export const updateTeacherAssignmentSchema = z
+  .object({
+    opensAt: z.string().datetime().optional(),
+    closesAt: z.string().datetime().optional(),
+    windowMinutes: z.number().int().positive().max(60).optional(),
+    numQuestions: z.coerce.number().int().min(1).max(12).optional(),
+  })
+  .refine(
+    (v) => {
+      if (!v.opensAt || !v.closesAt) return true;
+      return new Date(v.closesAt).getTime() > new Date(v.opensAt).getTime();
+    },
+    { message: 'closesAt must be after opensAt', path: ['closesAt'] },
+  );
+
+export type UpdateTeacherAssignmentInput = z.infer<typeof updateTeacherAssignmentSchema>;

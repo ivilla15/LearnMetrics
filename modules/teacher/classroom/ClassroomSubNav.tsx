@@ -51,7 +51,7 @@ export function ClassroomSubNav({ classroomId, currentPath, className, variant =
                   <span
                     aria-hidden="true"
                     className={cn(
-                      'absolute left-0 right-0 -bottom-[1px] h-[2px] rounded-full transition-opacity',
+                      'absolute left-0 right-0 -bottom-px h-0.5 rounded-full transition-opacity',
                       active ? 'opacity-100 bg-[hsl(var(--brand))]' : 'opacity-0',
                     )}
                   />

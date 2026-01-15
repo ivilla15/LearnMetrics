@@ -52,3 +52,14 @@ export function isoDay(d: Date | string) {
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return 'invalid';
   return date.toISOString().slice(0, 10); // YYYY-MM-DD
 }
+
+export function formatTimeAmPm(hhmm: string) {
+  const [hStr, mStr] = hhmm.split(':');
+  const h = Number(hStr);
+  const m = Number(mStr);
+  if (!Number.isFinite(h) || !Number.isFinite(m)) return hhmm;
+
+  const suffix = h >= 12 ? 'PM' : 'AM';
+  const hour12 = ((h + 11) % 12) + 1;
+  return `${hour12}:${String(m).padStart(2, '0')} ${suffix}`;
+}

@@ -10,14 +10,16 @@ import {
   Button,
   HelpText,
   pill,
+  useToast,
 } from '@/components';
 import type { ScheduleDTO } from '@/core/schedules/service';
 import { useSchedules } from './useSchedules';
 import { ScheduleFormModal } from './ScheduleFormModal';
+import { formatTimeAmPm } from '@/utils/time';
 
 function scheduleSummary(s: ScheduleDTO) {
   const days = Array.isArray(s.days) ? s.days.join(', ') : '—';
-  return `${days} • ${s.opensAtLocalTime} • ${s.numQuestions} Q • ${s.windowMinutes} min`;
+  return `${days} • ${formatTimeAmPm(s.opensAtLocalTime)} • ${s.numQuestions} Q • ${s.windowMinutes} min`;
 }
 
 export function SchedulesClient({
@@ -34,6 +36,7 @@ export function SchedulesClient({
 
   const active = schedules.filter((s) => s.isActive);
   const inactive = schedules.filter((s) => !s.isActive);
+  const toast = useToast();
 
   const [modalOpen, setModalOpen] = React.useState(false);
   const [mode, setMode] = React.useState<'create' | 'edit'>('create');
@@ -68,8 +71,10 @@ export function SchedulesClient({
     try {
       if (mode === 'edit' && editing) {
         await updateSchedule(editing.id, input);
+        toast('Successfully edited schedule', 'success');
       } else {
         await createSchedule(input);
+        toast('Successfully created schedule', 'success');
       }
       setModalOpen(false);
       setEditing(null);
@@ -81,12 +86,12 @@ export function SchedulesClient({
   }
 
   async function onDelete(id: number) {
-    // keep simple; you can swap to a confirmation modal later
     const ok = confirm('Delete this schedule?');
     if (!ok) return;
 
     try {
       await deleteSchedule(id);
+      toast('Successfully deleted schedule', 'success');
     } catch (e) {
       alert(e instanceof Error ? e.message : 'Failed to delete schedule');
     }
@@ -125,7 +130,7 @@ export function SchedulesClient({
                     <div className="flex flex-wrap gap-2">
                       {pill('Active', 'success')}
                       {pill(Array.isArray(s.days) ? s.days.join(', ') : '—', 'muted')}
-                      {pill(s.opensAtLocalTime, 'muted')}
+                      {pill(formatTimeAmPm(s.opensAtLocalTime), 'muted')}
                     </div>
 
                     <div className="text-sm text-[hsl(var(--muted-fg))]">{scheduleSummary(s)}</div>
@@ -174,7 +179,7 @@ export function SchedulesClient({
                     <div className="flex flex-wrap gap-2">
                       {pill('Inactive', 'warning')}
                       {pill(`${s.days.join(', ')}`, 'muted')}
-                      {pill(s.opensAtLocalTime, 'muted')}
+                      {pill(formatTimeAmPm(s.opensAtLocalTime), 'muted')}
                     </div>
 
                     <div className="text-sm text-[hsl(var(--muted-fg))]">{scheduleSummary(s)}</div>

@@ -4,3 +4,6 @@ export type ClassroomStudentRouteContext = { params: Promise<{ id: string; stude
 export type RouteParams = {
   params: Promise<{ id: string; scheduleId: string }>;
 };
+export type ClassroomAssignmentRouteContext = {
+  params: Promise<{ id: string; assignmentId: string }>;
+};

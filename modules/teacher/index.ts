@@ -4,3 +4,4 @@ export * from './assignments';
 export * from './classroom';
 export * from './people';
 export * from './progress';
+export * from './calendar';

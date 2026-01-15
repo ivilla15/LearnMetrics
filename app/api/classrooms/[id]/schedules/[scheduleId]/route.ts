@@ -41,7 +41,6 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 }
 
-// DELETE: delete a specific schedule
 export async function DELETE(_request: Request, { params }: RouteParams) {
   try {
     const ctx = await getTeacherClassroomAndScheduleId(params);

@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Modal, Button, Input, Label, HelpText } from '@/components';
 import type { ScheduleDTO } from '@/core/schedules/service';
+import { formatTimeAmPm } from '@/utils/time';
 
 type Mode = 'create' | 'edit';
 
@@ -26,13 +27,13 @@ type Props = {
 };
 
 const DAY_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: 'MON', label: 'Mon' },
-  { key: 'TUE', label: 'Tue' },
-  { key: 'WED', label: 'Wed' },
-  { key: 'THU', label: 'Thu' },
-  { key: 'FRI', label: 'Fri' },
-  { key: 'SAT', label: 'Sat' },
-  { key: 'SUN', label: 'Sun' },
+  { key: 'Monday', label: 'Mon' },
+  { key: 'Tuesday', label: 'Tue' },
+  { key: 'Wednesday', label: 'Wed' },
+  { key: 'Thursday', label: 'Thu' },
+  { key: 'Friday', label: 'Fri' },
+  { key: 'Saturday', label: 'Sat' },
+  { key: 'Sunday', label: 'Sun' },
 ];
 
 export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, onSubmit }: Props) {
@@ -40,7 +41,7 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
   const [windowMinutes, setWindowMinutes] = React.useState(4);
   const [numQuestions, setNumQuestions] = React.useState(12);
   const [isActive, setIsActive] = React.useState(true);
-  const [days, setDays] = React.useState<string[]>(['FRI']);
+  const [days, setDays] = React.useState<string[]>(['Friday']);
 
   React.useEffect(() => {
     if (!open) return;
@@ -51,13 +52,13 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
       setWindowMinutes(Number(initial.windowMinutes) || 4);
       setNumQuestions(Number(initial.numQuestions) || 12);
       setIsActive(!!initial.isActive);
-      setDays(Array.isArray(initial.days) && initial.days.length > 0 ? initial.days : ['FRI']);
+      setDays(Array.isArray(initial.days) && initial.days.length > 0 ? initial.days : ['Friday']);
     } else {
       setOpensAtLocalTime('08:00');
       setWindowMinutes(4);
       setNumQuestions(12);
       setIsActive(true);
-      setDays(['FRI']);
+      setDays(['Friday']);
     }
   }, [open, mode, initial]);
 
@@ -94,11 +95,8 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
             variant="primary"
             disabled={busy}
             onClick={() => {
-              const opensAtLocalTimeNormalized =
-                opensAtLocalTime.length === 5 ? `${opensAtLocalTime}:00` : opensAtLocalTime;
-
               onSubmit({
-                opensAtLocalTime: opensAtLocalTimeNormalized,
+                opensAtLocalTime,
                 windowMinutes,
                 isActive,
                 days,
@@ -119,9 +117,9 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
         ) : null}
 
         {/* Days */}
-        <div className="space-y-2">
+        <div className="rounded-[18px] bg-[hsl(var(--surface))] p-4 shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
           <div className="text-sm font-semibold text-[hsl(var(--fg))]">Days</div>
-          <div className="flex flex-wrap gap-2">
+          <div className="mt-2 flex flex-wrap gap-2">
             {DAY_OPTIONS.map((d) => {
               const active = days.includes(d.key);
               return (
@@ -142,7 +140,9 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
             })}
           </div>
 
-          <HelpText>Pick one or more days this schedule should run.</HelpText>
+          <div className="mt-3">
+            <HelpText>Pick one or more days this schedule should run.</HelpText>
+          </div>
         </div>
 
         {/* Settings */}
@@ -151,7 +151,16 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="grid gap-1">
-              <Label htmlFor="opensAtLocalTime">Open time (local)</Label>
+              <div className="flex items-end justify-between gap-3">
+                <Label htmlFor="opensAtLocalTime">Open time (local)</Label>
+                <div className="text-xs text-[hsl(var(--muted-fg))]">
+                  Preview:{' '}
+                  <span className="font-medium text-[hsl(var(--fg))]">
+                    {formatTimeAmPm(opensAtLocalTime)}
+                  </span>
+                </div>
+              </div>
+
               <Input
                 id="opensAtLocalTime"
                 type="time"

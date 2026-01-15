@@ -24,15 +24,18 @@ export function useSchedules(classroomId: number, initial?: unknown) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/classrooms/${classroomId}/schedule`, { cache: 'no-store' });
+      const res = await fetch(`/api/classrooms/${classroomId}/schedules`, {
+        cache: 'no-store',
+        credentials: 'include',
+      });
+
       const json = await res.json().catch(() => null);
 
       if (!res.ok) {
         throw new Error(typeof json?.error === 'string' ? json.error : 'Failed to load schedules');
       }
 
-      const one = json?.schedule ?? null;
-      setSchedules(one ? ([one] as ScheduleDTO[]) : []);
+      setSchedules(Array.isArray(json?.schedules) ? (json.schedules as ScheduleDTO[]) : []);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load schedules');
     } finally {
@@ -47,7 +50,7 @@ export function useSchedules(classroomId: number, initial?: unknown) {
   async function createSchedule(input: CreateScheduleInput) {
     setError(null);
 
-    const res = await fetch(`/api/classrooms/${classroomId}/schedule`, {
+    const res = await fetch(`/api/classrooms/${classroomId}/schedules`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',

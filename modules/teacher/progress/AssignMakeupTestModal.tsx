@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Modal, Button, Input, Label, HelpText, Badge } from '@/components';
+import { Modal, Button, Input, Label, HelpText, Badge, useToast } from '@/components';
 
 type StudentLite = {
   id: number;
@@ -98,6 +98,8 @@ export function AssignMakeupTestModal({
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
+  const toast = useToast();
+
   // Reset state when opening
   React.useEffect(() => {
     if (!open) return;
@@ -189,10 +191,13 @@ export function AssignMakeupTestModal({
       });
 
       const json = await res.json().catch(() => null);
+
       if (!res.ok) {
         const msg = typeof json?.error === 'string' ? json.error : 'Failed to create assignment';
         throw new Error(msg);
       }
+
+      toast('Successfully created assignment', 'success');
 
       const createdId = json?.assignment?.id;
       onClose();
@@ -205,6 +210,7 @@ export function AssignMakeupTestModal({
       }
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Failed to create assignment';
+      toast(msg, 'error');
       setError(msg);
     } finally {
       setBusy(false);
@@ -305,7 +311,7 @@ export function AssignMakeupTestModal({
                 />
               </div>
 
-              <div className="max-h-[320px] overflow-auto rounded-[18px] border border-[hsl(var(--border))] overflow-hidden">
+              <div className="max-h-80 overflow-auto rounded-[18px] border border-[hsl(var(--border))]">
                 {filteredEligible.length === 0 ? (
                   <div className="p-4 text-sm text-[hsl(var(--muted-fg))]">No matches.</div>
                 ) : (
