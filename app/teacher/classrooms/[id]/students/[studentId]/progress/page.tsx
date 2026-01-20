@@ -1,7 +1,11 @@
-import { prisma } from '@/data/prisma';
-import { TeacherNav } from 'components/TeacherNav';
-import TeacherStudentProgressClient from './TeacherStudentProgressClient';
-import { requireTeacher } from '@/core/auth/requireTeacher';
+import * as React from 'react';
+
+import { requireTeacher } from '@/core';
+
+import { AppShell, teacherNavItems, ClassroomSubNav, StudentProgressClient } from '@/modules';
+
+import { PageHeader, Section } from '@/components';
+import { getTeacherStudentProgress } from '@/core/teacher/Progress/studentService';
 
 export default async function Page({
   params,
@@ -9,29 +13,49 @@ export default async function Page({
   params: Promise<{ id: string; studentId: string }>;
 }) {
   const auth = await requireTeacher();
-  if (!auth.ok) return <div>{auth.error}</div>;
+  if (!auth.ok) return <div className="p-6 text-sm text-[hsl(var(--danger))]">{auth.error}</div>;
 
   const { id, studentId } = await params;
-  const classroomIdNum = Number(id);
-  const studentIdNum = Number(studentId);
 
-  if (!Number.isFinite(classroomIdNum) || classroomIdNum <= 0)
-    return <div>Invalid classroom id</div>;
-  if (!Number.isFinite(studentIdNum) || studentIdNum <= 0) return <div>Invalid student id</div>;
+  const classroomId = Number(id);
+  if (!Number.isFinite(classroomId) || classroomId <= 0) {
+    return <div className="p-6 text-sm text-[hsl(var(--danger))]">Invalid classroom id</div>;
+  }
 
-  const classroom = await prisma.classroom.findFirst({
-    where: { id: classroomIdNum, teacherId: auth.teacher.id },
-    select: { id: true, name: true },
-  });
+  const sid = Number(studentId);
+  if (!Number.isFinite(sid) || sid <= 0) {
+    return <div className="p-6 text-sm text-[hsl(var(--danger))]">Invalid student id</div>;
+  }
 
-  if (!classroom) return <div>Not allowed</div>;
+  let dto: Awaited<ReturnType<typeof getTeacherStudentProgress>>;
+  try {
+    dto = await getTeacherStudentProgress({
+      teacherId: auth.teacher.id,
+      classroomId,
+      studentId: sid,
+      days: 30,
+    });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Failed to load student progress';
+    return <div className="p-6 text-sm text-[hsl(var(--danger))]">{msg}</div>;
+  }
+
+  const currentPath = `/teacher/classrooms/${classroomId}/students/${sid}/progress`;
 
   return (
-    <>
-      <TeacherNav
-        classroom={{ id: classroom.id, name: classroom.name ?? `Classroom ${classroom.id}` }}
+    <AppShell navItems={teacherNavItems} currentPath="/teacher/classrooms" width="full">
+      <PageHeader
+        title={`${dto.student.name}`}
+        subtitle={`@${dto.student.username} — Progress report`}
       />
-      <TeacherStudentProgressClient classroomId={classroomIdNum} studentId={studentIdNum} />
-    </>
+
+      <Section className="space-y-4">
+        <div className="lm-no-print">
+          <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
+        </div>
+
+        <StudentProgressClient classroomId={classroomId} studentId={sid} initial={dto} />
+      </Section>
+    </AppShell>
   );
 }

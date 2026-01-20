@@ -1,13 +1,8 @@
-import { requireTeacher } from '@/core/auth/requireTeacher';
-import { classroomIdParamSchema } from '@/validation/classrooms.schema';
-import { jsonResponse, errorResponse } from '@/utils/http';
-import { NotFoundError, ConflictError } from '@/core/errors';
-import { ZodError, z } from 'zod';
-import { updateClassroomStudentById, deleteClassroomStudentById } from '@/core/students/service';
-
-type RouteParams = {
-  params: Promise<{ id: string; studentId: string }>;
-};
+import { requireTeacher, updateClassroomStudentById, deleteClassroomStudentById } from '@/core';
+import { classroomIdParamSchema } from '@/validation';
+import { jsonResponse, errorResponse } from '@/utils';
+import { handleApiError, ClassroomStudentRouteContext, readJson } from '@/app';
+import { z } from 'zod';
 
 const updateStudentSchema = z.object({
   name: z.string().min(1),
@@ -15,64 +10,55 @@ const updateStudentSchema = z.object({
   level: z.number().int().min(1).max(12),
 });
 
-function handleError(err: unknown): Response {
-  if (err instanceof ZodError) return errorResponse('Invalid request body', 400);
-  if (err instanceof NotFoundError) return errorResponse(err.message, 404);
-  if (err instanceof ConflictError) return errorResponse(err.message, 403);
-  console.error('student route error', err);
-  return errorResponse('Internal server error', 500);
+async function getTeacherClassroomAndStudentId(params: ClassroomStudentRouteContext['params']) {
+  const auth = await requireTeacher();
+  if (!auth.ok) return { ok: false as const, response: errorResponse(auth.error, auth.status) };
+
+  const { id, studentId } = await params;
+  const { id: classroomId } = classroomIdParamSchema.parse({ id });
+
+  const studentIdNum = Number(studentId);
+  if (!Number.isFinite(studentIdNum) || studentIdNum <= 0) {
+    return { ok: false as const, response: errorResponse('Invalid student id', 400) };
+  }
+
+  return { ok: true as const, teacher: auth.teacher, classroomId, studentIdNum };
 }
 
-export async function PATCH(request: Request, { params }: RouteParams) {
+export async function PATCH(request: Request, { params }: ClassroomStudentRouteContext) {
   try {
-    const auth = await requireTeacher();
-    if (!auth.ok) return errorResponse(auth.error, auth.status);
+    const ctx = await getTeacherClassroomAndStudentId(params);
+    if (!ctx.ok) return ctx.response;
 
-    const { id, studentId } = await params;
-    const { id: classroomId } = classroomIdParamSchema.parse({ id });
-
-    const studentIdNum = Number(studentId);
-    if (!Number.isFinite(studentIdNum) || studentIdNum <= 0) {
-      return errorResponse('Invalid student id', 400);
-    }
-
-    const body = await request.json();
+    const body = await readJson(request);
     const input = updateStudentSchema.parse(body);
 
     const student = await updateClassroomStudentById({
-      teacherId: auth.teacher.id,
-      classroomId,
-      studentId: studentIdNum,
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
+      studentId: ctx.studentIdNum,
       input,
     });
 
     return jsonResponse({ student }, 200);
-  } catch (err) {
-    return handleError(err);
+  } catch (err: unknown) {
+    return handleApiError(err);
   }
 }
 
-export async function DELETE(_request: Request, { params }: RouteParams) {
+export async function DELETE(_request: Request, { params }: ClassroomStudentRouteContext) {
   try {
-    const auth = await requireTeacher();
-    if (!auth.ok) return errorResponse(auth.error, auth.status);
-
-    const { id, studentId } = await params;
-    const { id: classroomId } = classroomIdParamSchema.parse({ id });
-
-    const studentIdNum = Number(studentId);
-    if (!Number.isFinite(studentIdNum) || studentIdNum <= 0) {
-      return errorResponse('Invalid student id', 400);
-    }
+    const ctx = await getTeacherClassroomAndStudentId(params);
+    if (!ctx.ok) return ctx.response;
 
     await deleteClassroomStudentById({
-      teacherId: auth.teacher.id,
-      classroomId,
-      studentId: studentIdNum,
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
+      studentId: ctx.studentIdNum,
     });
 
     return new Response(null, { status: 204 });
-  } catch (err) {
-    return handleError(err);
+  } catch (err: unknown) {
+    return handleApiError(err);
   }
 }

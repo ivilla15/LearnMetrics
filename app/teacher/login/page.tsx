@@ -3,78 +3,111 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import {
+  Section,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  Label,
+  Input,
+  Button,
+  useToast,
+} from '@/components';
+
 export default function TeacherLoginPage() {
   const router = useRouter();
+  const toast = useToast();
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setBusy(true);
-    setError(null);
+    if (busy) return;
 
-    const res = await fetch('/api/teacher/login', {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ email, password }),
-    });
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) return toast('Email is required', 'error');
+    if (!password) return toast('Password is required', 'error');
 
-    const data = await res.json().catch(() => null);
+    try {
+      setBusy(true);
 
-    if (!res.ok) {
-      setError(data?.error ?? 'Login failed');
+      const res = await fetch('/api/teacher/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: trimmedEmail, password }),
+      });
+
+      const json = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        toast(json?.error ?? 'Login failed', 'error');
+        return;
+      }
+
+      toast('Welcome back.', 'success');
+      router.push('/teacher/classrooms');
+      router.refresh();
+    } finally {
       setBusy(false);
-      return;
     }
-
-    // send teacher to a reasonable default page
-    router.push('/teacher/classrooms');
-    router.refresh();
   }
 
   return (
-    <div className="mx-auto max-w-sm p-6">
-      <h1 className="mb-4 text-2xl font-semibold">Teacher Sign In</h1>
+    <Section className="min-h-[calc(100vh-2rem)] flex items-center justify-center">
+      <Card className="w-full max-w-md shadow-sm">
+        <CardHeader>
+          <CardTitle>Teacher login</CardTitle>
+          <CardDescription>Sign in to manage your classrooms.</CardDescription>
+        </CardHeader>
 
-      <form onSubmit={onSubmit} className="space-y-3">
-        <div>
-          <label htmlFor="email" className="mb-1 block text-sm">
-            Email
-          </label>
-          <input
-            id="email"
-            className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            autoComplete="email"
-          />
-        </div>
+        <CardContent>
+          <form onSubmit={onSubmit} className="space-y-4">
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                autoComplete="email"
+                inputMode="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@school.edu"
+              />
+            </div>
 
-        <div>
-          <label htmlFor="password" className="mb-1 block text-sm">
-            Password
-          </label>
-          <input
-            id="password"
-            className="w-full rounded border border-gray-200 px-3 py-2 text-sm"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            type="password"
-            autoComplete="current-password"
-          />
-        </div>
+            <div className="grid gap-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+              />
+            </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+            <Button type="submit" size="lg" className="w-full" disabled={busy}>
+              {busy ? 'Signing in…' : 'Sign in'}
+            </Button>
 
-        <button
-          disabled={busy}
-          className="w-full rounded bg-blue-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"
-        >
-          {busy ? 'Signing in…' : 'Sign in'}
-        </button>
-      </form>
-    </div>
+            <div className="text-xs text-[hsl(var(--muted-fg))]">
+              Need an account?{' '}
+              <button
+                type="button"
+                onClick={() => router.push('/teacher/signup')}
+                className="font-semibold text-[hsl(var(--fg))] underline underline-offset-4"
+              >
+                Create one
+              </button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
+    </Section>
   );
 }

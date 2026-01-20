@@ -1,16 +1,8 @@
-// app/teacher/classrooms/[id]/print-cards/PrintCardsClient.tsx
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { TeacherNav } from 'components/TeacherNav';
-
-type SetupCodeRow = {
-  studentId: number;
-  username: string;
-  setupCode: string;
-  expiresAt?: string;
-  name?: string;
-};
+import { AppShell, teacherNavItems, SetupCodeRow } from '@/modules';
+import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components';
 
 export default function PrintCardsClient({ classroomId }: { classroomId: number }) {
   const [rows, setRows] = useState<SetupCodeRow[]>([]);
@@ -19,7 +11,7 @@ export default function PrintCardsClient({ classroomId }: { classroomId: number 
   useEffect(() => {
     if (!Number.isFinite(classroomId) || classroomId <= 0) return;
 
-    // 1) Load setup codes (one-time, stored in sessionStorage)
+    // 1) Load setup codes from sessionStorage
     try {
       const raw = sessionStorage.getItem(`lm_setupCodes_${classroomId}`);
       if (raw) {
@@ -53,71 +45,72 @@ export default function PrintCardsClient({ classroomId }: { classroomId: number 
   const activateUrl = useMemo(() => `/student/activate`, []);
 
   return (
-    <>
-      <TeacherNav classroom={{ id: classroomId, name: classroomName }} />
-
-      <main className="p-6 space-y-4">
-        <div className="flex items-center justify-between gap-2 print:hidden">
+    <AppShell navItems={teacherNavItems} currentPath="/teacher/classrooms">
+      <div className="p-6 space-y-6">
+        <div className="flex items-start justify-between gap-4 print:hidden">
           <div>
-            <h1 className="text-xl font-semibold">Printable login cards</h1>
-            <p className="text-sm text-gray-600">
+            <div className="text-sm text-[hsl(var(--muted-fg))]">Classroom</div>
+            <h1 className="text-2xl font-semibold text-[hsl(var(--fg))]">{classroomName}</h1>
+            <p className="mt-1 text-sm text-[hsl(var(--muted-fg))]">
               Hand one card to each student. Each setup code is one-time use.
             </p>
           </div>
 
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700"
-          >
-            Print
-          </button>
+          <Button onClick={() => window.print()}>Print</Button>
         </div>
 
         {rows.length === 0 ? (
-          <div className="rounded border border-gray-200 p-4 text-sm text-gray-700">
-            No setup codes found. Add students (bulk add) to generate new setup codes.
-          </div>
+          <Card>
+            <CardContent className="py-8 text-sm text-[hsl(var(--muted-fg))]">
+              No setup codes found. Add students (bulk add) to generate new setup codes.
+            </CardContent>
+          </Card>
         ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {rows.map((r) => (
-              <div
-                key={`${r.studentId}-${r.username}`}
-                className="rounded-xl border border-gray-300 p-4 text-sm"
-              >
-                <div className="text-xs text-gray-500">LearnMetrics</div>
+              <Card key={`${r.studentId}-${r.username}`} className="print:shadow-none">
+                <CardHeader>
+                  <CardTitle className="text-base">LearnMetrics</CardTitle>
+                  <CardDescription>Student login card</CardDescription>
+                </CardHeader>
 
-                {r.name ? (
-                  <div className="mt-2">
-                    <div className="text-xs text-gray-500">Student</div>
-                    <div className="text-sm font-semibold">{r.name}</div>
+                <CardContent className="space-y-3 text-sm">
+                  {r.name ? (
+                    <div>
+                      <div className="text-xs text-[hsl(var(--muted-fg))]">Student</div>
+                      <div className="font-semibold text-[hsl(var(--fg))]">{r.name}</div>
+                    </div>
+                  ) : null}
+
+                  <div>
+                    <div className="text-xs text-[hsl(var(--muted-fg))]">Username</div>
+                    <div className="font-mono text-base font-semibold text-[hsl(var(--fg))]">
+                      {r.username}
+                    </div>
                   </div>
-                ) : null}
 
-                <div className="mt-2">
-                  <div className="text-xs text-gray-500">Username</div>
-                  <div className="font-mono text-base font-semibold">{r.username}</div>
-                </div>
-
-                <div className="mt-2">
-                  <div className="text-xs text-gray-500">Setup code (one-time)</div>
-                  <div className="font-mono text-lg font-bold tracking-widest">{r.setupCode}</div>
-                </div>
-
-                <div className="mt-3 text-xs text-gray-600">
-                  Go to <span className="font-mono">{activateUrl}</span> to set your password.
-                </div>
-
-                {r.expiresAt ? (
-                  <div className="mt-2 text-[11px] text-gray-500">
-                    Expires: {new Date(r.expiresAt).toLocaleString()}
+                  <div>
+                    <div className="text-xs text-[hsl(var(--muted-fg))]">Setup code (one-time)</div>
+                    <div className="font-mono text-lg font-bold tracking-widest text-[hsl(var(--fg))]">
+                      {r.setupCode}
+                    </div>
                   </div>
-                ) : null}
-              </div>
+
+                  <div className="text-xs text-[hsl(var(--muted-fg))]">
+                    Go to <span className="font-mono">{activateUrl}</span> to set your password.
+                  </div>
+
+                  {r.expiresAt ? (
+                    <div className="text-[11px] text-[hsl(var(--muted-fg))]">
+                      Expires: {new Date(r.expiresAt).toLocaleString()}
+                    </div>
+                  ) : null}
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
-      </main>
-    </>
+      </div>
+    </AppShell>
   );
 }

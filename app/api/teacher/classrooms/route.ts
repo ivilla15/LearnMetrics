@@ -1,28 +1,33 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/data/prisma';
-import { requireTeacher } from '@/core/auth/requireTeacher';
+import { z } from 'zod';
 
-function jsonError(message: string, status = 400) {
-  return NextResponse.json({ error: message }, { status });
-}
+import { prisma } from '@/data/prisma';
+import { requireTeacher } from '@/core';
+import { jsonError } from '@/utils';
+import { readJson, handleApiError } from '@/app';
+
+const CreateClassroomSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+});
 
 export async function POST(req: Request) {
-  const auth = await requireTeacher();
-  if (!auth.ok) return jsonError(auth.error, auth.status);
+  try {
+    const auth = await requireTeacher();
+    if (!auth.ok) return jsonError(auth.error, auth.status);
 
-  const body = await req.json().catch(() => null);
-  const name = String(body?.name ?? '').trim();
+    const raw = await readJson(req);
+    const { name } = CreateClassroomSchema.parse(raw);
 
-  if (!name) return jsonError('Missing classroom name', 400);
-  if (name.length > 80) return jsonError('Classroom name too long', 400);
+    const classroom = await prisma.classroom.create({
+      data: {
+        name,
+        teacherId: auth.teacher.id,
+      },
+      select: { id: true, name: true },
+    });
 
-  const classroom = await prisma.classroom.create({
-    data: {
-      name,
-      teacherId: auth.teacher.id,
-    },
-    select: { id: true, name: true },
-  });
-
-  return NextResponse.json({ ok: true, classroom }, { status: 201 });
+    return NextResponse.json({ ok: true, classroom }, { status: 201 });
+  } catch (err: unknown) {
+    return handleApiError(err);
+  }
 }

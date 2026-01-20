@@ -1,4 +1,136 @@
-/* app/global.css */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+
+/* ---------- Design Tokens ---------- */
+:root {
+  /* Page + section surfaces */
+  --bg: 0 0% 100%;
+  --section: 240 5% 96%; /* ~rgb(245,245,247) */
+  --surface: 0 0% 100%;
+  --surface-2: 240 5% 96%;
+  --surface-3: 240 5% 92%;
+
+  /* Card surface */
+  --card: 0 0% 100%;
+  --card-fg: 240 10% 10%;
+
+  /* Text */
+  --fg: 240 10% 10%;
+  --muted-fg: 240 4% 40%;
+
+  /* Borders (used sparingly) */
+  --border: 240 6% 88%;
+
+  /* Brand */
+  --brand: 214 84% 45%;
+  --brand-fg: 0 0% 100%;
+
+  /* Status */
+  --danger: 0 72% 52%;
+  --success: 142 72% 35%;
+  --warning: 38 92% 50%;
+
+  /* Shape */
+  --radius: 28px;
+  --ring: 214 84% 45%;
+}
+
+/* Dark mode later: we’ll flip tokens here */
+.dark {
+  --bg: 240 10% 6%;
+  --section: 240 9% 10%;
+  --surface: 240 10% 8%;
+  --surface-2: 240 9% 12%;
+  --surface-3: 240 8% 16%;
+
+  --card: 240 10% 10%;
+  --card-fg: 0 0% 98%;
+
+  --fg: 0 0% 98%;
+  --muted-fg: 240 5% 72%;
+
+  --border: 240 7% 22%;
+
+  --brand: 214 90% 60%;
+  --brand-fg: 240 10% 8%;
+
+  --ring: 214 90% 60%;
+}
+
+/* ---------- Base Styles ---------- */
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: hsl(var(--bg));
+  color: hsl(var(--fg));
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    Segoe UI,
+    Roboto,
+    Helvetica,
+    Arial,
+    'Apple Color Emoji',
+    'Segoe UI Emoji';
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Links */
+a:not([class]) {
+  color: hsl(var(--brand));
+  text-underline-offset: 3px;
+}
+
+a:not([class]):hover {
+  text-decoration: underline;
+}
+
+/* Focus: this is a “pro UI” hallmark */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+
+/* Make form controls inherit font */
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+/* Optional: subtle selection */
+::selection {
+  background: hsl(var(--brand) / 0.2);
+}
+
+/* Optional: nicer horizontal rules */
+hr {
+  border: 0;
+  border-top: 1px solid hsl(var(--border));
+}
+
+.lm-print-only {
+  display: none;
+}
+
+@media print {
+  .lm-no-print {
+    display: none !important;
+  }
+
+  .lm-print-only {
+    display: block !important;
+  }
+
+  /* optional: reduce shadows for print */
+  * {
+    box-shadow: none !important;
+  }
+}

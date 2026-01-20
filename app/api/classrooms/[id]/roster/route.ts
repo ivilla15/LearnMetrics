@@ -1,49 +1,60 @@
-import { getRosterWithLastAttempt } from '@/core/classrooms/service';
+import { getRosterWithLastAttempt, requireTeacher } from '@/core';
 import { classroomIdParamSchema } from '@/validation/classrooms.schema';
 import { jsonResponse, errorResponse } from '@/utils/http';
-import { ZodError } from 'zod';
-import { NotFoundError, ConflictError } from '@/core/errors';
-import { requireTeacher } from '@/core/auth/requireTeacher'; // adjust to your actual path
-
-type RouteContext = { params: Promise<{ id: string }> };
+import { RouteContext, handleApiError } from '@/app';
+import { prisma } from '@/data/prisma';
 
 export async function GET(_request: Request, context: RouteContext) {
+  const { id } = await context.params;
+
   try {
-    // 0) Auth (cookie + TeacherSession)
+    // 0) Auth
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
 
     // 1) Validate params
-    const { id } = await context.params;
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
 
-    // 2) Service call must enforce ownership using teacherId
+    // 2) Load roster (ownership enforced in service)
     const roster = await getRosterWithLastAttempt({
       classroomId,
       teacherId: auth.teacher.id,
     });
 
-    return jsonResponse(roster, 200);
-  } catch (err: any) {
-    console.error('GET /api/classrooms/[id]/roster error', err);
+    // 3) Load classroom timezone (single scalar lookup)
+    const classroom = await prisma.classroom.findUnique({
+      where: { id: classroomId },
+      select: { timeZone: true },
+    });
 
-    if (err instanceof ZodError) {
-      return errorResponse('Invalid classroom id', 400);
-    }
-    if (err instanceof ConflictError) {
-      return errorResponse(err.message, 403);
-    }
-    if (err instanceof NotFoundError) {
-      return errorResponse(err.message, 404);
-    }
+    // 4) Attach timezone safely
+    const response = {
+      ...roster,
+      classroom: {
+        ...roster.classroom,
+        timeZone: classroom?.timeZone ?? 'America/Los_Angeles',
+      },
+    };
 
-    if (typeof err?.message === 'string' && err.message.includes('prepared statement')) {
-      const { id } = await context.params;
+    return jsonResponse(response, 200);
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('GET /api/classrooms/[id]/roster error', message, err);
+
+    if (
+      err instanceof Error &&
+      err.message.includes('prepared statement') &&
+      process.env.NODE_ENV === 'development'
+    ) {
       const classroomId = Number(id);
 
       return jsonResponse(
         {
-          classroom: { id: classroomId, name: 'Unavailable (dev)' },
+          classroom: {
+            id: classroomId,
+            name: 'Unavailable (dev)',
+            timeZone: 'America/Los_Angeles',
+          },
           students: [],
           warning: 'Roster temporarily unavailable (pooler/prepared-statement issue in dev).',
         },
@@ -51,6 +62,9 @@ export async function GET(_request: Request, context: RouteContext) {
       );
     }
 
-    return errorResponse('Internal server error', 500);
+    return handleApiError(err, {
+      defaultMessage: 'Internal server error',
+      defaultStatus: 500,
+    });
   }
 }

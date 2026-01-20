@@ -1,21 +1,29 @@
-// app/api/admin/scheduler/run/route.ts
+import crypto from 'crypto';
 
 import { runActiveSchedulesForDate } from '@/core/schedules/service';
 import { jsonResponse, errorResponse } from '@/utils/http';
-import { timingSafeEqual } from 'crypto';
+import { handleApiError } from '@/app';
 
 function isAuthorized(request: Request): boolean {
   const secret = process.env.SCHEDULER_SECRET;
-  if (!secret) return false;
+  if (!secret || secret.length === 0) return false;
 
   const auth = request.headers.get('authorization') ?? '';
-  const expected = `Bearer ${secret}`;
+  const prefix = 'Bearer ';
+  if (!auth.startsWith(prefix)) return false;
 
-  // constant-time compare (avoid leaking info via timing)
-  const a = Buffer.from(auth);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
-  return timingSafeEqual(a, b);
+  const provided = auth.slice(prefix.length);
+
+  try {
+    // Hash both to fixed-length buffers then compare in constant time.
+    const hExpected = crypto.createHash('sha256').update(secret, 'utf8').digest();
+    const hProvided = crypto.createHash('sha256').update(provided, 'utf8').digest();
+
+    // Both are 32 bytes — safe to timingSafeEqual
+    return crypto.timingSafeEqual(hExpected, hProvided);
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(request: Request) {
@@ -25,6 +33,7 @@ export async function POST(request: Request) {
 
   try {
     const results = await runActiveSchedulesForDate(new Date());
+
     return jsonResponse(
       {
         ranAt: new Date().toISOString(),
@@ -32,7 +41,7 @@ export async function POST(request: Request) {
       },
       200,
     );
-  } catch {
-    return errorResponse('Internal server error', 500);
+  } catch (err: unknown) {
+    return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }
 }

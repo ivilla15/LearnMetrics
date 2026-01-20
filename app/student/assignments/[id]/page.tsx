@@ -1,29 +1,53 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import { StudentShell } from '@/app/api/student/StudentShell';
-import { useToast } from '@/components/ToastProvider';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { Button, Card, CardContent, Section, Skeleton, useToast } from '@/components';
+import { QuestionCard, TestSidebar, AppPage } from '@/modules';
+import { cn, formatLocal } from '@/lib';
+
+type AssignmentPayload = {
+  id: number;
+  kind: string;
+  mode: string;
+  opensAt: string;
+  closesAt: string;
+  windowMinutes: number | null;
+  numQuestions: number;
+};
+
+type StudentPayload = {
+  id: number;
+  name: string;
+  level: number;
+};
+
+type AlreadySubmittedResult = {
+  score: number;
+  total: number;
+  percent: number;
+  completedAt: string;
+};
+
+type QuestionPayload = {
+  id: number;
+  factorA: number;
+  factorB: number;
+};
+
 type LoadResponse =
-  | { status: 'NOT_OPEN' | 'CLOSED'; assignment: any }
-  | { status: 'ALREADY_SUBMITTED'; assignment: any; result: any }
+  | { status: 'NOT_OPEN' | 'CLOSED'; assignment: AssignmentPayload }
+  | { status: 'ALREADY_SUBMITTED'; assignment: AssignmentPayload; result: AlreadySubmittedResult }
   | {
       status: 'READY';
-      student: any;
-      assignment: any;
-      questions: { id: number; factorA: number; factorB: number }[];
+      student: StudentPayload;
+      assignment: AssignmentPayload;
+      questions: QuestionPayload[];
     };
 
-function formatLocal(iso: string) {
-  return new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-function msToClock(ms: number) {
-  const s = Math.max(0, Math.floor(ms / 1000));
-  const m = Math.floor(s / 60);
-  const r = s % 60;
-  return `${String(m).padStart(2, '0')}:${String(r).padStart(2, '0')}`;
+function getAssignment(data: LoadResponse | null): AssignmentPayload | null {
+  return data ? data.assignment : null;
 }
 
 export default function StudentAssignmentPage() {
@@ -38,15 +62,10 @@ export default function StudentAssignmentPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [answers, setAnswers] = useState<Record<number, number | ''>>({});
-
-  // map of refs for every question input (used for scrolling + focusing)
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
-
   const autoSubmittedRef = useRef(false);
 
-  const assignment = (data as any)?.assignment;
-
-  // Stabilize questions ref (so deps are clean)
+  const assignment = getAssignment(data);
   const readyQuestions = data?.status === 'READY' ? data.questions : null;
 
   function jumpTo(qId: number) {
@@ -56,7 +75,6 @@ export default function StudentAssignmentPage() {
     requestAnimationFrame(() => el.focus());
   }
 
-  // Load assignment state
   useEffect(() => {
     let cancelled = false;
 
@@ -95,7 +113,8 @@ export default function StudentAssignmentPage() {
 
   const msLeft = useMemo(() => {
     if (!assignment?.closesAt) return 0;
-    return new Date(assignment.closesAt).getTime() - now;
+    const raw = new Date(assignment.closesAt).getTime() - now;
+    return Math.max(0, raw);
   }, [assignment?.closesAt, now]);
 
   const handleSubmit = useCallback(
@@ -118,7 +137,7 @@ export default function StudentAssignmentPage() {
           body: JSON.stringify({ answers: payload }),
         });
 
-        const json = await res.json().catch(() => null);
+        const json = (await res.json().catch(() => null)) as { error?: string } | null;
 
         if (!res.ok) {
           toast(json?.error ?? 'Submit failed', 'error');
@@ -134,7 +153,6 @@ export default function StudentAssignmentPage() {
     [answers, assignmentId, data, router, submitting, toast],
   );
 
-  // When we enter READY, reset local UI state + allow future auto-submit
   useEffect(() => {
     if (!readyQuestions?.length) return;
 
@@ -148,7 +166,6 @@ export default function StudentAssignmentPage() {
     });
   }, [readyQuestions]);
 
-  // Auto-submit ONCE when time hits 0 (READY only)
   useEffect(() => {
     if (data?.status !== 'READY') return;
     if (msLeft > 0) return;
@@ -158,7 +175,6 @@ export default function StudentAssignmentPage() {
     void handleSubmit(true);
   }, [msLeft, data?.status, handleSubmit]);
 
-  // Warn before leaving during READY
   useEffect(() => {
     function onBeforeUnload(e: BeforeUnloadEvent) {
       if (data?.status !== 'READY') return;
@@ -169,65 +185,122 @@ export default function StudentAssignmentPage() {
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [data?.status]);
 
-  // -----------------------------
-  // Render states
-  // -----------------------------
   if (loading) {
-    return <StudentShell title="Test">Loading</StudentShell>;
+    return (
+      <AppPage title="Test" subtitle="Loading your test…">
+        <Section>
+          <Card className="shadow-sm">
+            <CardContent className="py-10 flex flex-col items-center justify-center gap-3">
+              <div className="text-sm text-[hsl(var(--muted-fg))]">Loading test…</div>
+              <Skeleton className="h-2 w-40 rounded-full" />
+            </CardContent>
+          </Card>
+        </Section>
+      </AppPage>
+    );
   }
 
   if (!data) {
     return (
-      <StudentShell title="Test">
-        <div className="text-sm text-slate-300">Unable to load.</div>
-      </StudentShell>
+      <AppPage title="Test">
+        <Section>
+          <Card className="shadow-sm">
+            <CardContent className="py-8 text-sm text-[hsl(var(--muted-fg))]">
+              Unable to load.
+            </CardContent>
+          </Card>
+        </Section>
+      </AppPage>
+    );
+  }
+
+  if (!assignment) {
+    return (
+      <AppPage title="Test">
+        <Section>
+          <Card className="shadow-sm">
+            <CardContent className="py-8 text-sm text-[hsl(var(--muted-fg))]">
+              Missing assignment data.
+            </CardContent>
+          </Card>
+        </Section>
+      </AppPage>
     );
   }
 
   if (data.status === 'NOT_OPEN') {
     return (
-      <StudentShell title="Test not open yet" subtitle="Come back when the test window opens.">
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-200">
-          <div className="font-semibold">Opens</div>
-          <div className="mt-1 text-slate-300">{formatLocal(assignment.opensAt)}</div>
-        </div>
-      </StudentShell>
+      <AppPage title="Test not open yet" subtitle="Come back when the test window opens.">
+        <Section>
+          <Card className="shadow-sm">
+            <CardContent className="py-6 space-y-1">
+              <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Opens</div>
+              <div className="text-base font-semibold text-[hsl(var(--fg))]">
+                {formatLocal(assignment.opensAt)}
+              </div>
+            </CardContent>
+          </Card>
+        </Section>
+      </AppPage>
     );
   }
 
   if (data.status === 'CLOSED') {
     return (
-      <StudentShell title="Test closed" subtitle="This test window is over.">
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-200">
-          <div className="font-semibold">Closed</div>
-          <div className="mt-1 text-slate-300">{formatLocal(assignment.closesAt)}</div>
-        </div>
-      </StudentShell>
+      <AppPage title="Test closed" subtitle="This test window is over.">
+        <Section>
+          <Card className="shadow-sm">
+            <CardContent className="py-6 space-y-1">
+              <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Closed</div>
+              <div className="text-base font-semibold text-[hsl(var(--fg))]">
+                {formatLocal(assignment.closesAt)}
+              </div>
+            </CardContent>
+          </Card>
+        </Section>
+      </AppPage>
     );
   }
 
   if (data.status === 'ALREADY_SUBMITTED') {
     return (
-      <StudentShell title="Already submitted" subtitle="You already completed this test.">
-        <div className="rounded-2xl border border-white/10 bg-black/20 p-4 text-sm text-slate-200">
-          <div className="font-semibold">Score</div>
-          <div className="mt-1 text-slate-300">
-            {data.result.score}/{data.result.total} ({data.result.percent}%)
-          </div>
-        </div>
-      </StudentShell>
+      <AppPage title="Already submitted" subtitle="You already completed this test.">
+        <Section>
+          <Card className="shadow-sm">
+            <CardContent className="py-6 space-y-2">
+              <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Score</div>
+              <div className="text-3xl font-semibold tracking-tight text-[hsl(var(--fg))]">
+                {data.result.percent}%
+              </div>
+              <div className="text-sm text-[hsl(var(--muted-fg))]">
+                {data.result.score}/{data.result.total}
+              </div>
+              <div className="pt-2">
+                <Button variant="secondary" onClick={() => router.push('/student/progress')}>
+                  View details
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </Section>
+      </AppPage>
     );
   }
 
   if (data.status !== 'READY') {
     return (
-      <StudentShell title="Test">
-        <div className="text-sm text-slate-300">Unexpected state.</div>
-      </StudentShell>
+      <AppPage title="Test">
+        <Section>
+          <Card className="shadow-sm">
+            <CardContent className="py-8 text-sm text-[hsl(var(--muted-fg))]">
+              Unexpected state.
+            </CardContent>
+          </Card>
+        </Section>
+      </AppPage>
     );
   }
 
-  // READY
   const questions = data.questions;
 
   const answeredCount = questions.filter(
@@ -235,102 +308,51 @@ export default function StudentAssignmentPage() {
   ).length;
 
   return (
-    <StudentShell title="Test">
-      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-        {/* MAIN */}
-        <main className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2">
-            {questions.map((q, i) => {
-              const value = answers[q.id] ?? '';
-              const done = value !== '';
+    <AppPage title="Test" subtitle="Answer each question, then submit.">
+      <Section>
+        <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
+          {/* MAIN */}
+          <main className="space-y-6">
+            <div className="grid gap-6 md:grid-cols-2">
+              {questions.map((q, i) => {
+                const value = answers[q.id] ?? '';
+                const done = value !== '';
 
-              return (
-                <div
-                  key={q.id}
-                  className={[
-                    'rounded-2xl border bg-white/5 p-4 shadow-xl backdrop-blur',
-                    done ? 'border-white/10' : 'border-amber-400/30',
-                  ].join(' ')}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold text-white">#{i + 1}</div>
-                    {done ? (
-                      <div className="text-xs font-semibold text-emerald-300">✓ Answered</div>
-                    ) : (
-                      <div className="text-xs font-medium text-slate-300">Unanswered</div>
-                    )}
-                  </div>
-
-                  <div className="mt-4 flex items-center justify-between rounded-xl border border-white/10 bg-black/20 p-4">
-                    <div className="text-2xl font-semibold tracking-tight text-white">
-                      {q.factorA} × {q.factorB}
-                    </div>
-                    <div className="text-xl font-semibold text-slate-300">=</div>
-                  </div>
-
-                  <div className="mt-4">
-                    <input
-                      ref={(el) => {
-                        inputRefs.current[q.id] = el;
-                      }}
-                      inputMode="numeric"
-                      className="h-12 w-full rounded-xl border border-white/10 bg-black/30 px-3 text-lg text-white outline-none focus:border-white/20"
-                      value={value}
-                      placeholder="Answer"
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        if (v === '') {
-                          setAnswers((prev) => ({ ...prev, [q.id]: '' }));
-                          return;
-                        }
-                        if (!/^\d+$/.test(v)) return;
-                        setAnswers((prev) => ({ ...prev, [q.id]: Number(v) }));
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key !== 'Enter') return;
-                        e.preventDefault();
-
-                        const next = questions[i + 1];
-                        if (next) jumpTo(next.id);
-                        else void handleSubmit(false);
-                      }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </main>
-
-        {/* SIDEBAR */}
-        <aside className="lg:sticky lg:top-6 lg:h-[calc(100vh-3rem)]">
-          <div className="h-full rounded-2xl border border-white/10 bg-white/5 p-4 shadow-xl backdrop-blur">
-            <div className="space-y-3">
-              <div>
-                <div className="text-xs text-slate-300">Time remaining</div>
-                <div className="text-2xl font-semibold tracking-tight text-white">
-                  {msToClock(msLeft)}
-                </div>
-              </div>
-
-              <div className="rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-xs text-slate-200">
-                Answered {answeredCount}/{questions.length}
-              </div>
-
-              <button
-                type="button"
-                onClick={() => void handleSubmit(false)}
-                disabled={submitting}
-                className="h-10 w-full rounded-xl bg-white text-sm font-semibold text-slate-950 disabled:opacity-60"
-              >
-                {submitting ? 'Submitting…' : 'Submit'}
-              </button>
+                return (
+                  <QuestionCard
+                    key={q.id}
+                    index={i}
+                    factorA={q.factorA}
+                    factorB={q.factorB}
+                    value={value}
+                    isAnswered={done}
+                    inputRef={(el) => {
+                      inputRefs.current[q.id] = el;
+                    }}
+                    onChange={(next) => setAnswers((prev) => ({ ...prev, [q.id]: next }))}
+                    onEnter={() => {
+                      const next = questions[i + 1];
+                      if (next) jumpTo(next.id);
+                      else void handleSubmit(false);
+                    }}
+                  />
+                );
+              })}
             </div>
+          </main>
 
-            <div className="mt-4 border-t border-white/10 pt-4">
-              <div className="text-sm font-semibold text-white">Questions</div>
-
-              <div className="mt-3 max-h-[calc(100vh-220px)] overflow-auto pr-1">
+          {/* SIDEBAR */}
+          <aside className="lg:sticky lg:top-6 lg:self-start">
+            <TestSidebar
+              title="Questions"
+              description="Jump to any question."
+              timeRemainingMs={msLeft}
+              answeredCount={answeredCount}
+              totalCount={questions.length}
+              submitting={submitting}
+              submitLabel="Submit"
+              onSubmit={() => void handleSubmit(false)}
+              questionButtons={
                 <div className="grid grid-cols-5 gap-2">
                   {questions.map((q, i) => {
                     const done = answers[q.id] !== undefined && answers[q.id] !== '';
@@ -339,30 +361,24 @@ export default function StudentAssignmentPage() {
                         key={q.id}
                         type="button"
                         onClick={() => jumpTo(q.id)}
-                        className={[
-                          'relative h-9 rounded-lg text-xs font-semibold',
-                          'border border-white/10 bg-black/20 text-white hover:bg-black/30',
-                          done ? 'ring-2 ring-emerald-400/40' : '',
-                        ].join(' ')}
+                        className={cn(
+                          'h-9 rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-xs font-semibold text-[hsl(var(--fg))] transition',
+                          'hover:bg-[hsl(var(--surface-2))]',
+                          done ? '' : 'ring-1 ring-[hsl(var(--brand)/0.25)]',
+                        )}
                         title={done ? 'Answered' : 'Unanswered'}
                       >
                         {i + 1}
-                        {done && (
-                          <span className="absolute -right-1 -top-1 rounded-full bg-emerald-400 px-1.5 py-0.5 text-[10px] font-bold text-black">
-                            ✓
-                          </span>
-                        )}
                       </button>
                     );
                   })}
                 </div>
-              </div>
-
-              <div className="mt-3 text-xs text-slate-300">Green ring and ✓ means answered.</div>
-            </div>
-          </div>
-        </aside>
-      </div>
-    </StudentShell>
+              }
+              footerHint="Blue ring means unanswered."
+            />
+          </aside>
+        </div>
+      </Section>
+    </AppPage>
   );
 }

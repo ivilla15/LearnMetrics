@@ -1,1 +1,5 @@
+#!/bin/sh
+
+cd -P "$(git rev-parse --show-toplevel)" || exit 1
+
 pnpm lint-staged
