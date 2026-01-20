@@ -1,4 +1,4 @@
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import { ConflictError } from '@/core/errors';
 import { prisma } from '@/data/prisma';
 import {
