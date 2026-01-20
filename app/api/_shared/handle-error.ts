@@ -1,5 +1,6 @@
 // app/api/_shared/handle-error.ts
 import { ZodError } from 'zod';
+import type { NextResponse } from 'next/server';
 import { errorResponse } from '@/utils/http';
 import { NotFoundError, ConflictError } from '@/core/errors';
 
@@ -8,7 +9,7 @@ type Options = {
   defaultStatus?: number;
 };
 
-export function handleApiError(err: unknown, opts: Options = {}): Response {
+export function handleApiError(err: unknown, opts: Options = {}): NextResponse {
   const defaultMessage = opts.defaultMessage ?? 'Internal server error';
   const defaultStatus = opts.defaultStatus ?? 500;
 

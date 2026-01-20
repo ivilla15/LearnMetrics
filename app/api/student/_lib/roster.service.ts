@@ -8,18 +8,7 @@ import {
   SETUP_CODE_TTL_HOURS,
 } from '@/core/auth/setupCodes';
 
-import type { AttemptSummary, StudentRosterRow } from '@/types';
-
-export type BulkCreateStudentArgs = {
-  teacherId: number;
-  classroomId: number;
-  students: {
-    firstName: string;
-    lastName: string;
-    username: string;
-    level: number;
-  }[];
-};
+import type { AttemptSummary, BulkCreateStudentArgs, StudentRosterRow } from '@/types';
 
 async function requireTeacherOwnsClassroom(teacherId: number, classroomId: number) {
   const ok = await prisma.classroom.findFirst({

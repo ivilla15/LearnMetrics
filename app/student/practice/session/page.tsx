@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import {
   Card,
   CardContent,
@@ -25,7 +26,7 @@ function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
 
-export default function StudentPracticeSessionPage() {
+function StudentPracticeSessionInner() {
   const router = useRouter();
   const params = useSearchParams();
 
@@ -312,5 +313,13 @@ export default function StudentPracticeSessionPage() {
         </div>
       </Section>
     </AppPage>
+  );
+}
+
+export default function StudentPracticeSessionPage() {
+  return (
+    <Suspense fallback={null}>
+      <StudentPracticeSessionInner />
+    </Suspense>
   );
 }

@@ -11,14 +11,15 @@ export interface AssignmentDTO {
 }
 
 export interface RosterDTO {
-  classroom: { id: string; name: string };
+  classroom: { id: number; name: string; timeZone: string };
   students: {
-    id: string;
+    id: number;
     name: string;
     username: string;
     level: number;
+    mustSetPassword: boolean;
     lastAttempt: {
-      assignmentId: string;
+      assignmentId: number;
       score: number;
       total: number;
       percent: number;

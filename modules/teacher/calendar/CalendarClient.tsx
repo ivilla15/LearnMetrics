@@ -13,7 +13,7 @@ import {
   pill,
   useToast,
 } from '@/components';
-import { formatLocal } from '@/lib/date';
+import { formatInTimeZone } from 'date-fns-tz';
 
 type AssignmentRow = {
   assignmentId: number;
@@ -32,7 +32,7 @@ type AssignmentRow = {
 };
 
 type AssignmentsListResponse = {
-  classroom?: { id: number; name: string };
+  classroom?: { id: number; name: string; timeZone?: string };
   rows: AssignmentRow[];
   nextCursor: string | null;
 };
@@ -323,7 +323,11 @@ export function CalendarClient({
                             #{a.assignmentId} {a.kind}
                           </span>
                           <span className="text-[10px] text-[hsl(var(--muted-fg))]">
-                            {formatLocal(a.opensAt)}
+                            {formatInTimeZone(
+                              a.opensAt,
+                              data.classroom?.timeZone ?? 'UTC',
+                              'h:mm a',
+                            )}
                           </span>
                         </div>
                       </button>
@@ -397,12 +401,20 @@ export function CalendarClient({
             <div className="text-sm text-[hsl(var(--muted-fg))]">
               Opens:{' '}
               <span className="text-[hsl(var(--fg))] font-medium">
-                {formatLocal(selected.opensAt)}
+                {formatInTimeZone(
+                  selected.opensAt,
+                  data.classroom?.timeZone ?? 'UTC',
+                  'MMM d, h:mm a',
+                )}
               </span>
               {' · '}
               Closes:{' '}
               <span className="text-[hsl(var(--fg))] font-medium">
-                {formatLocal(selected.closesAt)}
+                {formatInTimeZone(
+                  selected.closesAt,
+                  data.classroom?.timeZone ?? 'UTC',
+                  'MMM d, h:mm a',
+                )}
               </span>
             </div>
 

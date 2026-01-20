@@ -133,7 +133,11 @@ export async function GET(req: Request, { params }: RouteContext) {
 
     return jsonResponse(
       {
-        classroom: { id: classroom.id, name: classroom.name },
+        classroom: {
+          id: classroom.id,
+          name: classroom.name,
+          timeZone: classroom.timeZone,
+        },
         rows,
         nextCursor,
       },

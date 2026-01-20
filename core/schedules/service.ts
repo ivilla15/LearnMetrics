@@ -8,7 +8,12 @@ import type { AssignmentDTO } from '@/core/assignments/service';
 import * as ClassroomsRepo from '@/data/classrooms.repo';
 import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
 
-import { getNextScheduledDate, TZ } from '@/utils/time';
+import {
+  getNextScheduledDateForSchedule,
+  localDateTimeToUtcRange,
+  localDayToUtcDate,
+  TZ,
+} from '@/utils/time';
 
 export type ScheduleDTO = {
   id: number;
@@ -158,29 +163,53 @@ export async function createAdditionalClassroomSchedule(params: {
 export async function runActiveSchedulesForDate(
   baseDate: Date = new Date(),
 ): Promise<AssignmentDTO[]> {
-  const schedules = await SchedulesRepo.findAllActiveSchedules();
+  const schedules = await SchedulesRepo.findAllActiveSchedulesWithTimezone();
   const results: AssignmentDTO[] = [];
 
   for (const sched of schedules) {
-    const scheduledDate = getNextScheduledDate(baseDate, TZ);
+    try {
+      const days = Array.isArray(sched.days) ? sched.days : [];
+      if (days.length === 0) {
+        // Nothing configured for this schedule — skip it.
+        console.warn(`Skipping schedule ${sched.id} (no days configured)`);
+        continue;
+      }
 
-    const [hours, minutes] = sched.opensAtLocalTime.split(':').map(Number);
+      const tz = sched.Classroom?.timeZone ?? TZ;
 
-    const opensAt = new Date(scheduledDate);
-    opensAt.setHours(hours, minutes, 0, 0);
+      // 1) Determine the scheduled local day (YYYY-MM-DD) for THIS schedule in THIS classroom timezone
+      const scheduledLocalDate = getNextScheduledDateForSchedule(baseDate, days, tz);
 
-    const closesAt = new Date(opensAt.getTime() + sched.windowMinutes * 60_000);
+      // 2) Idempotency key (same schedule + same local day) in THIS classroom timezone
+      const runDate = localDayToUtcDate(scheduledLocalDate, tz);
 
-    const dto = await createScheduledAssignment({
-      classroomId: sched.classroomId,
-      opensAt,
-      closesAt,
-      windowMinutes: sched.windowMinutes,
-      numQuestions: sched.numQuestions,
-      assignmentMode: 'SCHEDULED',
-    });
+      // 3) Build opens/closes in UTC correctly for THIS classroom timezone
+      const { opensAtUTC, closesAtUTC } = localDateTimeToUtcRange({
+        localDate: scheduledLocalDate,
+        localTime: sched.opensAtLocalTime, // "HH:mm"
+        windowMinutes: sched.windowMinutes,
+        tz,
+      });
 
-    results.push(dto);
+      // 4) Create assignment (service handles idempotency via schedule run)
+      const dto = await createScheduledAssignment({
+        classroomId: sched.classroomId,
+        scheduleId: sched.id,
+        runDate,
+        opensAt: opensAtUTC,
+        closesAt: closesAtUTC,
+        windowMinutes: sched.windowMinutes,
+        numQuestions: sched.numQuestions,
+        assignmentMode: 'SCHEDULED',
+      });
+
+      results.push(dto);
+    } catch (err) {
+      // Log and continue — don't let one bad schedule stop the runner.
+      // If you have a logging/monitoring service, send the error there instead.
+      console.error(`Failed to process schedule ${sched.id}:`, err);
+      continue;
+    }
   }
 
   return results;

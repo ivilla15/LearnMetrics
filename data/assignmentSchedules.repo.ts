@@ -1,24 +1,7 @@
 // data/assignmentSchedules.repo.ts
 import { prisma } from '@/data/prisma';
+import { CreateScheduleArgs, UpdateScheduleArgs } from '@/types';
 import type { AssignmentSchedule } from '@prisma/client';
-
-export type CreateScheduleArgs = {
-  classroomId: number;
-  opensAtLocalTime: string;
-  windowMinutes: number;
-  isActive?: boolean;
-  days: string[];
-  numQuestions: number;
-};
-
-export type UpdateScheduleArgs = {
-  id: number;
-  opensAtLocalTime?: string;
-  windowMinutes?: number;
-  isActive?: boolean;
-  days?: string[];
-  numQuestions?: number;
-};
 
 export async function findPrimaryScheduleByClassroomId(classroomId: number) {
   return prisma.assignmentSchedule.findFirst({
@@ -33,6 +16,23 @@ export async function findAllSchedulesByClassroomId(
   return prisma.assignmentSchedule.findMany({
     where: { classroomId },
     orderBy: { id: 'asc' },
+  });
+}
+
+export async function findAllActiveSchedulesWithTimezone() {
+  return prisma.assignmentSchedule.findMany({
+    where: { isActive: true },
+    orderBy: { id: 'asc' },
+    select: {
+      id: true,
+      classroomId: true,
+      opensAtLocalTime: true,
+      windowMinutes: true,
+      isActive: true,
+      days: true,
+      numQuestions: true,
+      Classroom: { select: { timeZone: true } },
+    },
   });
 }
 
@@ -56,6 +56,7 @@ export async function updateSchedule({ id, ...data }: UpdateScheduleArgs) {
 export async function findAllActiveSchedules() {
   return prisma.assignmentSchedule.findMany({
     where: { isActive: true },
+    orderBy: { id: 'asc' },
   });
 }
 

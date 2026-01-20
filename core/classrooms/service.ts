@@ -1,7 +1,7 @@
 // core/classrooms/service.ts
 import * as ClassroomsRepo from '@/data';
 import * as StudentsRepo from '@/data';
-import { NotFoundError, ConflictError } from '@/core';
+import { NotFoundError, ConflictError, RosterDTO } from '@/core';
 
 export async function getTeacherClassroomOverview(params: {
   classroomId: number;
@@ -17,25 +17,6 @@ export async function getTeacherClassroomOverview(params: {
   if (!stats) throw new NotFoundError('Classroom not found'); // safety
   return stats;
 }
-
-export type RosterDTO = {
-  classroom: { id: number; name?: string };
-  students: Array<{
-    id: number;
-    name: string;
-    username: string;
-    level: number;
-    mustSetPassword: boolean;
-    lastAttempt: null | {
-      assignmentId: number;
-      score: number;
-      total: number;
-      percent: number;
-      completedAt: string;
-      wasMastery: boolean;
-    };
-  }>;
-};
 
 export async function getRosterWithLastAttempt(params: {
   classroomId: number;
@@ -73,7 +54,11 @@ export async function getRosterWithLastAttempt(params: {
   });
 
   return {
-    classroom: { id: classroom.id, name: classroom.name },
+    classroom: {
+      id: classroom.id,
+      name: classroom.name,
+      timeZone: classroom.timeZone,
+    },
     students,
   };
 }

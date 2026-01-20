@@ -155,6 +155,9 @@ export async function getTeacherStudentProgress(params: {
       nonMasteryStreak2,
       needsSetup,
       missedLastTest,
+
+      lastTestAttempted: false,
+      lastTestMastery: false,
     },
   };
 

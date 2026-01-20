@@ -115,7 +115,11 @@ export async function GET(_req: Request, { params }: RouteContext) {
       });
     } else {
       // Default student-level behavior: fixed multiplication table (level × 1..12)
-      questions = await getTableQuestionsForLevel(student.level);
+      const table = await getTableQuestionsForLevel(student.level);
+
+      questions = table
+        .filter((q) => q.factorA === student.level && q.factorB >= 1 && q.factorB <= 12)
+        .sort((a, b) => a.factorB - b.factorB);
     }
 
     if (!questions.length) {
@@ -206,7 +210,12 @@ export async function POST(req: Request, { params }: RouteContext) {
       });
     } else {
       const table = await getTableQuestionsForLevel(student.level);
-      pool = table.map((q) => ({ id: q.id, answer: q.answer }));
+
+      const filtered = table
+        .filter((q) => q.factorA === student.level && q.factorB >= 1 && q.factorB <= 12)
+        .sort((a, b) => a.factorB - b.factorB);
+
+      pool = filtered.map((q) => ({ id: q.id, answer: q.answer }));
     }
 
     const baseRequested = assignment.numQuestions ?? 12;

@@ -1,8 +1,6 @@
 // data/assignments.repo.ts
 import { prisma } from '@/data/prisma';
-
-export const SCHEDULE_KIND = 'SCHEDULED_TEST' as const;
-export type AssignmentKind = typeof SCHEDULE_KIND;
+import type { AssignmentKind } from '@prisma/client';
 
 export async function findAssignmentById(assignmentId: number) {
   return prisma.assignment.findUnique({
@@ -33,6 +31,7 @@ export async function createAssignment(args: {
   windowMinutes: number;
   questionSetId?: number | null;
   numQuestions: number;
+  scheduleId?: number | null;
 }) {
   return prisma.assignment.create({
     data: {
@@ -44,6 +43,7 @@ export async function createAssignment(args: {
       windowMinutes: args.windowMinutes,
       questionSetId: args.questionSetId ?? null,
       numQuestions: args.numQuestions,
+      scheduleId: args.scheduleId ?? null,
     },
   });
 }

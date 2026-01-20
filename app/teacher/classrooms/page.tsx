@@ -21,8 +21,15 @@ async function createClassroomAction(formData: FormData) {
   const parsed = clampName(formData.get('name'));
   if (!parsed.ok) return;
 
+  const tzRaw = formData.get('timeZone');
+  const tz = typeof tzRaw === 'string' && tzRaw.trim() ? tzRaw.trim() : 'America/Los_Angeles';
+
   await prisma.classroom.create({
-    data: { name: parsed.name, teacherId: auth.teacher.id },
+    data: {
+      name: parsed.name,
+      teacherId: auth.teacher.id,
+      timeZone: tz,
+    },
   });
 
   revalidatePath('/teacher/classrooms');

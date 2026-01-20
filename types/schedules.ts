@@ -15,3 +15,21 @@ export type ScheduleDTO = {
 
   isEnabled?: boolean;
 };
+
+export type CreateScheduleArgs = {
+  classroomId: number;
+  opensAtLocalTime: string;
+  windowMinutes: number;
+  isActive?: boolean;
+  days: string[];
+  numQuestions: number;
+};
+
+export type UpdateScheduleArgs = {
+  id: number;
+  opensAtLocalTime?: string;
+  windowMinutes?: number;
+  isActive?: boolean;
+  days?: string[];
+  numQuestions?: number;
+};

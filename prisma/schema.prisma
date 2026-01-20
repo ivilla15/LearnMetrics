@@ -24,15 +24,20 @@ model Assignment {
   windowMinutes  Int            @default(4)
   assignmentMode AssignmentMode @default(SCHEDULED)
   numQuestions   Int            @default(12)
-  Classroom      Classroom      @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  QuestionSet    QuestionSet?   @relation(fields: [questionSetId], references: [id])
-  Attempt        Attempt[]
 
-  recipients     AssignmentRecipient[]
+  scheduleId Int?
+  Schedule   AssignmentSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+
+  Classroom    Classroom               @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  QuestionSet  QuestionSet?            @relation(fields: [questionSetId], references: [id])
+  Attempt      Attempt[]
+  recipients   AssignmentRecipient[]
+  ScheduleRuns AssignmentScheduleRun[]
 
   @@unique([classroomId, kind, opensAt])
   @@index([classroomId])
   @@index([questionSetId])
+  @@index([scheduleId]) // optional but useful
 }
 
 model AssignmentSchedule {
@@ -42,12 +47,29 @@ model AssignmentSchedule {
   windowMinutes    Int      @default(4)
   isActive         Boolean  @default(true)
   days             String[]
-
-  numQuestions Int @default(12)
+  numQuestions     Int      @default(12)
 
   Classroom Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
 
+  Assignments Assignment[]
+
+  Runs AssignmentScheduleRun[]
+
   @@index([classroomId])
+}
+
+model AssignmentScheduleRun {
+  id           Int      @id @default(autoincrement())
+  scheduleId   Int
+  runDate      DateTime
+  assignmentId Int?
+  createdAt    DateTime @default(now())
+
+  Schedule   AssignmentSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  Assignment Assignment?        @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+
+  @@unique([scheduleId, runDate])
+  @@index([scheduleId])
 }
 
 model Attempt {
@@ -86,6 +108,7 @@ model Classroom {
   teacherId          Int
   Assignment         Assignment[]
   AssignmentSchedule AssignmentSchedule[]
+  timeZone           String               @default("America/Los_Angeles")
   Teacher            Teacher              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   Student            Student[]
 
@@ -113,35 +136,35 @@ model QuestionSet {
 }
 
 model Student {
-  id          Int              @id @default(autoincrement())
+  id          Int      @id @default(autoincrement())
   name        String
-  username    String           @unique
+  username    String   @unique
   password    String
-  level       Int              @default(1)
+  level       Int      @default(1)
   classroomId Int
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   setupCodeHash      String?
   setupCodeExpiresAt DateTime?
-  mustSetPassword     Boolean   @default(true)
+  mustSetPassword    Boolean   @default(true)
 
   assignments AssignmentRecipient[]
 
-  Attempt     Attempt[]
-  Classroom   Classroom        @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  sessions    StudentSession[]
+  Attempt   Attempt[]
+  Classroom Classroom        @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  sessions  StudentSession[]
 
   @@index([classroomId])
 }
 
 model Teacher {
-  id        Int              @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   name      String
-  email     String           @unique
+  email     String   @unique
   password  String
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   Classroom Classroom[]
   sessions  TeacherSession[]

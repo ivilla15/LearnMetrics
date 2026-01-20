@@ -11,7 +11,7 @@ export type TeacherClassroomCardRow = {
 };
 
 export type TeacherClassroomOverviewStats = {
-  classroom: { id: number; name: string };
+  classroom: { id: number; name: string; timeZone?: string };
 
   // Students
   totalStudents: number;

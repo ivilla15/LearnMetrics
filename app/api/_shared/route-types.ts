@@ -7,3 +7,6 @@ export type RouteParams = {
 export type ClassroomAssignmentRouteContext = {
   params: Promise<{ id: string; assignmentId: string }>;
 };
+export type StudentAttemptRouteContext = {
+  params: Promise<{ attemptId: string }>;
+};

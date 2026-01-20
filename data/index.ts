@@ -6,3 +6,4 @@ export * from './questions.repo';
 export * from './classrooms.repo';
 export * from './teacherProgress.repo';
 export * from './prisma';
+export * from './scheduleRuns.repo';

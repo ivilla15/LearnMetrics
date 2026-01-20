@@ -76,13 +76,10 @@ export function AssignMakeupTestModal({
   const [search, setSearch] = React.useState('');
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set());
 
-  const now = React.useMemo(() => new Date(), []);
-  const defaultOpen = React.useMemo(() => now, [now]);
-  const defaultClose = React.useMemo(() => new Date(now.getTime() + 24 * 60 * 60 * 1000), [now]);
-
-  const [opensAtText, setOpensAtText] = React.useState(toDatetimeLocalValue(defaultOpen));
-  const [closesAtText, setClosesAtText] = React.useState(toDatetimeLocalValue(defaultClose));
-
+  const [opensAtText, setOpensAtText] = React.useState(() => toDatetimeLocalValue(new Date()));
+  const [closesAtText, setClosesAtText] = React.useState(() =>
+    toDatetimeLocalValue(new Date(Date.now() + 4 * 60 * 1000)),
+  );
   const [windowMinutes, setWindowMinutes] = React.useState<number>(() => {
     const v = lastTestMeta?.windowMinutes;
     return Number.isFinite(v as number) && (v as number) > 0 ? (v as number) : 4;
@@ -109,19 +106,23 @@ export function AssignMakeupTestModal({
     setSearch('');
     setSelectedIds(new Set(defaultSelectedIds ?? []));
 
-    setOpensAtText(toDatetimeLocalValue(new Date()));
-    setClosesAtText(toDatetimeLocalValue(new Date(Date.now() + 24 * 60 * 60 * 1000)));
+    const now = new Date();
 
-    // keep defaults tied to lastTestMeta at open time
-    setWindowMinutes(() => {
+    const wm = (() => {
       const v = lastTestMeta?.windowMinutes;
       return Number.isFinite(v as number) && (v as number) > 0 ? (v as number) : 4;
-    });
+    })();
 
-    setNumQuestions(() => {
+    setOpensAtText(toDatetimeLocalValue(now));
+    setClosesAtText(toDatetimeLocalValue(new Date(now.getTime() + wm * 60 * 1000)));
+    setWindowMinutes(wm);
+
+    const nq = (() => {
       const v = lastTestMeta?.numQuestions;
       return Number.isFinite(v as number) && (v as number) > 0 ? (v as number) : 12;
-    });
+    })();
+
+    setNumQuestions(nq);
   }, [open, lastTestMeta, defaultAudience, defaultSelectedIds]);
 
   const filteredEligible = React.useMemo(() => {

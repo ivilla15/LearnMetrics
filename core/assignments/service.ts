@@ -1,5 +1,6 @@
 import { prisma } from '@/data';
 import { NotFoundError, ConflictError } from '@/core';
+import { Prisma } from '@prisma/client';
 
 export type AssignmentDTO = {
   id: number;
@@ -23,6 +24,9 @@ type Params = {
   kind?: 'SCHEDULED_TEST';
   questionSetId?: number | null;
   studentIds?: number[];
+
+  scheduleId?: number | null;
+  runDate?: Date;
 };
 
 type AssignmentRow = {
@@ -62,6 +66,9 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
     kind = 'SCHEDULED_TEST',
     questionSetId = null,
     studentIds,
+
+    scheduleId = null,
+    runDate,
   } = params;
 
   if (!(opensAt instanceof Date) || Number.isNaN(opensAt.getTime())) {
@@ -72,6 +79,11 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
   }
   if (closesAt <= opensAt) {
     throw new ConflictError('closesAt must be after opensAt');
+  }
+
+  // If scheduleId is provided, require runDate for idempotency.
+  if (typeof scheduleId === 'number' && (!runDate || Number.isNaN(runDate.getTime()))) {
+    throw new ConflictError('runDate is required when scheduleId is provided');
   }
 
   const classroom = await prisma.classroom.findUnique({
@@ -98,46 +110,169 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
     normalizedStudentIds = uniq;
   }
 
-  const created: AssignmentRow = await prisma.assignment.create({
-    data: {
-      classroomId,
-      opensAt,
-      closesAt,
-      windowMinutes: windowMinutes ?? 4,
-      assignmentMode,
-      numQuestions,
-      kind,
-      questionSetId: questionSetId ?? undefined,
-      ...(normalizedStudentIds
-        ? {
-            recipients: {
-              createMany: {
-                data: normalizedStudentIds.map((sid) => ({ studentId: sid })),
-                skipDuplicates: true,
+  // ✅ If not schedule-driven, keep old behavior.
+  if (scheduleId == null) {
+    const created: AssignmentRow = await prisma.assignment.create({
+      data: {
+        classroomId,
+        opensAt,
+        closesAt,
+        windowMinutes: windowMinutes ?? 4,
+        assignmentMode,
+        numQuestions,
+        kind,
+        questionSetId: questionSetId ?? undefined,
+        ...(normalizedStudentIds
+          ? {
+              recipients: {
+                createMany: {
+                  data: normalizedStudentIds.map((sid) => ({ studentId: sid })),
+                  skipDuplicates: true,
+                },
               },
-            },
-          }
-        : {}),
-    },
-    select: {
-      id: true,
-      classroomId: true,
-      kind: true,
-      opensAt: true,
-      closesAt: true,
-      windowMinutes: true,
-      assignmentMode: true,
-      numQuestions: true,
-      _count: { select: { recipients: true } },
-    },
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        classroomId: true,
+        kind: true,
+        opensAt: true,
+        closesAt: true,
+        windowMinutes: true,
+        assignmentMode: true,
+        numQuestions: true,
+        _count: { select: { recipients: true } },
+      },
+    });
+
+    return toDto(created);
+  }
+
+  // ✅ Schedule-driven behavior with idempotency via AssignmentScheduleRun
+  const dto = await prisma.$transaction(async (tx) => {
+    // 1) Upsert the "run" row (unique on scheduleId + runDate)
+    const run = await tx.assignmentScheduleRun.upsert({
+      where: {
+        scheduleId_runDate: { scheduleId, runDate: runDate! },
+      },
+      update: {},
+      create: {
+        scheduleId,
+        runDate: runDate!,
+      },
+      select: { id: true, assignmentId: true },
+    });
+
+    // 2) If already linked, return existing assignment
+    if (run.assignmentId) {
+      const existing = await tx.assignment.findUnique({
+        where: { id: run.assignmentId },
+        select: {
+          id: true,
+          classroomId: true,
+          kind: true,
+          opensAt: true,
+          closesAt: true,
+          windowMinutes: true,
+          assignmentMode: true,
+          numQuestions: true,
+          _count: { select: { recipients: true } },
+        },
+      });
+
+      if (existing) return toDto(existing as AssignmentRow);
+
+      // run references deleted assignment -> clear and continue
+      await tx.assignmentScheduleRun.update({
+        where: { id: run.id },
+        data: { assignmentId: null },
+      });
+    }
+
+    // 3) Create assignment (stamp scheduleId)
+    let created: AssignmentRow;
+
+    try {
+      created = await tx.assignment.create({
+        data: {
+          classroomId,
+          opensAt,
+          closesAt,
+          windowMinutes: windowMinutes ?? 4,
+          assignmentMode,
+          numQuestions,
+          kind,
+          questionSetId: questionSetId ?? undefined,
+          scheduleId,
+          ...(normalizedStudentIds
+            ? {
+                recipients: {
+                  createMany: {
+                    data: normalizedStudentIds.map((sid) => ({ studentId: sid })),
+                    skipDuplicates: true,
+                  },
+                },
+              }
+            : {}),
+        },
+        select: {
+          id: true,
+          classroomId: true,
+          kind: true,
+          opensAt: true,
+          closesAt: true,
+          windowMinutes: true,
+          assignmentMode: true,
+          numQuestions: true,
+          _count: { select: { recipients: true } },
+        },
+      });
+    } catch (err) {
+      // Another concurrent runner created the assignment first.
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        const existing = await tx.assignment.findFirst({
+          where: { scheduleId, opensAt },
+          select: {
+            id: true,
+            classroomId: true,
+            kind: true,
+            opensAt: true,
+            closesAt: true,
+            windowMinutes: true,
+            assignmentMode: true,
+            numQuestions: true,
+            _count: { select: { recipients: true } },
+          },
+        });
+
+        if (!existing) throw err; // super rare, but don’t hide it
+
+        created = existing as AssignmentRow;
+      } else {
+        throw err;
+      }
+    }
+
+    // 4) Attach assignmentId to the run row (idempotent update)
+    await tx.assignmentScheduleRun.update({
+      where: { id: run.id },
+      data: { assignmentId: created.id },
+    });
+
+    return toDto(created);
   });
 
-  return toDto(created);
+  return dto;
 }
 
 export async function getLatestAssignmentForClassroom(
   classroomId: number,
 ): Promise<AssignmentDTO | null> {
+  if (!Number.isFinite(classroomId) || classroomId <= 0) {
+    throw new ConflictError('Invalid classroomId');
+  }
+
   const latest: AssignmentRow | null = await prisma.assignment.findFirst({
     where: { classroomId },
     orderBy: { opensAt: 'desc' },

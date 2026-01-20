@@ -14,43 +14,7 @@ import {
 } from '@/components';
 
 import { AttemptDetailModal, AttemptResultsTable, type AttemptResultsRow } from '@/modules';
-
-export type AttemptRow = {
-  attemptId: number;
-  assignmentId: number;
-  completedAt: string;
-  assignmentKind: string;
-  assignmentMode: string;
-  levelAtTime: number;
-  score: number;
-  total: number;
-  percent: number;
-  wasMastery: boolean;
-};
-
-export type AttemptDetail = {
-  attemptId: number;
-  completedAt: string;
-  levelAtTime: number;
-  score: number;
-  total: number;
-  percent: number;
-  wasMastery: boolean;
-  assignment?: {
-    kind: string;
-    assignmentMode: string;
-    opensAt: string;
-    closesAt: string;
-    windowMinutes: number | null;
-  };
-  items: {
-    id: number;
-    prompt: string;
-    studentAnswer: number;
-    correctAnswer: number;
-    isCorrect: boolean;
-  }[];
-};
+import { AttemptDetail, AttemptRow } from '@/types';
 
 function ProgressSkeleton() {
   return (

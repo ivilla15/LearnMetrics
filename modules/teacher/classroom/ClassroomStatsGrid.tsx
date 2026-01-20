@@ -1,7 +1,7 @@
 import * as React from 'react';
 import type { TeacherClassroomOverviewStats } from '@/data';
-import { formatLocal } from '@/lib';
 import { StatTile } from './StatTile';
+import { formatInTimeZone } from 'date-fns-tz';
 
 function percent(numerator: number, denominator: number) {
   if (!denominator) return '—';
@@ -10,13 +10,16 @@ function percent(numerator: number, denominator: number) {
 }
 
 export function ClassroomStatsGrid({ stats }: { stats: TeacherClassroomOverviewStats }) {
-  const nextTestValue = stats.nextTest ? formatLocal(stats.nextTest.opensAt) : '—';
+  const nextTestValue = stats.nextTest
+    ? formatInTimeZone(stats.nextTest.opensAt, stats.classroom.timeZone ?? 'UTC', 'MMM d, h:mm a')
+    : '—';
 
   const nextTestHelper = stats.nextTest ? (
     <span>
       {stats.nextTest.assignmentMode === 'SCHEDULED' ? 'Scheduled' : 'Manual'}
       {' · '}
-      Closes {formatLocal(stats.nextTest.closesAt)}
+      Closes{' '}
+      {formatInTimeZone(stats.nextTest.closesAt, stats.classroom.timeZone ?? 'UTC', 'h:mm a')}
     </span>
   ) : (
     <span>No upcoming tests found.</span>

@@ -11,5 +11,4 @@ export type { AssignmentDTO } from './assignments';
 export { createScheduledAssignment, getLatestAssignmentForClassroom } from './assignments';
 
 // ---- classrooms ----
-export type { RosterDTO } from './classrooms';
 export { getRosterWithLastAttempt } from './classrooms';

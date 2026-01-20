@@ -3,15 +3,16 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/data/prisma';
 import { requireStudent } from '@/core';
 import { jsonError, parseId } from '@/utils';
-import { handleApiError, type RouteContext } from '@/app';
+import { handleApiError } from '@/app';
+import type { StudentAttemptRouteContext } from '@/app/api/_shared/route-types';
 
-export async function GET(_req: Request, { params }: RouteContext) {
+export async function GET(_req: Request, { params }: StudentAttemptRouteContext) {
   try {
     const auth = await requireStudent();
     if (!auth.ok) return jsonError(auth.error, auth.status);
     const student = auth.student;
 
-    const { id: rawAttemptId } = await params;
+    const { attemptId: rawAttemptId } = await params;
     const attemptId = parseId(rawAttemptId);
     if (!attemptId) return jsonError('Invalid attempt id', 400);
 

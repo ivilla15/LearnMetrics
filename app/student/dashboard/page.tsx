@@ -17,6 +17,7 @@ import {
 
 import { AppShell, studentNavItems } from '@/modules';
 import { formatLocal } from '@/lib';
+import { AttemptRow } from '@/types';
 
 type MeDTO = {
   id: number;
@@ -33,19 +34,6 @@ type NextAssignmentDTO = {
   closesAt: string;
   windowMinutes: number | null;
 } | null;
-
-type AttemptRow = {
-  attemptId: number;
-  assignmentId: number;
-  completedAt: string;
-  assignmentKind: string;
-  assignmentMode: string;
-  levelAtTime: number;
-  score: number;
-  total: number;
-  percent: number;
-  wasMastery: boolean;
-};
 
 type AssignmentStatus = 'NOT_OPEN' | 'CLOSED' | 'READY' | 'ALREADY_SUBMITTED' | null;
 

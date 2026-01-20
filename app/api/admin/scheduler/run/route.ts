@@ -6,16 +6,24 @@ import { handleApiError } from '@/app';
 
 function isAuthorized(request: Request): boolean {
   const secret = process.env.SCHEDULER_SECRET;
-  if (!secret) return false;
+  if (!secret || secret.length === 0) return false;
 
   const auth = request.headers.get('authorization') ?? '';
-  const expected = `Bearer ${secret}`;
+  const prefix = 'Bearer ';
+  if (!auth.startsWith(prefix)) return false;
 
-  const a = Buffer.from(auth);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) return false;
+  const provided = auth.slice(prefix.length);
 
-  return crypto.timingSafeEqual(a, b);
+  try {
+    // Hash both to fixed-length buffers then compare in constant time.
+    const hExpected = crypto.createHash('sha256').update(secret, 'utf8').digest();
+    const hProvided = crypto.createHash('sha256').update(provided, 'utf8').digest();
+
+    // Both are 32 bytes — safe to timingSafeEqual
+    return crypto.timingSafeEqual(hExpected, hProvided);
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(request: Request) {

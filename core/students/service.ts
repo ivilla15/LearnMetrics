@@ -5,6 +5,7 @@ import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
 import * as AssignmentsRepo from '@/data/assignments.repo';
 import { NotFoundError } from '@/core/errors';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
+import { BulkCreateStudentArgs } from '@/types';
 
 // -----------------------------
 // Student history (student + teacher progress pages)
@@ -84,17 +85,6 @@ export async function getStudentHistory(studentId: number): Promise<StudentHisto
 // -----------------------------
 // Roster + setup codes (teacher dashboard)
 // -----------------------------
-
-export type BulkCreateStudentArgs = {
-  teacherId: number;
-  classroomId: number;
-  students: {
-    firstName: string;
-    lastName: string;
-    username: string;
-    level: number;
-  }[];
-};
 
 export type SetupCodeCard = {
   name: string;
@@ -201,13 +191,7 @@ export async function deleteAllClassroomStudents(args: DeleteAllStudentsArgs): P
   await StudentsRepo.deleteStudentsByClassroomId(classroomId);
 
   if (deleteAssignments) {
-    const maybeDelete = (AssignmentsRepo as Record<string, unknown>)[
-      'deleteAssignmentsByClassroomId'
-    ];
-
-    if (typeof maybeDelete === 'function') {
-      await (maybeDelete as (id: number) => Promise<unknown>)(classroomId);
-    }
+    await AssignmentsRepo.deleteAssignmentsByClassroomId(classroomId);
   }
 
   if (deleteSchedules) {

@@ -118,6 +118,9 @@ export function NewClassroomButton({ createAction }: CreateButtonProps) {
               }
               setError(null);
 
+              const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Los_Angeles';
+              fd.set('timeZone', String(tz));
+
               fd.set('name', parsed.name);
               await createAction(fd);
               setOpen(false);
