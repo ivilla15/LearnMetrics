@@ -161,8 +161,12 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
         scheduleId,
         runDate: runDate!,
       },
-      select: { id: true, assignmentId: true },
+      select: { id: true, assignmentId: true, isSkipped: true },
     });
+
+    if (run.isSkipped) {
+      throw new ConflictError('Schedule run was skipped');
+    }
 
     // 2) If already linked, return existing assignment
     if (run.assignmentId) {
@@ -205,6 +209,7 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
           kind,
           questionSetId: questionSetId ?? undefined,
           scheduleId,
+          runDate: runDate!,
           ...(normalizedStudentIds
             ? {
                 recipients: {

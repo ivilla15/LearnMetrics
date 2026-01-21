@@ -205,10 +205,9 @@ export async function runActiveSchedulesForDate(
 
       results.push(dto);
     } catch (err) {
-      // Log and continue — don't let one bad schedule stop the runner.
-      // If you have a logging/monitoring service, send the error there instead.
-      console.error(`Failed to process schedule ${sched.id}:`, err);
-      continue;
+      if (err instanceof ConflictError && err.message === 'Schedule run was skipped') {
+        continue;
+      }
     }
   }
 

@@ -13,7 +13,7 @@ import {
   pill,
   useToast,
 } from '@/components';
-import { formatInTimeZone } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 
 type AssignmentRow = {
   assignmentId: number;
@@ -66,11 +66,6 @@ function sameDay(a: Date, b: Date) {
 function monthLabel(d: Date) {
   return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
 }
-function dayKey(d: Date) {
-  // local YYYY-MM-DD
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 function buildMonthGrid(anchor: Date) {
   const first = startOfMonth(anchor);
@@ -94,6 +89,19 @@ function buildMonthGrid(anchor: Date) {
   return days;
 }
 
+function getTz(classroomTz: string | undefined): string {
+  return classroomTz && classroomTz.trim().length > 0 ? classroomTz : 'America/Los_Angeles';
+}
+
+function dayKeyInTimeZone(isoUtc: string, tz: string): string {
+  // Returns YYYY-MM-DD in the provided tz
+  return formatInTimeZone(isoUtc, tz, 'yyyy-MM-dd');
+}
+
+function isPast(isoUtc: string): boolean {
+  return new Date(isoUtc).getTime() <= Date.now();
+}
+
 export function CalendarClient({
   classroomId,
   initial,
@@ -112,6 +120,16 @@ export function CalendarClient({
 
   const days = React.useMemo(() => buildMonthGrid(month), [month]);
   const inMonth = React.useCallback((d: Date) => d.getMonth() === month.getMonth(), [month]);
+
+  const tz = getTz(data.classroom?.timeZone);
+
+  const selectedClosed = selected ? isPast(selected.closesAt) : false;
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editLocalDate, setEditLocalDate] = React.useState(''); // yyyy-MM-dd
+  const [editLocalTime, setEditLocalTime] = React.useState(''); // HH:mm
+  const [editWindowMinutes, setEditWindowMinutes] = React.useState<string>('');
+  const [editNumQuestions, setEditNumQuestions] = React.useState<string>('');
+  const [editSaving, setEditSaving] = React.useState(false);
 
   // --- Fetch enough assignments so calendar doesn't miss items ---
   // Strategy: paginate "all" and client-filter to current month.
@@ -197,9 +215,10 @@ export function CalendarClient({
     const map = new Map<string, AssignmentRow[]>();
     const rows = Array.isArray(data?.rows) ? data.rows : [];
 
+    const tz = getTz(data.classroom?.timeZone);
+
     for (const a of rows) {
-      const d = new Date(a.opensAt);
-      const key = dayKey(d);
+      const key = dayKeyInTimeZone(a.opensAt, tz);
       const list = map.get(key) ?? [];
       list.push(a);
       map.set(key, list);
@@ -211,34 +230,116 @@ export function CalendarClient({
     }
 
     return map;
-  }, [data?.rows]);
+  }, [data?.rows, data?.classroom?.timeZone]);
 
   function openDetails(a: AssignmentRow) {
     setSelected(a);
+
+    const date = formatInTimeZone(a.opensAt, tz, 'yyyy-MM-dd');
+    const time = formatInTimeZone(a.opensAt, tz, 'HH:mm');
+
+    setEditLocalDate(date);
+    setEditLocalTime(time);
+    setEditWindowMinutes(a.windowMinutes == null ? '' : String(a.windowMinutes));
+    setEditNumQuestions(String(a.numQuestions ?? 12));
+
     setDetailOpen(true);
   }
 
+  async function onEditSave() {
+    if (!selected) return;
+
+    if (!editLocalDate || !editLocalTime) {
+      toast('Please choose a date and time', 'error');
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      // Convert local classroom date+time -> UTC
+      const local = new Date(`${editLocalDate}T${editLocalTime}:00`);
+      const opensAtUtc = fromZonedTime(local, tz);
+
+      // Parse window minutes
+      const parsedWindow =
+        editWindowMinutes.trim().length === 0 ? undefined : Number(editWindowMinutes.trim());
+
+      if (
+        parsedWindow !== undefined &&
+        (!Number.isFinite(parsedWindow) || parsedWindow < 1 || parsedWindow > 180)
+      ) {
+        toast('Window minutes must be a number between 1 and 180', 'error');
+        return;
+      }
+
+      // Parse num questions
+      const nq = editNumQuestions.trim().length === 0 ? undefined : Number(editNumQuestions.trim());
+      if (nq !== undefined && (!Number.isFinite(nq) || nq < 1 || nq > 60)) {
+        toast('Num questions must be a number between 1 and 60', 'error');
+        return;
+      }
+
+      // Always pick a valid window so closesAt is always consistent with opensAt
+      const windowToUse = parsedWindow ?? selected.windowMinutes ?? 4;
+
+      const closesAtUtc = new Date(opensAtUtc.getTime() + windowToUse * 60 * 1000);
+
+      const body: Record<string, unknown> = {
+        opensAt: opensAtUtc.toISOString(),
+        closesAt: closesAtUtc.toISOString(),
+        windowMinutes: windowToUse,
+      };
+
+      if (nq !== undefined) body.numQuestions = nq;
+
+      const res = await fetch(
+        `/api/teacher/classrooms/${classroomId}/assignments/${selected.assignmentId}`,
+        {
+          method: 'PATCH',
+          headers: { 'content-type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(body),
+        },
+      );
+
+      if (!res.ok) {
+        const json = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        const msg = typeof json?.error === 'string' ? json.error : 'Failed to update assignment';
+        throw new Error(msg);
+      }
+
+      toast('Updated assignment', 'success');
+      setEditOpen(false);
+      setDetailOpen(false);
+      setSelected(null);
+      await loadAllForMonth(month);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Failed to update assignment', 'error');
+    } finally {
+      setEditSaving(false);
+    }
+  }
   async function onDelete(a: AssignmentRow) {
     const ok = confirm(`Delete assignment ${a.assignmentId}?`);
     if (!ok) return;
 
     try {
-      // This will work once you add DELETE /api/teacher/classrooms/:id/assignments/:assignmentId
       const res = await fetch(
         `/api/teacher/classrooms/${classroomId}/assignments/${a.assignmentId}`,
         { method: 'DELETE', credentials: 'include' },
       );
-      if (!res.ok) {
-        const json = await res.json().catch(() => null);
-        throw new Error(
-          typeof json?.error === 'string' ? json.error : 'Failed to delete assignment',
-        );
+
+      if (res.status === 204) {
+        toast('Deleted assignment', 'success');
+        setDetailOpen(false);
+        setSelected(null);
+        await loadAllForMonth(month);
+        return;
       }
 
-      toast('Deleted assignment', 'success');
-      setDetailOpen(false);
-      setSelected(null);
-      await loadAllForMonth(month);
+      const json = (await res.json().catch(() => null)) as { error?: unknown } | null;
+      const msg = typeof json?.error === 'string' ? json.error : 'Failed to delete assignment';
+      throw new Error(msg);
     } catch (e) {
       toast(e instanceof Error ? e.message : 'Failed to delete assignment', 'error');
     }
@@ -288,7 +389,7 @@ export function CalendarClient({
           {/* Grid */}
           <div className="grid grid-cols-7 gap-2">
             {days.map((d) => {
-              const key = dayKey(d);
+              const key = formatInTimeZone(d, tz, 'yyyy-MM-dd');
               const items = byDay.get(key) ?? [];
               const isToday = sameDay(d, new Date());
               const dim = !inMonth(d);
@@ -372,15 +473,22 @@ export function CalendarClient({
                 Close
               </Button>
 
-              {/* Edit button will call PATCH later (UI can be added next) */}
               <Button
                 variant="secondary"
-                onClick={() => toast('Edit UI next (PATCH endpoint)', 'success')}
+                onClick={() => {
+                  if (selectedClosed) return;
+                  setEditOpen(true);
+                }}
+                disabled={selectedClosed}
               >
                 Edit date/time
               </Button>
 
-              <Button variant="destructive" onClick={() => void onDelete(selected)}>
+              <Button
+                variant="destructive"
+                onClick={() => void onDelete(selected)}
+                disabled={selectedClosed}
+              >
                 Delete
               </Button>
             </div>
@@ -434,6 +542,71 @@ export function CalendarClient({
             </HelpText>
           </div>
         )}
+      </Modal>
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title="Edit assignment"
+        description={`Times are in ${tz}.`}
+        size="lg"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setEditOpen(false)} disabled={editSaving}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={() => void onEditSave()} disabled={editSaving}>
+              {editSaving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid gap-2">
+            <label className="text-sm font-medium text-[hsl(var(--fg))]">Date</label>
+            <input
+              type="date"
+              value={editLocalDate}
+              onChange={(e) => setEditLocalDate(e.target.value)}
+              className="h-10 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <label className="text-sm font-medium text-[hsl(var(--fg))]">Time</label>
+            <input
+              type="time"
+              value={editLocalTime}
+              onChange={(e) => setEditLocalTime(e.target.value)}
+              className="h-10 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <label className="text-sm font-medium text-[hsl(var(--fg))]">Window minutes</label>
+            <input
+              inputMode="numeric"
+              value={editWindowMinutes}
+              onChange={(e) => setEditWindowMinutes(e.target.value)}
+              placeholder="4"
+              className="h-10 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <label className="text-sm font-medium text-[hsl(var(--fg))]">Number of questions</label>
+            <input
+              inputMode="numeric"
+              value={editNumQuestions}
+              onChange={(e) => setEditNumQuestions(e.target.value)}
+              placeholder="12"
+              className="h-10 rounded-[12px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+            />
+          </div>
+
+          <HelpText>
+            Editing is blocked once an assignment has attempts, and after the close time.
+          </HelpText>
+        </div>
       </Modal>
     </div>
   );
