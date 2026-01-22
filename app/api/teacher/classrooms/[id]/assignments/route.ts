@@ -1,9 +1,9 @@
 import { prisma } from '@/data/prisma';
 import type { Prisma } from '@prisma/client';
 
-import { requireTeacher } from '@/core';
+import { createScheduledAssignment, requireTeacher } from '@/core';
 import { errorResponse, jsonResponse, parseCursor, parseId, percent } from '@/utils';
-import { handleApiError, type RouteContext } from '@/app';
+import { handleApiError, readJson, type RouteContext } from '@/app';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms';
 
 import { addDays } from 'date-fns';
@@ -249,6 +249,104 @@ export async function GET(req: Request, { params }: RouteContext) {
       },
       200,
     );
+  } catch (err: unknown) {
+    return handleApiError(err);
+  }
+}
+
+export async function POST(req: Request, { params }: RouteContext) {
+  try {
+    const auth = await requireTeacher();
+    if (!auth.ok) return errorResponse(auth.error, auth.status);
+
+    const { id } = await params;
+    const classroomId = parseId(id);
+    if (!classroomId) return errorResponse('Invalid classroom id', 400);
+
+    await assertTeacherOwnsClassroom(auth.teacher.id, classroomId);
+
+    const body = await readJson(req);
+
+    if (!body || typeof body !== 'object') {
+      return errorResponse('Invalid request body', 400);
+    }
+
+    const scheduleId =
+      'scheduleId' in body && typeof body.scheduleId === 'number' ? body.scheduleId : null;
+
+    const runDate =
+      'runDate' in body && typeof body.runDate === 'string' ? new Date(body.runDate) : null;
+
+    const opensAtRaw = 'opensAt' in body ? body.opensAt : null;
+    const closesAtRaw = 'closesAt' in body ? body.closesAt : null;
+
+    if (typeof opensAtRaw !== 'string' || typeof closesAtRaw !== 'string') {
+      return errorResponse('opensAt and closesAt are required', 400);
+    }
+
+    const opensAt = new Date(opensAtRaw);
+    const closesAt = new Date(closesAtRaw);
+
+    if (Number.isNaN(opensAt.getTime())) return errorResponse('Invalid opensAt', 400);
+    if (Number.isNaN(closesAt.getTime())) return errorResponse('Invalid closesAt', 400);
+
+    const windowMinutes =
+      'windowMinutes' in body && typeof body.windowMinutes === 'number' ? body.windowMinutes : null;
+
+    const numQuestions =
+      'numQuestions' in body && typeof body.numQuestions === 'number' ? body.numQuestions : 12;
+
+    const kind = 'SCHEDULED_TEST' as const;
+
+    const assignmentMode =
+      'assignmentMode' in body &&
+      (body.assignmentMode === 'SCHEDULED' || body.assignmentMode === 'MANUAL')
+        ? body.assignmentMode
+        : 'MANUAL';
+
+    const questionSetId =
+      'questionSetId' in body && typeof body.questionSetId === 'number' ? body.questionSetId : null;
+
+    const studentIds =
+      'studentIds' in body && Array.isArray(body.studentIds) ? body.studentIds : undefined;
+
+    if (scheduleId !== null) {
+      if (!runDate || Number.isNaN(runDate.getTime())) {
+        return errorResponse('runDate is required when scheduleId is provided', 400);
+      }
+
+      const dto = await createScheduledAssignment({
+        classroomId,
+        scheduleId,
+        runDate,
+        opensAt,
+        closesAt,
+        windowMinutes,
+        numQuestions,
+        kind: 'SCHEDULED_TEST',
+        assignmentMode: 'SCHEDULED',
+        questionSetId,
+        studentIds,
+      });
+
+      return jsonResponse({ assignment: dto }, 201);
+    }
+
+    // ---- Manual create (non schedule-driven) ----
+    const created = await createScheduledAssignment({
+      classroomId,
+      opensAt,
+      closesAt,
+      windowMinutes,
+      numQuestions,
+      kind,
+      assignmentMode,
+      questionSetId,
+      studentIds,
+      scheduleId: null,
+    });
+
+    return jsonResponse({ assignment: created }, 201);
   } catch (err: unknown) {
     return handleApiError(err);
   }

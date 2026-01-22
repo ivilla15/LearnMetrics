@@ -14,6 +14,7 @@ import {
   useToast,
 } from '@/components';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import { cancelOccurrenceApi, unskipOccurrenceApi } from '@/app/api/_shared/schedules';
 
 export type AssignmentStats = {
   attemptedCount: number;
@@ -124,13 +125,7 @@ function getTz(classroomTz: string | undefined): string {
 }
 
 function dayKeyInTimeZone(isoUtc: string, tz: string): string {
-  // Returns YYYY-MM-DD in the provided tz
   return formatInTimeZone(isoUtc, tz, 'yyyy-MM-dd');
-}
-
-function dayKey(d: Date) {
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
 export function CalendarClient({
@@ -155,7 +150,7 @@ export function CalendarClient({
   const tz = getTz(data.classroom?.timeZone);
 
   const selectedIsProjection = !!selected && isProjection(selected);
-  const selectedClosed = selected ? isPast(selected.closesAt) : false;
+  const selectedClosed = selected ? isPast(toIso(selected.closesAt)) : false;
 
   const selectedAssignment: AssignmentDTO | null =
     selected && !isProjection(selected) ? selected : null;
@@ -179,7 +174,6 @@ export function CalendarClient({
         let allRows: AssignmentDTO[] = [];
         let nextCursor: string | null = null;
 
-        // Pull up to ~200 rows max (4 pages of 50) + projections from first page.
         for (let i = 0; i < 4; i++) {
           const url = new URL(
             `/api/teacher/classrooms/${classroomId}/assignments`,
@@ -192,9 +186,7 @@ export function CalendarClient({
           const res = await fetch(url.toString(), { cache: 'no-store' });
           const json = (await res.json().catch(() => null)) as AssignmentsListResponse | null;
 
-          if (!res.ok) {
-            throw new Error(getApiErrorMessage(json, 'Failed to load'));
-          }
+          if (!res.ok) throw new Error(getApiErrorMessage(json, 'Failed to load'));
 
           if (i === 0 && Array.isArray(json?.projections)) {
             projections = json.projections;
@@ -263,28 +255,24 @@ export function CalendarClient({
     void loadAllForMonth(month);
   }, [month, loadAllForMonth]);
 
+  // Merge real + projections, but drop projection if real exists for same scheduleId|runDate
   const mergedItems = React.useMemo<CalendarItem[]>(() => {
     const real = Array.isArray(data?.rows) ? data.rows : [];
     const projections = Array.isArray(data?.projections) ? data.projections : [];
 
     const realKeys = new Set<string>();
     for (const a of real) {
-      if (a.scheduleId && a.runDate) {
-        realKeys.add(`${a.scheduleId}|${a.runDate}`);
-      }
+      if (a.scheduleId && a.runDate) realKeys.add(`${a.scheduleId}|${a.runDate}`);
     }
 
-    const filteredProjections = projections.filter((p) => {
-      const key = `${p.scheduleId}|${p.runDate}`;
-      return !realKeys.has(key);
-    });
-
+    const filteredProjections = projections.filter(
+      (p) => !realKeys.has(`${p.scheduleId}|${p.runDate}`),
+    );
     return [...real, ...filteredProjections];
   }, [data?.rows, data?.projections]);
 
   const byDay = React.useMemo(() => {
     const map = new Map<string, CalendarItem[]>();
-    const tz = getTz(data.classroom?.timeZone);
 
     for (const it of mergedItems) {
       const key = dayKeyInTimeZone(toIso(it.opensAt), tz);
@@ -301,24 +289,24 @@ export function CalendarClient({
     }
 
     return map;
-  }, [mergedItems, data?.classroom?.timeZone]);
+  }, [mergedItems, tz]);
 
-  function openDetails(a: AssignmentDTO) {
-    setSelected(a);
+  function openDetails(item: CalendarItem) {
+    setSelected(item);
 
-    const date = formatInTimeZone(a.opensAt, tz, 'yyyy-MM-dd');
-    const time = formatInTimeZone(a.opensAt, tz, 'HH:mm');
+    const date = formatInTimeZone(toIso(item.opensAt), tz, 'yyyy-MM-dd');
+    const time = formatInTimeZone(toIso(item.opensAt), tz, 'HH:mm');
 
     setEditLocalDate(date);
     setEditLocalTime(time);
-    setEditWindowMinutes(a.windowMinutes == null ? '' : String(a.windowMinutes));
-    setEditNumQuestions(String(a.numQuestions ?? 12));
+    setEditWindowMinutes(item.windowMinutes == null ? '' : String(item.windowMinutes));
+    setEditNumQuestions(String(item.numQuestions ?? 12));
 
     setDetailOpen(true);
   }
 
   async function onEditSave() {
-    if (!selectedAssignment) return;
+    if (!selected) return;
 
     if (!editLocalDate || !editLocalTime) {
       toast('Please choose a date and time', 'error');
@@ -327,92 +315,80 @@ export function CalendarClient({
 
     setEditSaving(true);
     try {
-      // Convert local classroom date+time -> UTC
       const local = new Date(`${editLocalDate}T${editLocalTime}:00`);
       const opensAtUtc = fromZonedTime(local, tz);
 
-      // Parse window minutes
       const parsedWindow =
         editWindowMinutes.trim().length === 0 ? undefined : Number(editWindowMinutes.trim());
 
       if (
         parsedWindow !== undefined &&
-        (!Number.isFinite(parsedWindow) || parsedWindow < 1 || parsedWindow > 180)
+        (!Number.isFinite(parsedWindow) || parsedWindow < 0 || parsedWindow > 180)
       ) {
-        toast('Window minutes must be a number between 1 and 180', 'error');
+        toast('Window minutes must be a number between 0 and 180', 'error');
         return;
       }
 
-      // Parse num questions
       const nq = editNumQuestions.trim().length === 0 ? undefined : Number(editNumQuestions.trim());
       if (nq !== undefined && (!Number.isFinite(nq) || nq < 1 || nq > 60)) {
         toast('Num questions must be a number between 1 and 60', 'error');
         return;
       }
 
-      // Always keep closesAt consistent with opensAt
-      const windowToUse = parsedWindow ?? selectedAssignment.windowMinutes ?? 4;
+      const windowToUse = parsedWindow ?? selected.windowMinutes ?? 4;
       const closesAtUtc = new Date(opensAtUtc.getTime() + windowToUse * 60 * 1000);
 
-      const body: Record<string, unknown> = {
+      const baseBody: Record<string, unknown> = {
         opensAt: opensAtUtc.toISOString(),
         closesAt: closesAtUtc.toISOString(),
         windowMinutes: windowToUse,
       };
+      if (nq !== undefined) baseBody.numQuestions = nq;
 
-      if (nq !== undefined) body.numQuestions = nq;
+      let res: Response;
 
-      const res = await fetch(
-        `/api/teacher/classrooms/${classroomId}/assignments/${selectedAssignment.assignmentId}`,
-        {
-          method: 'PATCH',
+      if (isProjection(selected)) {
+        const payload: Record<string, unknown> = {
+          ...baseBody,
+          scheduleId: selected.scheduleId,
+          runDate: selected.runDate,
+          assignmentMode: 'SCHEDULED',
+          kind: 'SCHEDULED_TEST',
+        };
+
+        res = await fetch(`/api/teacher/classrooms/${classroomId}/assignments`, {
+          method: 'POST',
           headers: { 'content-type': 'application/json' },
           credentials: 'include',
-          body: JSON.stringify(body),
-        },
-      );
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch(
+          `/api/teacher/classrooms/${classroomId}/assignments/${selected.assignmentId}`,
+          {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(baseBody),
+          },
+        );
+      }
 
       if (!res.ok) {
         const json = (await res.json().catch(() => null)) as { error?: unknown } | null;
-        const msg = typeof json?.error === 'string' ? json.error : 'Failed to update assignment';
+        const msg = typeof json?.error === 'string' ? json.error : 'Failed to save';
         throw new Error(msg);
       }
 
-      toast('Updated assignment', 'success');
+      toast('Saved', 'success');
       setEditOpen(false);
       setDetailOpen(false);
       setSelected(null);
       await loadAllForMonth(month);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Failed to update assignment', 'error');
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Failed to save', 'error');
     } finally {
       setEditSaving(false);
-    }
-  }
-
-  async function onDelete(a: AssignmentDTO) {
-    const ok = confirm(`Delete assignment ${a.assignmentId}?`);
-    if (!ok) return;
-
-    try {
-      const res = await fetch(
-        `/api/teacher/classrooms/${classroomId}/assignments/${a.assignmentId}`,
-        { method: 'DELETE', credentials: 'include' },
-      );
-
-      if (res.status === 204) {
-        toast('Deleted assignment', 'success');
-        setDetailOpen(false);
-        setSelected(null);
-        await loadAllForMonth(month);
-        return;
-      }
-
-      const json = (await res.json().catch(() => null)) as { error?: unknown } | null;
-      const msg = typeof json?.error === 'string' ? json.error : 'Failed to delete assignment';
-      throw new Error(msg);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Failed to delete assignment', 'error');
     }
   }
 
@@ -424,8 +400,8 @@ export function CalendarClient({
             <div>
               <CardTitle>{monthLabel(month)}</CardTitle>
               <CardDescription>
-                Click an assignment to view details. Calendar is based on{' '}
-                <span className="font-medium">opensAt</span>.
+                Click an item to view details. Calendar is based on{' '}
+                <span className="font-medium">opensAt</span> in the classroom timezone.
               </CardDescription>
             </div>
 
@@ -448,7 +424,6 @@ export function CalendarClient({
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {/* Weekday labels */}
           <div className="grid grid-cols-7 gap-2 text-xs font-semibold text-[hsl(var(--muted-fg))]">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
               <div key={d} className="px-2">
@@ -457,10 +432,9 @@ export function CalendarClient({
             ))}
           </div>
 
-          {/* Grid */}
           <div className="grid grid-cols-7 gap-2">
             {days.map((d) => {
-              const key = dayKey(d); // grid uses local browser day labels
+              const key = formatInTimeZone(d, tz, 'yyyy-MM-dd');
               const items = byDay.get(key) ?? [];
               const isToday = sameDay(d, new Date());
               const dim = !inMonth(d);
@@ -489,28 +463,17 @@ export function CalendarClient({
                       return (
                         <button
                           key={
-                            proj
-                              ? `p:${item.scheduleId}:${item.runDate}`
-                              : `a:${(item as AssignmentDTO).assignmentId}`
+                            proj ? `p:${item.scheduleId}:${item.runDate}` : `a:${item.assignmentId}`
                           }
                           type="button"
-                          onClick={() => {
-                            if (proj) {
-                              toast(
-                                'This is a projected test. It will become editable once created.',
-                                'success',
-                              );
-                              return;
-                            }
-                            openDetails(item as AssignmentDTO);
-                          }}
+                          onClick={() => openDetails(item)}
                           className="w-full text-left rounded-xl bg-[hsl(var(--surface-2))] px-2 py-1 text-xs hover:bg-[hsl(var(--brand)/0.10)] transition-colors"
                         >
                           <div className="flex items-center justify-between gap-2">
                             <span className="font-medium text-[hsl(var(--fg))] truncate">
                               {proj
                                 ? 'Upcoming test'
-                                : `#${(item as AssignmentDTO).assignmentId} ${(item as AssignmentDTO).kind}`}
+                                : `#${item.assignmentId} ${item.assignmentMode}`}
                             </span>
                             <span className="text-[10px] text-[hsl(var(--muted-fg))]">
                               {formatInTimeZone(toIso(item.opensAt), tz, 'h:mm a')}
@@ -536,13 +499,12 @@ export function CalendarClient({
           </div>
 
           <HelpText>
-            This calendar uses <span className="font-medium">opensAt</span> to place assignments on
-            dates. Next: add drag-and-drop reschedule (optional).
+            Upcoming tests are projections. You can edit them — saving will create the real
+            assignment (idempotent by schedule + run date).
           </HelpText>
         </CardContent>
       </Card>
 
-      {/* Details modal */}
       <Modal
         open={detailOpen}
         onClose={() => {
@@ -556,7 +518,7 @@ export function CalendarClient({
               ? 'Upcoming scheduled test'
               : `Assignment ${selected.assignmentId}`
         }
-        description="Details and actions for this assignment."
+        description="Details and actions."
         size="lg"
         footer={
           selected ? (
@@ -568,30 +530,77 @@ export function CalendarClient({
               <Button
                 variant="secondary"
                 onClick={() => {
-                  if (selectedClosed || selectedIsProjection) return;
                   setEditOpen(true);
                 }}
-                disabled={selectedClosed || selectedIsProjection}
+                disabled={selectedClosed}
               >
                 Edit date/time
               </Button>
 
-              <Button
-                variant="destructive"
-                onClick={() => {
-                  if (!selectedAssignment) return;
-                  void onDelete(selectedAssignment);
-                }}
-                disabled={selectedClosed || selectedIsProjection}
-              >
-                Delete
-              </Button>
+              {isProjection(selected) ? (
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    try {
+                      await cancelOccurrenceApi(classroomId, selected.scheduleId, selected.runDate);
+                      toast('Cancelled occurrence', 'success');
+                      setDetailOpen(false);
+                      setSelected(null);
+                      await loadAllForMonth(month);
+                    } catch (err) {
+                      toast(err instanceof Error ? err.message : 'Failed to cancel', 'error');
+                    }
+                  }}
+                >
+                  Cancel occurrence
+                </Button>
+              ) : selectedAssignment &&
+                selectedAssignment.scheduleId &&
+                selectedAssignment.runDate ? (
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    try {
+                      await cancelOccurrenceApi(
+                        classroomId,
+                        selectedAssignment.scheduleId!,
+                        selectedAssignment.runDate!,
+                      );
+                      toast('Cancelled occurrence', 'success');
+                      setDetailOpen(false);
+                      setSelected(null);
+                      await loadAllForMonth(month);
+                    } catch (err) {
+                      toast(err instanceof Error ? err.message : 'Failed to cancel', 'error');
+                    }
+                  }}
+                >
+                  Cancel occurrence
+                </Button>
+              ) : null}
+
+              {false ? (
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    try {
+                      await unskipOccurrenceApi(classroomId, /*scheduleId*/ 0, /*runDate*/ '');
+                      toast('Un-cancelled occurrence', 'success');
+                      await loadAllForMonth(month);
+                    } catch (err) {
+                      toast(err instanceof Error ? err.message : 'Failed to un-cancel', 'error');
+                    }
+                  }}
+                >
+                  Undo cancel
+                </Button>
+              ) : null}
             </div>
           ) : null
         }
       >
         {!selected ? (
-          <div className="text-sm text-[hsl(var(--muted-fg))]">No assignment selected.</div>
+          <div className="text-sm text-[hsl(var(--muted-fg))]">No selection.</div>
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
@@ -604,20 +613,12 @@ export function CalendarClient({
             <div className="text-sm text-[hsl(var(--muted-fg))]">
               Opens:{' '}
               <span className="text-[hsl(var(--fg))] font-medium">
-                {formatInTimeZone(
-                  toIso(selected.opensAt),
-                  data.classroom?.timeZone ?? 'UTC',
-                  'MMM d, h:mm a',
-                )}
+                {formatInTimeZone(toIso(selected.opensAt), tz, 'MMM d, h:mm a')}
               </span>
               {' · '}
               Closes:{' '}
               <span className="text-[hsl(var(--fg))] font-medium">
-                {formatInTimeZone(
-                  toIso(selected.closesAt),
-                  data.classroom?.timeZone ?? 'UTC',
-                  'MMM d, h:mm a',
-                )}
+                {formatInTimeZone(toIso(selected.closesAt), tz, 'MMM d, h:mm a')}
               </span>
             </div>
 
@@ -632,19 +633,25 @@ export function CalendarClient({
               </div>
             ) : null}
 
-            <HelpText>
-              Editing/deleting is blocked once an assignment has attempts, and after the close time.
-              Projections are read-only until they become real assignments.
-            </HelpText>
+            {selectedIsProjection ? (
+              <HelpText>
+                This is an upcoming projected test. Editing + saving will create the real
+                assignment.
+              </HelpText>
+            ) : (
+              <HelpText>
+                Editing/deleting is blocked once an assignment has attempts, and after the close
+                time.
+              </HelpText>
+            )}
           </div>
         )}
       </Modal>
 
-      {/* Edit modal */}
       <Modal
         open={editOpen}
         onClose={() => setEditOpen(false)}
-        title="Edit assignment"
+        title={selectedIsProjection ? 'Edit upcoming test' : 'Edit assignment'}
         description={`Times are in ${tz}.`}
         size="lg"
         footer={
@@ -702,7 +709,9 @@ export function CalendarClient({
           </div>
 
           <HelpText>
-            Editing is blocked once an assignment has attempts, and after the close time.
+            {selectedIsProjection
+              ? 'Saving will create the real assignment for this schedule run.'
+              : 'Editing is blocked once an assignment has attempts, and after the close time.'}
           </HelpText>
         </div>
       </Modal>
