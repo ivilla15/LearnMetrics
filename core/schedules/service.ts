@@ -3,7 +3,6 @@ import type { UpsertScheduleInput } from '@/validation/assignmentSchedules.schem
 
 import { ConflictError, NotFoundError } from '@/core/errors';
 import { createScheduledAssignment } from '@/core/assignments/service';
-import type { AssignmentDTO } from '@/core/assignments/service';
 
 import * as ClassroomsRepo from '@/data/classrooms.repo';
 import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
@@ -14,6 +13,7 @@ import {
   localDayToUtcDate,
   TZ,
 } from '@/utils/time';
+import { AssignmentDTO } from '@/types';
 
 export type ScheduleDTO = {
   id: number;

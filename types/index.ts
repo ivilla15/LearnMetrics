@@ -3,3 +3,4 @@ export * from './roster';
 export * from './classroomProgress';
 export * from './schedules';
 export * from './students';
+export * from './assignments';

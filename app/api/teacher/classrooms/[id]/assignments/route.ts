@@ -10,6 +10,7 @@ import { addDays } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 
 import { localDayToUtcDate, localDateTimeToUtcRange } from '@/utils';
+import { ProjectionRow } from '@/types';
 
 function clampLimit(raw: string | null) {
   const n = Number(raw);
@@ -22,17 +23,6 @@ function parseStatus(raw: string | null): 'all' | 'open' | 'closed' | 'upcoming'
   if (v === 'open' || v === 'closed' || v === 'upcoming') return v;
   return 'all';
 }
-
-type ScheduledProjectionRow = {
-  kind: 'projection';
-  scheduleId: number;
-  runDate: string; // ISO
-  opensAt: string; // ISO UTC
-  closesAt: string; // ISO UTC
-  windowMinutes: number | null;
-  numQuestions: number;
-  assignmentMode: 'SCHEDULED';
-};
 
 export async function GET(req: Request, { params }: RouteContext) {
   try {
@@ -85,7 +75,7 @@ export async function GET(req: Request, { params }: RouteContext) {
 
     const page = assignments.slice(0, limit);
     const hasMore = assignments.length > limit;
-    const nextCursor = hasMore ? String(page[page.length - 1].id) : null;
+    const nextCursor = hasMore && page.length > 0 ? String(page[page.length - 1].id) : null;
 
     const totalStudents = await prisma.student.count({ where: { classroomId } });
 
@@ -150,7 +140,7 @@ export async function GET(req: Request, { params }: RouteContext) {
       };
     });
 
-    const projections: ScheduledProjectionRow[] = [];
+    const projections: ProjectionRow[] = [];
 
     if (status === 'all') {
       const PROJECTION_DAYS = 60;

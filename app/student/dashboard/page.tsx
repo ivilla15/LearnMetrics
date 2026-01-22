@@ -17,14 +17,7 @@ import {
 
 import { AppShell, studentNavItems } from '@/modules';
 import { formatLocal } from '@/lib';
-import { AttemptRow } from '@/types';
-
-type MeDTO = {
-  id: number;
-  name: string;
-  username: string;
-  level: number;
-};
+import { AttemptRow, MeDTO } from '@/types';
 
 type NextAssignmentDTO = {
   id: number;
@@ -112,7 +105,7 @@ function DashboardSkeleton() {
               <Skeleton className="h-10 w-24" />
               <Skeleton className="h-4 w-56" />
               <Skeleton className="h-4 w-40" />
-              <Skeleton className="h-9 w-28 rounded-[var(--radius)]" />
+              <Skeleton className="h-9 w-28 rounded-(--radius)" />
             </CardContent>
           </Card>
 
@@ -125,7 +118,7 @@ function DashboardSkeleton() {
             </CardHeader>
             <CardContent className="space-y-3">
               <Skeleton className="h-4 w-64" />
-              <Skeleton className="h-9 w-40 rounded-[var(--radius)]" />
+              <Skeleton className="h-9 w-40 rounded-(--radius)" />
             </CardContent>
           </Card>
         </div>
@@ -139,15 +132,15 @@ function DashboardSkeleton() {
                 <Skeleton className="h-5 w-28" />
                 <Skeleton className="h-4 w-56" />
               </div>
-              <Skeleton className="h-11 w-32 rounded-[var(--radius)]" />
+              <Skeleton className="h-11 w-32 rounded-(--radius)" />
             </div>
           </CardHeader>
 
           <CardContent className="grid gap-5 md:grid-cols-3">
             {[0, 1, 2].map((i) => (
-              <div key={i} className="rounded-[var(--radius)] bg-[hsl(var(--surface-2))] p-5">
+              <div key={i} className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-5">
                 <Skeleton className="h-3 w-16" />
-                <Skeleton className="mt-3 h-4 w-full max-w-[180px]" />
+                <Skeleton className="mt-3 h-4 w-full max-w-45" />
               </div>
             ))}
           </CardContent>
@@ -444,7 +437,7 @@ export default function StudentDashboardPage() {
                   ].map((item) => (
                     <div
                       key={item.label}
-                      className="rounded-[var(--radius)] bg-[hsl(var(--surface-2))] p-5"
+                      className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-5"
                     >
                       <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
                         {item.label}

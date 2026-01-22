@@ -17,8 +17,8 @@ import {
   Skeleton,
   Section,
 } from '@/components';
+import { MeDTO } from '@/types';
 
-type MeDTO = { id: number; name: string; username: string; level: number };
 type MinutesOption = 'OFF' | '2' | '4' | '6' | '8';
 
 function clamp(n: number, min: number, max: number) {
@@ -132,12 +132,10 @@ export default function StudentPracticeSetupPage() {
                       inputMode="numeric"
                       value={levelText}
                       onChange={(e) => {
-                        // ✅ allow clearing and partial edits
                         const raw = e.target.value;
                         if (raw === '' || /^\d+$/.test(raw)) setLevelText(raw);
                       }}
                       onBlur={() => {
-                        // ✅ normalize on blur
                         const n = parseIntSafe(levelText);
                         setLevelText(String(clamp(n ?? me.level ?? 3, 1, 12)));
                       }}
@@ -169,7 +167,7 @@ export default function StudentPracticeSetupPage() {
                       id="minutes"
                       value={minutes}
                       onChange={(e) => setMinutes(e.target.value as MinutesOption)}
-                      className="h-11 rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+                      className="h-11 rounded-(--radius) border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
                     >
                       <option value="OFF">Off</option>
                       <option value="2">2 minutes</option>
@@ -201,17 +199,17 @@ export default function StudentPracticeSetupPage() {
             </CardHeader>
 
             <CardContent className="space-y-3">
-              <div className="rounded-[var(--radius)] bg-[hsl(var(--surface-2))] p-4">
+              <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4">
                 <div className="text-xs text-[hsl(var(--muted-fg))]">Level</div>
                 <div className="text-lg font-semibold text-[hsl(var(--fg))]">{summary.lvl}</div>
               </div>
 
-              <div className="rounded-[var(--radius)] bg-[hsl(var(--surface-2))] p-4">
+              <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4">
                 <div className="text-xs text-[hsl(var(--muted-fg))]">Questions</div>
                 <div className="text-lg font-semibold text-[hsl(var(--fg))]">{summary.c}</div>
               </div>
 
-              <div className="rounded-[var(--radius)] bg-[hsl(var(--surface-2))] p-4">
+              <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4">
                 <div className="text-xs text-[hsl(var(--muted-fg))]">Time</div>
                 <div className="text-lg font-semibold text-[hsl(var(--fg))]">
                   {summary.m === 0 ? 'Off' : `${summary.m} minutes`}

@@ -14,8 +14,8 @@ import {
   Skeleton,
 } from '@/components';
 import { studentNavItems, AppShell } from '@/modules';
+import { MeDTO } from '@/types';
 
-type MeDTO = { id: number; name: string; username: string; level: number };
 function isMeDTO(value: unknown): value is MeDTO {
   if (!value || typeof value !== 'object') return false;
   const v = value as Record<string, unknown>;
