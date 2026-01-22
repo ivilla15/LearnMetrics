@@ -13,31 +13,62 @@ import {
   pill,
   useToast,
 } from '@/components';
-import { formatInTimeZone } from 'date-fns-tz';
+import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
+import { cancelOccurrenceApi, unskipOccurrenceApi } from '@/app/api/_shared/schedules';
 
-type AssignmentRow = {
-  assignmentId: number;
-  kind: string;
-  assignmentMode: string;
-  opensAt: string;
-  closesAt: string;
-  windowMinutes: number | null;
-  numQuestions: number;
-  stats?: {
-    attemptedCount: number;
-    totalStudents: number;
-    masteryRate: number;
-    avgPercent: number;
-  };
+export type AssignmentStats = {
+  attemptedCount: number;
+  totalStudents: number;
+  masteryRate: number;
+  avgPercent: number;
 };
 
-type AssignmentsListResponse = {
+export type AssignmentDTO = {
+  kind: string; // e.g. "SCHEDULED_TEST"
+  assignmentId: number;
+  assignmentMode: 'SCHEDULED' | 'MANUAL';
+  opensAt: string; // ISO
+  closesAt: string; // ISO
+  windowMinutes: number | null;
+  numQuestions: number;
+  stats?: AssignmentStats;
+  scheduleId?: number | null;
+  runDate?: string | null;
+};
+
+export type ProjectionRow = {
+  kind: 'projection';
+  scheduleId: number;
+  runDate: string; // ISO
+  opensAt: string; // ISO UTC
+  closesAt: string; // ISO UTC
+  windowMinutes: number | null;
+  numQuestions: number;
+  assignmentMode: 'SCHEDULED';
+};
+
+export type AssignmentsListResponse = {
   classroom?: { id: number; name: string; timeZone?: string };
-  rows: AssignmentRow[];
+  rows: AssignmentDTO[];
+  projections?: ProjectionRow[];
   nextCursor: string | null;
 };
 
+type CalendarItem = AssignmentDTO | ProjectionRow;
+
 type ApiErrorShape = { error?: unknown };
+
+function isProjection(it: CalendarItem): it is ProjectionRow {
+  return it.kind === 'projection';
+}
+
+function toIso(value: string | Date): string {
+  return typeof value === 'string' ? value : value.toISOString();
+}
+
+function isPast(value: string | Date): boolean {
+  return new Date(toIso(value)).getTime() <= Date.now();
+}
 
 function getApiErrorMessage(payload: unknown, fallback: string) {
   if (payload && typeof payload === 'object' && 'error' in payload) {
@@ -66,11 +97,6 @@ function sameDay(a: Date, b: Date) {
 function monthLabel(d: Date) {
   return d.toLocaleString(undefined, { month: 'long', year: 'numeric' });
 }
-function dayKey(d: Date) {
-  // local YYYY-MM-DD
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
 
 function buildMonthGrid(anchor: Date) {
   const first = startOfMonth(anchor);
@@ -94,6 +120,14 @@ function buildMonthGrid(anchor: Date) {
   return days;
 }
 
+function getTz(classroomTz: string | undefined): string {
+  return classroomTz && classroomTz.trim().length > 0 ? classroomTz : 'America/Los_Angeles';
+}
+
+function dayKeyInTimeZone(isoUtc: string, tz: string): string {
+  return formatInTimeZone(isoUtc, tz, 'yyyy-MM-dd');
+}
+
 export function CalendarClient({
   classroomId,
   initial,
@@ -107,140 +141,254 @@ export function CalendarClient({
   const [data, setData] = React.useState<AssignmentsListResponse>(initial);
   const [loading, setLoading] = React.useState(false);
 
-  const [selected, setSelected] = React.useState<AssignmentRow | null>(null);
+  const [selected, setSelected] = React.useState<CalendarItem | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
 
   const days = React.useMemo(() => buildMonthGrid(month), [month]);
   const inMonth = React.useCallback((d: Date) => d.getMonth() === month.getMonth(), [month]);
 
-  // --- Fetch enough assignments so calendar doesn't miss items ---
-  // Strategy: paginate "all" and client-filter to current month.
-  async function loadAllForMonth(target: Date) {
-    setLoading(true);
-    try {
-      const monthStart = startOfMonth(target);
-      const monthEnd = endOfMonth(target);
+  const tz = getTz(data.classroom?.timeZone);
 
-      let cursor: string | null = null;
-      let allRows: AssignmentRow[] = [];
-      let nextCursor: string | null = null;
+  const selectedIsProjection = !!selected && isProjection(selected);
+  const selectedClosed = selected ? isPast(toIso(selected.closesAt)) : false;
 
-      // Pull multiple pages until:
-      // - no more pages, OR
-      // - we have fetched far enough back that opensAt is older than monthStart and we're paging desc by id.
-      // Since ordering is by id desc (which correlates with time but not guaranteed), we keep it simple:
-      // grab up to ~200 rows max.
-      for (let i = 0; i < 4; i++) {
-        const url = new URL(
-          `/api/teacher/classrooms/${classroomId}/assignments`,
-          window.location.origin,
-        );
-        url.searchParams.set('status', 'all');
-        url.searchParams.set('limit', '50');
-        if (cursor) url.searchParams.set('cursor', cursor);
+  const selectedAssignment: AssignmentDTO | null =
+    selected && !isProjection(selected) ? selected : null;
 
-        const res = await fetch(url.toString(), { cache: 'no-store' });
-        const json = (await res.json().catch(() => null)) as AssignmentsListResponse | null;
-        if (!res.ok) {
-          throw new Error(getApiErrorMessage(json, 'Failed to load'));
+  const [editOpen, setEditOpen] = React.useState(false);
+  const [editLocalDate, setEditLocalDate] = React.useState(''); // yyyy-MM-dd
+  const [editLocalTime, setEditLocalTime] = React.useState(''); // HH:mm
+  const [editWindowMinutes, setEditWindowMinutes] = React.useState<string>('');
+  const [editNumQuestions, setEditNumQuestions] = React.useState<string>('');
+  const [editSaving, setEditSaving] = React.useState(false);
+
+  const loadAllForMonth = React.useCallback(
+    async (target: Date) => {
+      setLoading(true);
+      try {
+        const monthStart = startOfMonth(target);
+        const monthEnd = endOfMonth(target);
+
+        let projections: ProjectionRow[] = [];
+        let cursor: string | null = null;
+        let allRows: AssignmentDTO[] = [];
+        let nextCursor: string | null = null;
+
+        for (let i = 0; i < 4; i++) {
+          const url = new URL(
+            `/api/teacher/classrooms/${classroomId}/assignments`,
+            window.location.origin,
+          );
+          url.searchParams.set('status', 'all');
+          url.searchParams.set('limit', '50');
+          if (cursor) url.searchParams.set('cursor', cursor);
+
+          const res = await fetch(url.toString(), { cache: 'no-store' });
+          const json = (await res.json().catch(() => null)) as AssignmentsListResponse | null;
+
+          if (!res.ok) throw new Error(getApiErrorMessage(json, 'Failed to load'));
+
+          if (i === 0 && Array.isArray(json?.projections)) {
+            projections = json.projections;
+          }
+
+          const rows = Array.isArray(json?.rows) ? json!.rows : [];
+          allRows = [...allRows, ...rows];
+          nextCursor = json?.nextCursor ?? null;
+
+          if (!nextCursor) break;
+          cursor = nextCursor;
+
+          if (allRows.length >= 200) break;
         }
 
-        const rows = Array.isArray(json?.rows) ? json!.rows : [];
-        allRows = [...allRows, ...rows];
-        nextCursor = json?.nextCursor ?? null;
+        const filteredRows = allRows.filter((a) => {
+          const opens = new Date(a.opensAt);
+          return (
+            opens >=
+              new Date(
+                monthStart.getFullYear(),
+                monthStart.getMonth(),
+                monthStart.getDate(),
+                0,
+                0,
+                0,
+              ) &&
+            opens <=
+              new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate(), 23, 59, 59)
+          );
+        });
 
-        if (!nextCursor) break;
-        cursor = nextCursor;
+        const filteredProjections = projections.filter((p) => {
+          const opens = new Date(p.opensAt);
+          return (
+            opens >=
+              new Date(
+                monthStart.getFullYear(),
+                monthStart.getMonth(),
+                monthStart.getDate(),
+                0,
+                0,
+                0,
+              ) &&
+            opens <=
+              new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate(), 23, 59, 59)
+          );
+        });
 
-        // If we already have plenty, stop early
-        if (allRows.length >= 200) break;
+        setData((prev) => ({
+          classroom: prev.classroom,
+          rows: filteredRows,
+          projections: filteredProjections,
+          nextCursor,
+        }));
+      } catch (e) {
+        toast(e instanceof Error ? e.message : 'Failed to load calendar', 'error');
+      } finally {
+        setLoading(false);
       }
+    },
+    [classroomId, toast],
+  );
 
-      // Keep only items that overlap month by opensAt date
-      const filtered = allRows.filter((a) => {
-        const opens = new Date(a.opensAt);
-        return (
-          opens >=
-            new Date(
-              monthStart.getFullYear(),
-              monthStart.getMonth(),
-              monthStart.getDate(),
-              0,
-              0,
-              0,
-            ) &&
-          opens <=
-            new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate(), 23, 59, 59)
-        );
-      });
-
-      setData((prev) => ({
-        classroom: prev.classroom,
-        rows: filtered,
-        nextCursor: nextCursor,
-      }));
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Failed to load calendar', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  // Load when month changes
   React.useEffect(() => {
     void loadAllForMonth(month);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month, classroomId]);
+  }, [month, loadAllForMonth]);
 
-  // Group assignments by opensAt day
+  // Merge real + projections, but drop projection if real exists for same scheduleId|runDate
+  const mergedItems = React.useMemo<CalendarItem[]>(() => {
+    const real = Array.isArray(data?.rows) ? data.rows : [];
+    const projections = Array.isArray(data?.projections) ? data.projections : [];
+
+    const realKeys = new Set<string>();
+    for (const a of real) {
+      if (a.scheduleId && a.runDate) realKeys.add(`${a.scheduleId}|${a.runDate}`);
+    }
+
+    const filteredProjections = projections.filter(
+      (p) => !realKeys.has(`${p.scheduleId}|${p.runDate}`),
+    );
+    return [...real, ...filteredProjections];
+  }, [data?.rows, data?.projections]);
+
   const byDay = React.useMemo(() => {
-    const map = new Map<string, AssignmentRow[]>();
-    const rows = Array.isArray(data?.rows) ? data.rows : [];
+    const map = new Map<string, CalendarItem[]>();
 
-    for (const a of rows) {
-      const d = new Date(a.opensAt);
-      const key = dayKey(d);
+    for (const it of mergedItems) {
+      const key = dayKeyInTimeZone(toIso(it.opensAt), tz);
       const list = map.get(key) ?? [];
-      list.push(a);
+      list.push(it);
       map.set(key, list);
     }
 
     for (const [k, list] of map.entries()) {
-      list.sort((x, y) => new Date(x.opensAt).getTime() - new Date(y.opensAt).getTime());
+      list.sort(
+        (x, y) => new Date(toIso(x.opensAt)).getTime() - new Date(toIso(y.opensAt)).getTime(),
+      );
       map.set(k, list);
     }
 
     return map;
-  }, [data?.rows]);
+  }, [mergedItems, tz]);
 
-  function openDetails(a: AssignmentRow) {
-    setSelected(a);
+  function openDetails(item: CalendarItem) {
+    setSelected(item);
+
+    const date = formatInTimeZone(toIso(item.opensAt), tz, 'yyyy-MM-dd');
+    const time = formatInTimeZone(toIso(item.opensAt), tz, 'HH:mm');
+
+    setEditLocalDate(date);
+    setEditLocalTime(time);
+    setEditWindowMinutes(item.windowMinutes == null ? '' : String(item.windowMinutes));
+    setEditNumQuestions(String(item.numQuestions ?? 12));
+
     setDetailOpen(true);
   }
 
-  async function onDelete(a: AssignmentRow) {
-    const ok = confirm(`Delete assignment ${a.assignmentId}?`);
-    if (!ok) return;
+  async function onEditSave() {
+    if (!selected) return;
 
+    if (!editLocalDate || !editLocalTime) {
+      toast('Please choose a date and time', 'error');
+      return;
+    }
+
+    setEditSaving(true);
     try {
-      // This will work once you add DELETE /api/teacher/classrooms/:id/assignments/:assignmentId
-      const res = await fetch(
-        `/api/teacher/classrooms/${classroomId}/assignments/${a.assignmentId}`,
-        { method: 'DELETE', credentials: 'include' },
-      );
-      if (!res.ok) {
-        const json = await res.json().catch(() => null);
-        throw new Error(
-          typeof json?.error === 'string' ? json.error : 'Failed to delete assignment',
+      const local = new Date(`${editLocalDate}T${editLocalTime}:00`);
+      const opensAtUtc = fromZonedTime(local, tz);
+
+      const parsedWindow =
+        editWindowMinutes.trim().length === 0 ? undefined : Number(editWindowMinutes.trim());
+
+      if (
+        parsedWindow !== undefined &&
+        (!Number.isFinite(parsedWindow) || parsedWindow < 0 || parsedWindow > 180)
+      ) {
+        toast('Window minutes must be a number between 0 and 180', 'error');
+        return;
+      }
+
+      const nq = editNumQuestions.trim().length === 0 ? undefined : Number(editNumQuestions.trim());
+      if (nq !== undefined && (!Number.isFinite(nq) || nq < 1 || nq > 60)) {
+        toast('Num questions must be a number between 1 and 60', 'error');
+        return;
+      }
+
+      const windowToUse = parsedWindow ?? selected.windowMinutes ?? 4;
+      const closesAtUtc = new Date(opensAtUtc.getTime() + windowToUse * 60 * 1000);
+
+      const baseBody: Record<string, unknown> = {
+        opensAt: opensAtUtc.toISOString(),
+        closesAt: closesAtUtc.toISOString(),
+        windowMinutes: windowToUse,
+      };
+      if (nq !== undefined) baseBody.numQuestions = nq;
+
+      let res: Response;
+
+      if (isProjection(selected)) {
+        const payload: Record<string, unknown> = {
+          ...baseBody,
+          scheduleId: selected.scheduleId,
+          runDate: selected.runDate,
+          assignmentMode: 'SCHEDULED',
+          kind: 'SCHEDULED_TEST',
+        };
+
+        res = await fetch(`/api/teacher/classrooms/${classroomId}/assignments`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(payload),
+        });
+      } else {
+        res = await fetch(
+          `/api/teacher/classrooms/${classroomId}/assignments/${selected.assignmentId}`,
+          {
+            method: 'PATCH',
+            headers: { 'content-type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(baseBody),
+          },
         );
       }
 
-      toast('Deleted assignment', 'success');
+      if (!res.ok) {
+        const json = (await res.json().catch(() => null)) as { error?: unknown } | null;
+        const msg = typeof json?.error === 'string' ? json.error : 'Failed to save';
+        throw new Error(msg);
+      }
+
+      toast('Saved', 'success');
+      setEditOpen(false);
       setDetailOpen(false);
       setSelected(null);
       await loadAllForMonth(month);
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Failed to delete assignment', 'error');
+    } catch (err: unknown) {
+      toast(err instanceof Error ? err.message : 'Failed to save', 'error');
+    } finally {
+      setEditSaving(false);
     }
   }
 
@@ -252,8 +400,8 @@ export function CalendarClient({
             <div>
               <CardTitle>{monthLabel(month)}</CardTitle>
               <CardDescription>
-                Click an assignment to view details. Calendar is based on{' '}
-                <span className="font-medium">opensAt</span>.
+                Click an item to view details. Calendar is based on{' '}
+                <span className="font-medium">opensAt</span> in the classroom timezone.
               </CardDescription>
             </div>
 
@@ -276,7 +424,6 @@ export function CalendarClient({
         </CardHeader>
 
         <CardContent className="space-y-3">
-          {/* Weekday labels */}
           <div className="grid grid-cols-7 gap-2 text-xs font-semibold text-[hsl(var(--muted-fg))]">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
               <div key={d} className="px-2">
@@ -285,10 +432,9 @@ export function CalendarClient({
             ))}
           </div>
 
-          {/* Grid */}
           <div className="grid grid-cols-7 gap-2">
             {days.map((d) => {
-              const key = dayKey(d);
+              const key = formatInTimeZone(d, tz, 'yyyy-MM-dd');
               const items = byDay.get(key) ?? [];
               const isToday = sameDay(d, new Date());
               const dim = !inMonth(d);
@@ -311,27 +457,31 @@ export function CalendarClient({
                   </div>
 
                   <div className="mt-2 space-y-1">
-                    {firstTwo.map((a) => (
-                      <button
-                        key={a.assignmentId}
-                        type="button"
-                        onClick={() => openDetails(a)}
-                        className="w-full text-left rounded-xl bg-[hsl(var(--surface-2))] px-2 py-1 text-xs hover:bg-[hsl(var(--brand)/0.10)] transition-colors"
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="font-medium text-[hsl(var(--fg))] truncate">
-                            #{a.assignmentId} {a.kind}
-                          </span>
-                          <span className="text-[10px] text-[hsl(var(--muted-fg))]">
-                            {formatInTimeZone(
-                              a.opensAt,
-                              data.classroom?.timeZone ?? 'UTC',
-                              'h:mm a',
-                            )}
-                          </span>
-                        </div>
-                      </button>
-                    ))}
+                    {firstTwo.map((item) => {
+                      const proj = isProjection(item);
+
+                      return (
+                        <button
+                          key={
+                            proj ? `p:${item.scheduleId}:${item.runDate}` : `a:${item.assignmentId}`
+                          }
+                          type="button"
+                          onClick={() => openDetails(item)}
+                          className="w-full text-left rounded-xl bg-[hsl(var(--surface-2))] px-2 py-1 text-xs hover:bg-[hsl(var(--brand)/0.10)] transition-colors"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-[hsl(var(--fg))] truncate">
+                              {proj
+                                ? 'Upcoming test'
+                                : `#${item.assignmentId} ${item.assignmentMode}`}
+                            </span>
+                            <span className="text-[10px] text-[hsl(var(--muted-fg))]">
+                              {formatInTimeZone(toIso(item.opensAt), tz, 'h:mm a')}
+                            </span>
+                          </div>
+                        </button>
+                      );
+                    })}
 
                     {extra > 0 ? (
                       <div className="text-[11px] text-[hsl(var(--muted-fg))] px-1">
@@ -349,21 +499,26 @@ export function CalendarClient({
           </div>
 
           <HelpText>
-            This calendar uses <span className="font-medium">opensAt</span> to place assignments on
-            dates. Next: add drag-and-drop reschedule (optional).
+            Upcoming tests are projections. You can edit them — saving will create the real
+            assignment (idempotent by schedule + run date).
           </HelpText>
         </CardContent>
       </Card>
 
-      {/* Details modal */}
       <Modal
         open={detailOpen}
         onClose={() => {
           setDetailOpen(false);
           setSelected(null);
         }}
-        title={selected ? `Assignment ${selected.assignmentId}` : 'Assignment'}
-        description="Details and actions for this assignment."
+        title={
+          !selected
+            ? 'Assignment'
+            : isProjection(selected)
+              ? 'Upcoming scheduled test'
+              : `Assignment ${selected.assignmentId}`
+        }
+        description="Details and actions."
         size="lg"
         footer={
           selected ? (
@@ -372,23 +527,80 @@ export function CalendarClient({
                 Close
               </Button>
 
-              {/* Edit button will call PATCH later (UI can be added next) */}
               <Button
                 variant="secondary"
-                onClick={() => toast('Edit UI next (PATCH endpoint)', 'success')}
+                onClick={() => {
+                  setEditOpen(true);
+                }}
+                disabled={selectedClosed}
               >
                 Edit date/time
               </Button>
 
-              <Button variant="destructive" onClick={() => void onDelete(selected)}>
-                Delete
-              </Button>
+              {isProjection(selected) ? (
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    try {
+                      await cancelOccurrenceApi(classroomId, selected.scheduleId, selected.runDate);
+                      toast('Cancelled occurrence', 'success');
+                      setDetailOpen(false);
+                      setSelected(null);
+                      await loadAllForMonth(month);
+                    } catch (err) {
+                      toast(err instanceof Error ? err.message : 'Failed to cancel', 'error');
+                    }
+                  }}
+                >
+                  Cancel occurrence
+                </Button>
+              ) : selectedAssignment &&
+                selectedAssignment.scheduleId &&
+                selectedAssignment.runDate ? (
+                <Button
+                  variant="destructive"
+                  onClick={async () => {
+                    try {
+                      await cancelOccurrenceApi(
+                        classroomId,
+                        selectedAssignment.scheduleId!,
+                        selectedAssignment.runDate!,
+                      );
+                      toast('Cancelled occurrence', 'success');
+                      setDetailOpen(false);
+                      setSelected(null);
+                      await loadAllForMonth(month);
+                    } catch (err) {
+                      toast(err instanceof Error ? err.message : 'Failed to cancel', 'error');
+                    }
+                  }}
+                >
+                  Cancel occurrence
+                </Button>
+              ) : null}
+
+              {false ? (
+                <Button
+                  variant="secondary"
+                  onClick={async () => {
+                    try {
+                      await unskipOccurrenceApi(classroomId, /*scheduleId*/ 0, /*runDate*/ '');
+                      toast('Un-cancelled occurrence', 'success');
+                      await loadAllForMonth(month);
+                    } catch (err) {
+                      toast(err instanceof Error ? err.message : 'Failed to un-cancel', 'error');
+                    }
+                  }}
+                >
+                  Undo cancel
+                </Button>
+              ) : null}
             </div>
           ) : null
         }
       >
         {!selected ? (
-          <div className="text-sm text-[hsl(var(--muted-fg))]">No assignment selected.</div>
+          <div className="text-sm text-[hsl(var(--muted-fg))]">No selection.</div>
         ) : (
           <div className="space-y-4">
             <div className="flex flex-wrap gap-2">
@@ -401,39 +613,107 @@ export function CalendarClient({
             <div className="text-sm text-[hsl(var(--muted-fg))]">
               Opens:{' '}
               <span className="text-[hsl(var(--fg))] font-medium">
-                {formatInTimeZone(
-                  selected.opensAt,
-                  data.classroom?.timeZone ?? 'UTC',
-                  'MMM d, h:mm a',
-                )}
+                {formatInTimeZone(toIso(selected.opensAt), tz, 'MMM d, h:mm a')}
               </span>
               {' · '}
               Closes:{' '}
               <span className="text-[hsl(var(--fg))] font-medium">
-                {formatInTimeZone(
-                  selected.closesAt,
-                  data.classroom?.timeZone ?? 'UTC',
-                  'MMM d, h:mm a',
-                )}
+                {formatInTimeZone(toIso(selected.closesAt), tz, 'MMM d, h:mm a')}
               </span>
             </div>
 
-            {selected.stats ? (
+            {selectedAssignment?.stats ? (
               <div className="flex flex-wrap gap-2">
                 {pill(
-                  `Attempted: ${selected.stats.attemptedCount}/${selected.stats.totalStudents}`,
+                  `Attempted: ${selectedAssignment.stats.attemptedCount}/${selectedAssignment.stats.totalStudents}`,
                   'muted',
                 )}
-                {pill(`Mastery: ${selected.stats.masteryRate}%`, 'success')}
-                {pill(`Avg: ${selected.stats.avgPercent}%`, 'muted')}
+                {pill(`Mastery: ${selectedAssignment.stats.masteryRate}%`, 'success')}
+                {pill(`Avg: ${selectedAssignment.stats.avgPercent}%`, 'muted')}
               </div>
             ) : null}
 
-            <HelpText>
-              Once you add PATCH/DELETE for assignments, these actions become fully functional.
-            </HelpText>
+            {selectedIsProjection ? (
+              <HelpText>
+                This is an upcoming projected test. Editing + saving will create the real
+                assignment.
+              </HelpText>
+            ) : (
+              <HelpText>
+                Editing/deleting is blocked once an assignment has attempts, and after the close
+                time.
+              </HelpText>
+            )}
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={editOpen}
+        onClose={() => setEditOpen(false)}
+        title={selectedIsProjection ? 'Edit upcoming test' : 'Edit assignment'}
+        description={`Times are in ${tz}.`}
+        size="lg"
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={() => setEditOpen(false)} disabled={editSaving}>
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={() => void onEditSave()} disabled={editSaving}>
+              {editSaving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-4">
+          <div className="grid gap-2">
+            <label className="text-sm font-medium text-[hsl(var(--fg))]">Date</label>
+            <input
+              type="date"
+              value={editLocalDate}
+              onChange={(e) => setEditLocalDate(e.target.value)}
+              className="h-10 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <label className="text-sm font-medium text-[hsl(var(--fg))]">Time</label>
+            <input
+              type="time"
+              value={editLocalTime}
+              onChange={(e) => setEditLocalTime(e.target.value)}
+              className="h-10 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <label className="text-sm font-medium text-[hsl(var(--fg))]">Window minutes</label>
+            <input
+              inputMode="numeric"
+              value={editWindowMinutes}
+              onChange={(e) => setEditWindowMinutes(e.target.value)}
+              placeholder="4"
+              className="h-10 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+            />
+          </div>
+
+          <div className="grid gap-2">
+            <label className="text-sm font-medium text-[hsl(var(--fg))]">Number of questions</label>
+            <input
+              inputMode="numeric"
+              value={editNumQuestions}
+              onChange={(e) => setEditNumQuestions(e.target.value)}
+              placeholder="12"
+              className="h-10 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+            />
+          </div>
+
+          <HelpText>
+            {selectedIsProjection
+              ? 'Saving will create the real assignment for this schedule run.'
+              : 'Editing is blocked once an assignment has attempts, and after the close time.'}
+          </HelpText>
+        </div>
       </Modal>
     </div>
   );

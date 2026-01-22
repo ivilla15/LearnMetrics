@@ -15,8 +15,7 @@ import {
   Skeleton,
   Button,
 } from '@/components';
-
-type MeDTO = { id: number; name: string; email: string };
+import { MeDTO } from '@/types';
 
 function ProfileSkeleton() {
   return (

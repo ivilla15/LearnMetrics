@@ -1,10 +1,16 @@
 import { prisma } from '@/data/prisma';
-import { Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
-import { requireTeacher } from '@/core';
+import { createScheduledAssignment, requireTeacher } from '@/core';
 import { errorResponse, jsonResponse, parseCursor, parseId, percent } from '@/utils';
-import { handleApiError, type RouteContext } from '@/app';
+import { handleApiError, readJson, type RouteContext } from '@/app';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms';
+
+import { addDays } from 'date-fns';
+import { formatInTimeZone } from 'date-fns-tz';
+
+import { localDayToUtcDate, localDateTimeToUtcRange } from '@/utils';
+import { ProjectionRow } from '@/types';
 
 function clampLimit(raw: string | null) {
   const n = Number(raw);
@@ -61,12 +67,15 @@ export async function GET(req: Request, { params }: RouteContext) {
         closesAt: true,
         windowMinutes: true,
         numQuestions: true,
+
+        scheduleId: true,
+        runDate: true,
       },
     });
 
     const page = assignments.slice(0, limit);
     const hasMore = assignments.length > limit;
-    const nextCursor = hasMore ? String(assignments[assignments.length - 1].id) : null;
+    const nextCursor = hasMore && page.length > 0 ? String(page[page.length - 1].id) : null;
 
     const totalStudents = await prisma.student.count({ where: { classroomId } });
 
@@ -122,6 +131,8 @@ export async function GET(req: Request, { params }: RouteContext) {
         closesAt: a.closesAt.toISOString(),
         windowMinutes: a.windowMinutes,
         numQuestions: a.numQuestions ?? 12,
+        scheduleId: a.scheduleId,
+        runDate: a.runDate ? a.runDate.toISOString() : null,
         stats: {
           attemptedCount: s.attemptedCount,
           totalStudents,
@@ -131,6 +142,100 @@ export async function GET(req: Request, { params }: RouteContext) {
       };
     });
 
+    const projections: ProjectionRow[] = [];
+
+    if (status === 'all') {
+      const PROJECTION_DAYS = 60;
+      const horizon = addDays(now, PROJECTION_DAYS);
+      const tz =
+        classroom.timeZone && classroom.timeZone.trim().length > 0
+          ? classroom.timeZone
+          : 'America/Los_Angeles';
+
+      // 1) Active schedules for this classroom
+      const schedules = await prisma.assignmentSchedule.findMany({
+        where: { classroomId, isActive: true },
+        select: {
+          id: true,
+          days: true,
+          opensAtLocalTime: true, // "HH:mm"
+          windowMinutes: true,
+          numQuestions: true,
+        },
+        orderBy: { id: 'asc' },
+      });
+
+      // 2) Real scheduled assignments in horizon -> keys to dedupe
+      const existingRuns = await prisma.assignment.findMany({
+        where: {
+          classroomId,
+          scheduleId: { not: null },
+          runDate: { not: null, gte: now, lte: horizon },
+        },
+        select: { scheduleId: true, runDate: true },
+      });
+
+      const realKeys = new Set<string>();
+      for (const r of existingRuns) {
+        if (r.scheduleId && r.runDate) {
+          realKeys.add(`${r.scheduleId}|${r.runDate.toISOString()}`);
+        }
+      }
+
+      // 3) Skipped/tombstoned runs -> keys to exclude
+      const scheduleIds = schedules.map((s) => s.id);
+      const skipped = scheduleIds.length
+        ? await prisma.assignmentScheduleRun.findMany({
+            where: {
+              scheduleId: { in: scheduleIds },
+              runDate: { gte: now, lte: horizon },
+              isSkipped: true,
+            },
+            select: { scheduleId: true, runDate: true },
+          })
+        : [];
+
+      const skippedKeys = new Set(skipped.map((r) => `${r.scheduleId}|${r.runDate.toISOString()}`));
+
+      // 4) Generate day-by-day candidates in the classroom TZ
+      for (const sched of schedules) {
+        const days = Array.isArray(sched.days) ? sched.days : [];
+        if (days.length === 0) continue;
+
+        for (let i = 0; i < PROJECTION_DAYS; i++) {
+          const candidateBase = addDays(now, i);
+
+          const dayName = formatInTimeZone(candidateBase, tz, 'EEEE'); // "Friday"
+          if (!days.includes(dayName)) continue;
+
+          const localDate = formatInTimeZone(candidateBase, tz, 'yyyy-MM-dd'); // "2026-01-23"
+          const runDate = localDayToUtcDate(localDate, tz);
+
+          const key = `${sched.id}|${runDate.toISOString()}`;
+          if (realKeys.has(key)) continue;
+          if (skippedKeys.has(key)) continue;
+
+          const { opensAtUTC, closesAtUTC } = localDateTimeToUtcRange({
+            localDate,
+            localTime: sched.opensAtLocalTime,
+            windowMinutes: sched.windowMinutes,
+            tz,
+          });
+
+          projections.push({
+            kind: 'projection',
+            scheduleId: sched.id,
+            runDate: runDate.toISOString(),
+            opensAt: opensAtUTC.toISOString(),
+            closesAt: closesAtUTC.toISOString(),
+            windowMinutes: sched.windowMinutes,
+            numQuestions: sched.numQuestions ?? 12,
+            assignmentMode: 'SCHEDULED',
+          });
+        }
+      }
+    }
+
     return jsonResponse(
       {
         classroom: {
@@ -139,10 +244,109 @@ export async function GET(req: Request, { params }: RouteContext) {
           timeZone: classroom.timeZone,
         },
         rows,
+        projections,
         nextCursor,
       },
       200,
     );
+  } catch (err: unknown) {
+    return handleApiError(err);
+  }
+}
+
+export async function POST(req: Request, { params }: RouteContext) {
+  try {
+    const auth = await requireTeacher();
+    if (!auth.ok) return errorResponse(auth.error, auth.status);
+
+    const { id } = await params;
+    const classroomId = parseId(id);
+    if (!classroomId) return errorResponse('Invalid classroom id', 400);
+
+    await assertTeacherOwnsClassroom(auth.teacher.id, classroomId);
+
+    const body = await readJson(req);
+
+    if (!body || typeof body !== 'object') {
+      return errorResponse('Invalid request body', 400);
+    }
+
+    const scheduleId =
+      'scheduleId' in body && typeof body.scheduleId === 'number' ? body.scheduleId : null;
+
+    const runDate =
+      'runDate' in body && typeof body.runDate === 'string' ? new Date(body.runDate) : null;
+
+    const opensAtRaw = 'opensAt' in body ? body.opensAt : null;
+    const closesAtRaw = 'closesAt' in body ? body.closesAt : null;
+
+    if (typeof opensAtRaw !== 'string' || typeof closesAtRaw !== 'string') {
+      return errorResponse('opensAt and closesAt are required', 400);
+    }
+
+    const opensAt = new Date(opensAtRaw);
+    const closesAt = new Date(closesAtRaw);
+
+    if (Number.isNaN(opensAt.getTime())) return errorResponse('Invalid opensAt', 400);
+    if (Number.isNaN(closesAt.getTime())) return errorResponse('Invalid closesAt', 400);
+
+    const windowMinutes =
+      'windowMinutes' in body && typeof body.windowMinutes === 'number' ? body.windowMinutes : null;
+
+    const numQuestions =
+      'numQuestions' in body && typeof body.numQuestions === 'number' ? body.numQuestions : 12;
+
+    const kind = 'SCHEDULED_TEST' as const;
+
+    const assignmentMode =
+      'assignmentMode' in body &&
+      (body.assignmentMode === 'SCHEDULED' || body.assignmentMode === 'MANUAL')
+        ? body.assignmentMode
+        : 'MANUAL';
+
+    const questionSetId =
+      'questionSetId' in body && typeof body.questionSetId === 'number' ? body.questionSetId : null;
+
+    const studentIds =
+      'studentIds' in body && Array.isArray(body.studentIds) ? body.studentIds : undefined;
+
+    if (scheduleId !== null) {
+      if (!runDate || Number.isNaN(runDate.getTime())) {
+        return errorResponse('runDate is required when scheduleId is provided', 400);
+      }
+
+      const dto = await createScheduledAssignment({
+        classroomId,
+        scheduleId,
+        runDate,
+        opensAt,
+        closesAt,
+        windowMinutes,
+        numQuestions,
+        kind: 'SCHEDULED_TEST',
+        assignmentMode: 'SCHEDULED',
+        questionSetId,
+        studentIds,
+      });
+
+      return jsonResponse({ assignment: dto }, 201);
+    }
+
+    // ---- Manual create (non schedule-driven) ----
+    const created = await createScheduledAssignment({
+      classroomId,
+      opensAt,
+      closesAt,
+      windowMinutes,
+      numQuestions,
+      kind,
+      assignmentMode,
+      questionSetId,
+      studentIds,
+      scheduleId: null,
+    });
+
+    return jsonResponse({ assignment: created }, 201);
   } catch (err: unknown) {
     return handleApiError(err);
   }

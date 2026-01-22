@@ -1,7 +1,8 @@
 // core/classrooms/service.ts
 import * as ClassroomsRepo from '@/data';
 import * as StudentsRepo from '@/data';
-import { NotFoundError, ConflictError, RosterDTO } from '@/core';
+import { NotFoundError, ConflictError } from '@/core';
+import { RosterDTO } from '@/types';
 
 export async function getTeacherClassroomOverview(params: {
   classroomId: number;

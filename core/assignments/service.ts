@@ -1,18 +1,7 @@
 import { prisma } from '@/data';
 import { NotFoundError, ConflictError } from '@/core';
 import { Prisma } from '@prisma/client';
-
-export type AssignmentDTO = {
-  id: number;
-  classroomId: number;
-  kind: string;
-  opensAt: string;
-  closesAt: string;
-  windowMinutes: number | null;
-  assignmentMode: 'SCHEDULED' | 'MANUAL';
-  numQuestions: number;
-  recipientCount: number;
-};
+import { AssignmentDTO, AssignmentRow } from '@/types';
 
 type Params = {
   classroomId: number;
@@ -24,21 +13,10 @@ type Params = {
   kind?: 'SCHEDULED_TEST';
   questionSetId?: number | null;
   studentIds?: number[];
+  skipReason?: string;
 
   scheduleId?: number | null;
   runDate?: Date;
-};
-
-type AssignmentRow = {
-  id: number;
-  classroomId: number;
-  kind: 'SCHEDULED_TEST';
-  opensAt: Date;
-  closesAt: Date;
-  windowMinutes: number | null;
-  assignmentMode: 'SCHEDULED' | 'MANUAL';
-  numQuestions: number;
-  _count: { recipients: number };
 };
 
 function toDto(a: AssignmentRow): AssignmentDTO {
@@ -110,7 +88,6 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
     normalizedStudentIds = uniq;
   }
 
-  // ✅ If not schedule-driven, keep old behavior.
   if (scheduleId == null) {
     const created: AssignmentRow = await prisma.assignment.create({
       data: {
@@ -149,9 +126,7 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
     return toDto(created);
   }
 
-  // ✅ Schedule-driven behavior with idempotency via AssignmentScheduleRun
   const dto = await prisma.$transaction(async (tx) => {
-    // 1) Upsert the "run" row (unique on scheduleId + runDate)
     const run = await tx.assignmentScheduleRun.upsert({
       where: {
         scheduleId_runDate: { scheduleId, runDate: runDate! },
@@ -161,10 +136,16 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
         scheduleId,
         runDate: runDate!,
       },
-      select: { id: true, assignmentId: true },
+      select: { id: true, assignmentId: true, isSkipped: true },
     });
 
-    // 2) If already linked, return existing assignment
+    if (run.isSkipped) {
+      console.info(
+        `Schedule ${scheduleId} run ${runDate!.toISOString()} is marked skipped, not creating assignment`,
+      );
+      throw new ConflictError('Schedule run was skipped');
+    }
+
     if (run.assignmentId) {
       const existing = await tx.assignment.findUnique({
         where: { id: run.assignmentId },
@@ -183,14 +164,12 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
 
       if (existing) return toDto(existing as AssignmentRow);
 
-      // run references deleted assignment -> clear and continue
       await tx.assignmentScheduleRun.update({
         where: { id: run.id },
         data: { assignmentId: null },
       });
     }
 
-    // 3) Create assignment (stamp scheduleId)
     let created: AssignmentRow;
 
     try {
@@ -205,6 +184,7 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
           kind,
           questionSetId: questionSetId ?? undefined,
           scheduleId,
+          runDate: runDate!,
           ...(normalizedStudentIds
             ? {
                 recipients: {
@@ -229,7 +209,6 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
         },
       });
     } catch (err) {
-      // Another concurrent runner created the assignment first.
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         const existing = await tx.assignment.findFirst({
           where: { scheduleId, opensAt },
@@ -246,7 +225,7 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
           },
         });
 
-        if (!existing) throw err; // super rare, but don’t hide it
+        if (!existing) throw err;
 
         created = existing as AssignmentRow;
       } else {
@@ -254,7 +233,6 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
       }
     }
 
-    // 4) Attach assignmentId to the run row (idempotent update)
     await tx.assignmentScheduleRun.update({
       where: { id: run.id },
       data: { assignmentId: created.id },

@@ -3,7 +3,6 @@ import type { UpsertScheduleInput } from '@/validation/assignmentSchedules.schem
 
 import { ConflictError, NotFoundError } from '@/core/errors';
 import { createScheduledAssignment } from '@/core/assignments/service';
-import type { AssignmentDTO } from '@/core/assignments/service';
 
 import * as ClassroomsRepo from '@/data/classrooms.repo';
 import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
@@ -14,6 +13,7 @@ import {
   localDayToUtcDate,
   TZ,
 } from '@/utils/time';
+import { AssignmentDTO } from '@/types';
 
 export type ScheduleDTO = {
   id: number;
@@ -205,10 +205,9 @@ export async function runActiveSchedulesForDate(
 
       results.push(dto);
     } catch (err) {
-      // Log and continue — don't let one bad schedule stop the runner.
-      // If you have a logging/monitoring service, send the error there instead.
-      console.error(`Failed to process schedule ${sched.id}:`, err);
-      continue;
+      if (err instanceof ConflictError && err.message === 'Schedule run was skipped') {
+        continue;
+      }
     }
   }
 
