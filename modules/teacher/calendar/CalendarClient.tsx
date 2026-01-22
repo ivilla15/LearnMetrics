@@ -23,22 +23,24 @@ export type AssignmentStats = {
 };
 
 export type AssignmentDTO = {
-  kind: string;
+  kind: string; // e.g. "SCHEDULED_TEST"
   assignmentId: number;
   assignmentMode: 'SCHEDULED' | 'MANUAL';
-  opensAt: string;
-  closesAt: string;
+  opensAt: string; // ISO
+  closesAt: string; // ISO
   windowMinutes: number | null;
   numQuestions: number;
   stats?: AssignmentStats;
+  scheduleId?: number | null;
+  runDate?: string | null;
 };
 
 export type ProjectionRow = {
   kind: 'projection';
   scheduleId: number;
-  runDate: string;
-  opensAt: string;
-  closesAt: string;
+  runDate: string; // ISO
+  opensAt: string; // ISO UTC
+  closesAt: string; // ISO UTC
   windowMinutes: number | null;
   numQuestions: number;
   assignmentMode: 'SCHEDULED';
@@ -165,104 +167,119 @@ export function CalendarClient({
   const [editNumQuestions, setEditNumQuestions] = React.useState<string>('');
   const [editSaving, setEditSaving] = React.useState(false);
 
-  async function loadAllForMonth(target: Date) {
-    setLoading(true);
-    try {
-      const monthStart = startOfMonth(target);
-      const monthEnd = endOfMonth(target);
+  const loadAllForMonth = React.useCallback(
+    async (target: Date) => {
+      setLoading(true);
+      try {
+        const monthStart = startOfMonth(target);
+        const monthEnd = endOfMonth(target);
 
-      let projections: ProjectionRow[] = [];
-      let cursor: string | null = null;
-      let allRows: AssignmentDTO[] = [];
-      let nextCursor: string | null = null;
+        let projections: ProjectionRow[] = [];
+        let cursor: string | null = null;
+        let allRows: AssignmentDTO[] = [];
+        let nextCursor: string | null = null;
 
-      // Pull up to ~200 rows max (4 pages of 50) + projections from first page.
-      for (let i = 0; i < 4; i++) {
-        const url = new URL(
-          `/api/teacher/classrooms/${classroomId}/assignments`,
-          window.location.origin,
-        );
-        url.searchParams.set('status', 'all');
-        url.searchParams.set('limit', '50');
-        if (cursor) url.searchParams.set('cursor', cursor);
+        // Pull up to ~200 rows max (4 pages of 50) + projections from first page.
+        for (let i = 0; i < 4; i++) {
+          const url = new URL(
+            `/api/teacher/classrooms/${classroomId}/assignments`,
+            window.location.origin,
+          );
+          url.searchParams.set('status', 'all');
+          url.searchParams.set('limit', '50');
+          if (cursor) url.searchParams.set('cursor', cursor);
 
-        const res = await fetch(url.toString(), { cache: 'no-store' });
-        const json = (await res.json().catch(() => null)) as AssignmentsListResponse | null;
+          const res = await fetch(url.toString(), { cache: 'no-store' });
+          const json = (await res.json().catch(() => null)) as AssignmentsListResponse | null;
 
-        if (!res.ok) {
-          throw new Error(getApiErrorMessage(json, 'Failed to load'));
+          if (!res.ok) {
+            throw new Error(getApiErrorMessage(json, 'Failed to load'));
+          }
+
+          if (i === 0 && Array.isArray(json?.projections)) {
+            projections = json.projections;
+          }
+
+          const rows = Array.isArray(json?.rows) ? json!.rows : [];
+          allRows = [...allRows, ...rows];
+          nextCursor = json?.nextCursor ?? null;
+
+          if (!nextCursor) break;
+          cursor = nextCursor;
+
+          if (allRows.length >= 200) break;
         }
 
-        if (i === 0 && Array.isArray(json?.projections)) {
-          projections = json.projections;
-        }
+        const filteredRows = allRows.filter((a) => {
+          const opens = new Date(a.opensAt);
+          return (
+            opens >=
+              new Date(
+                monthStart.getFullYear(),
+                monthStart.getMonth(),
+                monthStart.getDate(),
+                0,
+                0,
+                0,
+              ) &&
+            opens <=
+              new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate(), 23, 59, 59)
+          );
+        });
 
-        const rows = Array.isArray(json?.rows) ? json!.rows : [];
-        allRows = [...allRows, ...rows];
-        nextCursor = json?.nextCursor ?? null;
+        const filteredProjections = projections.filter((p) => {
+          const opens = new Date(p.opensAt);
+          return (
+            opens >=
+              new Date(
+                monthStart.getFullYear(),
+                monthStart.getMonth(),
+                monthStart.getDate(),
+                0,
+                0,
+                0,
+              ) &&
+            opens <=
+              new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate(), 23, 59, 59)
+          );
+        });
 
-        if (!nextCursor) break;
-        cursor = nextCursor;
-
-        if (allRows.length >= 200) break;
+        setData((prev) => ({
+          classroom: prev.classroom,
+          rows: filteredRows,
+          projections: filteredProjections,
+          nextCursor,
+        }));
+      } catch (e) {
+        toast(e instanceof Error ? e.message : 'Failed to load calendar', 'error');
+      } finally {
+        setLoading(false);
       }
-
-      const filteredRows = allRows.filter((a) => {
-        const opens = new Date(a.opensAt);
-        return (
-          opens >=
-            new Date(
-              monthStart.getFullYear(),
-              monthStart.getMonth(),
-              monthStart.getDate(),
-              0,
-              0,
-              0,
-            ) &&
-          opens <=
-            new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate(), 23, 59, 59)
-        );
-      });
-
-      const filteredProjections = projections.filter((p) => {
-        const opens = new Date(p.opensAt);
-        return (
-          opens >=
-            new Date(
-              monthStart.getFullYear(),
-              monthStart.getMonth(),
-              monthStart.getDate(),
-              0,
-              0,
-              0,
-            ) &&
-          opens <=
-            new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate(), 23, 59, 59)
-        );
-      });
-
-      setData((prev) => ({
-        classroom: prev.classroom,
-        rows: filteredRows,
-        projections: filteredProjections,
-        nextCursor,
-      }));
-    } catch (e) {
-      toast(e instanceof Error ? e.message : 'Failed to load calendar', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    [classroomId, toast],
+  );
 
   React.useEffect(() => {
     void loadAllForMonth(month);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [month, classroomId]);
+  }, [month, loadAllForMonth]);
 
   const mergedItems = React.useMemo<CalendarItem[]>(() => {
     const real = Array.isArray(data?.rows) ? data.rows : [];
     const projections = Array.isArray(data?.projections) ? data.projections : [];
-    return [...real, ...projections];
+
+    const realKeys = new Set<string>();
+    for (const a of real) {
+      if (a.scheduleId && a.runDate) {
+        realKeys.add(`${a.scheduleId}|${a.runDate}`);
+      }
+    }
+
+    const filteredProjections = projections.filter((p) => {
+      const key = `${p.scheduleId}|${p.runDate}`;
+      return !realKeys.has(key);
+    });
+
+    return [...real, ...filteredProjections];
   }, [data?.rows, data?.projections]);
 
   const byDay = React.useMemo(() => {

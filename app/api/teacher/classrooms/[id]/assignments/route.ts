@@ -131,6 +131,8 @@ export async function GET(req: Request, { params }: RouteContext) {
         closesAt: a.closesAt.toISOString(),
         windowMinutes: a.windowMinutes,
         numQuestions: a.numQuestions ?? 12,
+        scheduleId: a.scheduleId,
+        runDate: a.runDate ? a.runDate.toISOString() : null,
         stats: {
           attemptedCount: s.attemptedCount,
           totalStudents,
