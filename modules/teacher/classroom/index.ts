@@ -5,3 +5,4 @@ export * from './ClassroomStatsGrid';
 export * from './StatTile';
 export * from './roster.api';
 export * from './types';
+export * from './Tile';

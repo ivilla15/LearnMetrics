@@ -555,7 +555,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                     </div>
                   </div>
 
-                  <div className="w-[180px]">
+                  <div className="w-45">
                     <MiniBar value={m.incorrectCount} max={maxIncorrect} />
                   </div>
                 </div>
@@ -701,7 +701,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                           </div>
                         </div>
 
-                        <div className="w-[180px]">
+                        <div className="w-45">
                           <MiniBar value={r.incorrectCount} max={factMaxIncorrect} />
                         </div>
                       </div>
@@ -735,7 +735,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                     inputMode="numeric"
                     value={daysText}
                     onChange={(e) => setDaysText(e.target.value)}
-                    className="w-[110px]"
+                    className="w-27.5"
                   />
 
                   <Button variant="secondary" onClick={applyDays} disabled={loading}>
@@ -744,7 +744,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                 </div>
               </div>
 
-              <div className="grid gap-1 min-w-[240px]">
+              <div className="grid gap-1 min-w-60">
                 <Label htmlFor="search">Search students</Label>
                 <Input
                   id="search"
@@ -1001,7 +1001,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
             />
           </div>
 
-          <div className="max-h-[360px] overflow-auto rounded-[18px] border border-[hsl(var(--border))] overflow-hidden">
+          <div className="max-h-90 overflow-auto rounded-[18px] border border-[hsl(var(--border))]">
             {pickerList.length === 0 ? (
               <div className="p-4 text-sm text-[hsl(var(--muted-fg))]">No matches.</div>
             ) : (
