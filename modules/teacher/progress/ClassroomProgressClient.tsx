@@ -352,7 +352,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
           </HelpText>
 
           {/* Today’s focus */}
-          <div className="rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-4">
+          <div className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4">
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-[hsl(var(--fg))]">Today’s Focus</div>
@@ -380,7 +380,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                       router.push(`/teacher/classrooms/${classroomId}/students/${s.id}/progress`)
                     }
                     className={[
-                      'text-left rounded-[14px] border border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] px-3 py-3 transition-colors',
+                      'text-left rounded-[14px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface-2))] px-3 py-3 transition-colors',
                       'cursor-pointer hover:bg-[hsl(var(--surface-2))]',
                     ].join(' ')}
                   >
@@ -401,7 +401,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
           </div>
 
           {/* Last 3 tests */}
-          <div className="rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-4">
+          <div className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4">
             <div className="text-sm font-semibold text-[hsl(var(--fg))]">Last 3 tests</div>
             <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
               Quick snapshot of recent performance.
@@ -416,7 +416,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                 {last3Tests.map((t) => (
                   <div
                     key={t.assignmentId}
-                    className="rounded-[14px] border border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] p-4"
+                    className="rounded-[14px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface-2))] p-4"
                   >
                     <div className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--muted-fg))]">
                       {formatLocal(t.opensAt)}
@@ -538,7 +538,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                 type="button"
                 onClick={() => openFactDetail(m)}
                 className={[
-                  'w-full text-left rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-4 transition-colors',
+                  'w-full text-left rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4 transition-colors',
                   'cursor-pointer hover:bg-[hsl(var(--surface-2))]',
                 ].join(' ')}
               >
@@ -555,7 +555,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                     </div>
                   </div>
 
-                  <div className="w-[180px]">
+                  <div className="w-45">
                     <MiniBar value={m.incorrectCount} max={maxIncorrect} />
                   </div>
                 </div>
@@ -579,7 +579,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
             }
           >
             <div className="space-y-3">
-              <div className="rounded-[18px] border border-[hsl(var(--border))] overflow-hidden">
+              <div className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] overflow-hidden">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="bg-[hsl(var(--surface-2))] border-b border-[hsl(var(--border))] text-left">
@@ -665,7 +665,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
               </div>
             ) : (
               <div className="space-y-4">
-                <div className="rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-4">
+                <div className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4">
                   <div className="text-sm font-semibold text-[hsl(var(--fg))]">Totals</div>
                   <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
                     Incorrect: {factDetail.totalIncorrect} • Attempts containing this fact:{' '}
@@ -684,7 +684,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                         )
                       }
                       className={[
-                        'w-full text-left rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-4 transition-colors',
+                        'w-full text-left rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4 transition-colors',
                         'cursor-pointer hover:bg-[hsl(var(--surface-2))]',
                       ].join(' ')}
                     >
@@ -701,7 +701,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                           </div>
                         </div>
 
-                        <div className="w-[180px]">
+                        <div className="w-45">
                           <MiniBar value={r.incorrectCount} max={factMaxIncorrect} />
                         </div>
                       </div>
@@ -735,7 +735,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                     inputMode="numeric"
                     value={daysText}
                     onChange={(e) => setDaysText(e.target.value)}
-                    className="w-[110px]"
+                    className="w-27.5"
                   />
 
                   <Button variant="secondary" onClick={applyDays} disabled={loading}>
@@ -744,7 +744,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                 </div>
               </div>
 
-              <div className="grid gap-1 min-w-[240px]">
+              <div className="grid gap-1 min-w-60">
                 <Label htmlFor="search">Search students</Label>
                 <Input
                   id="search"
@@ -794,7 +794,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                       setFilter('all');
                       setSearch('');
                     }}
-                    className="cursor-pointer rounded-[999px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 py-1.5 text-sm font-medium hover:bg-[hsl(var(--surface-2))]"
+                    className="cursor-pointer rounded-[999px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 py-1.5 text-sm font-medium hover:bg-[hsl(var(--surface-2))]"
                   >
                     Clear
                   </button>
@@ -803,7 +803,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
             </div>
 
             {/* Table */}
-            <div className="overflow-x-auto rounded-[28px] border border-[hsl(var(--border))] overflow-hidden bg-[hsl(var(--surface))]">
+            <div className="overflow-x-auto rounded-[28px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] overflow-hidden bg-[hsl(var(--surface))]">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]">
@@ -1001,7 +1001,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
             />
           </div>
 
-          <div className="max-h-[360px] overflow-auto rounded-[18px] border border-[hsl(var(--border))] overflow-hidden">
+          <div className="max-h-90 overflow-auto rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)]">
             {pickerList.length === 0 ? (
               <div className="p-4 text-sm text-[hsl(var(--muted-fg))]">No matches.</div>
             ) : (

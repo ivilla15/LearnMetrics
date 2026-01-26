@@ -7,9 +7,9 @@ const cardVariants = cva(
   {
     variants: {
       variant: {
-        elevated: 'shadow-[0_8px_30px_rgba(0,0,0,0.08)]',
-        muted: 'bg-[hsl(var(--section))] shadow-[0_8px_30px_rgba(0,0,0,0.06)]',
-        outline: 'border border-[hsl(var(--border))] shadow-[0_8px_30px_rgba(0,0,0,0.06)]',
+        elevated: 'shadow-[0_4px_10px_rgba(0,0,0,0.08)]',
+        muted: 'bg-[hsl(var(--section))] shadow-[0_4px_10px_rgba(0,0,0,0.08)]',
+        outline: 'border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)]',
         flat: 'shadow-none',
       },
     },

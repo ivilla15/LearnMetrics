@@ -24,21 +24,18 @@ export type AttemptResultsFilterOption = {
 };
 
 export type AttemptResultsRow = {
-  // optional student identity (only needed when showStudentColumn = true)
   studentId?: number;
   name?: string;
   username?: string;
 
-  // attempt identity
   attemptId: number | null;
 
-  // metrics
-  completedAt: string | null; // iso or null for missing
+  completedAt: string | null;
   score: number | null;
   total: number | null;
-  percent: number | null; // 0..100 or null
-  missed: number | null; // numeric or null
-  wasMastery: boolean | null; // null when missing
+  percent: number | null;
+  missed: number | null;
+  wasMastery: boolean | null;
   levelAtTime: number | null;
 };
 
@@ -88,7 +85,6 @@ export function AttemptResultsTable({
 }) {
   const [search, setSearch] = React.useState('');
 
-  // If we hide student column, search is meaningless; disable it automatically.
   const canSearch = showStudentColumn && searchEnabled;
 
   const filtered = React.useMemo(() => {
@@ -110,7 +106,7 @@ export function AttemptResultsTable({
       {/* Controls */}
       <div className="flex flex-wrap items-end gap-4">
         {canSearch ? (
-          <div className="grid gap-1 min-w-[240px]">
+          <div className="grid gap-1 min-w-60">
             <Label htmlFor="attempt-results-search">{searchLabel}</Label>
             <Input
               id="attempt-results-search"
@@ -149,7 +145,7 @@ export function AttemptResultsTable({
       </div>
 
       {/* Table */}
-      <div className="overflow-x-auto rounded-[28px] border border-[hsl(var(--border))] overflow-hidden bg-[hsl(var(--surface))]">
+      <div className="overflow-x-auto rounded-[28px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] overflow-hidden bg-[hsl(var(--surface))]">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-left border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]">

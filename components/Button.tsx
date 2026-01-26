@@ -25,7 +25,7 @@ const buttonVariants = cva(
 
         secondary: [
           'bg-[hsl(var(--surface))] text-[hsl(var(--fg))]',
-          'border border-[hsl(var(--border))]',
+          'border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)]',
           hoverBrandSoft,
           hoverBrandSoftBorder,
         ].join(' '),

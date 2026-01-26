@@ -38,7 +38,7 @@ function ProgressSkeleton() {
               <Skeleton className="h-5 w-24" />
               <Skeleton className="h-5 w-52" />
             </div>
-            <Skeleton className="h-10 w-44 rounded-[var(--radius)]" />
+            <Skeleton className="h-10 w-44 rounded-(--radius)" />
           </div>
         </CardHeader>
 
@@ -304,7 +304,7 @@ export function AttemptExplorer({
                     </label>
                     <select
                       id="filter-select"
-                      className="h-10 rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+                      className="h-10 rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
                       value={filter}
                       onChange={(e) =>
                         setFilter(e.target.value as 'ALL' | 'MASTERY' | 'NOT_MASTERY')

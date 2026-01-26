@@ -200,7 +200,7 @@ export function AssignmentsClient({
         <CardContent className="space-y-4">
           {/* Controls */}
           <div className="flex flex-wrap items-end gap-4">
-            <div className="grid gap-1 min-w-[220px]">
+            <div className="grid gap-1 min-w-55">
               <Label htmlFor="assign-search">Search</Label>
               <Input
                 id="assign-search"

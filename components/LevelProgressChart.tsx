@@ -61,7 +61,7 @@ function TooltipContent({ active, payload }: TooltipContentProps) {
   const point = p as ChartPoint;
 
   return (
-    <div className="rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 py-2 shadow-sm">
+    <div className="rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 py-2">
       <div className="text-xs text-[hsl(var(--muted-fg))]">
         {formatTooltipDate(point.timestamp)}
       </div>
@@ -116,7 +116,7 @@ export function LevelProgressChart({ attempts, height = 260 }: Props) {
 
   if (sorted.length === 0) {
     return (
-      <div className="rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-4 text-sm text-[hsl(var(--muted-fg))]">
+      <div className="rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4 text-sm text-[hsl(var(--muted-fg))]">
         No attempts yet. Complete a test to see your level progression.
       </div>
     );
@@ -168,7 +168,7 @@ export function LevelProgressChart({ attempts, height = 260 }: Props) {
   if (xTicks[xTicks.length - 1] !== lastX) xTicks.push(lastX);
 
   return (
-    <div className="rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-4">
+    <div className="rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4">
       <div className="mb-2 text-sm font-semibold text-[hsl(var(--fg))]">Level progression</div>
 
       <div style={{ width: '100%', height }}>

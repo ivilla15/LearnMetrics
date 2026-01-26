@@ -90,7 +90,7 @@ export function StudentProgressClient({ classroomId, studentId, initial }: Props
   return (
     <div className="space-y-6">
       {/* Print header */}
-      <div className="lm-print-only rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-4">
+      <div className="lm-print-only rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4">
         <div className="text-sm font-semibold text-[hsl(var(--fg))]">Student Progress Report</div>
         <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
           {s.name} • @{s.username} • {data.classroom.name} • Range: last {data.range.days} days •
@@ -116,7 +116,7 @@ export function StudentProgressClient({ classroomId, studentId, initial }: Props
                     inputMode="numeric"
                     value={daysText}
                     onChange={(e) => setDaysText(e.target.value)}
-                    className="w-[110px]"
+                    className="w-27.5"
                   />
                   <Button variant="secondary" onClick={applyDays} disabled={loading}>
                     {loading ? 'Loading…' : 'Apply'}
@@ -205,7 +205,7 @@ export function StudentProgressClient({ classroomId, studentId, initial }: Props
             missedFacts.map((m) => (
               <div
                 key={m.questionId}
-                className="rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-4"
+                className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
@@ -217,7 +217,7 @@ export function StudentProgressClient({ classroomId, studentId, initial }: Props
                     </div>
                   </div>
 
-                  <div className="w-[180px]">
+                  <div className="w-45">
                     <MiniBar value={m.incorrectCount} max={maxIncorrect} />
                   </div>
                 </div>

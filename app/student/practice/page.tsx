@@ -167,7 +167,7 @@ export default function StudentPracticeSetupPage() {
                       id="minutes"
                       value={minutes}
                       onChange={(e) => setMinutes(e.target.value as MinutesOption)}
-                      className="h-11 rounded-(--radius) border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+                      className="h-11 rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
                     >
                       <option value="OFF">Off</option>
                       <option value="2">2 minutes</option>

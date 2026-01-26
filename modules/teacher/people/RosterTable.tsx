@@ -313,7 +313,7 @@ export function RosterTable({
       <CardContent className="space-y-5">
         {/* Bulk add */}
         {isAdding ? (
-          <div className="rounded-[28px] border border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] p-5 space-y-3">
+          <div className="rounded-[28px] hover:-translate-y-px bg-[hsl(var(--surface-2))] p-5 space-y-3">
             <div className="space-y-1">
               <div className="text-sm font-semibold text-[hsl(var(--fg))]">
                 Add multiple students
@@ -328,7 +328,7 @@ export function RosterTable({
                 rows={6}
                 value={bulkNamesText}
                 onChange={(e) => setBulkNamesText(e.target.value)}
-                className="w-full rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 py-2 text-sm outline-none focus:border-[hsl(var(--border-strong))]"
+                className="w-full rounded-(--radius) hover:-translate-y-px bg-[hsl(var(--surface))] px-3 py-2 text-sm outline-none focus:border-[hsl(var(--border-strong))]"
                 placeholder={`Ada Lovelace\nAlan Turing\nGrace Hopper`}
               />
               {bulkError ? (
@@ -353,7 +353,7 @@ export function RosterTable({
         ) : null}
 
         {/* Table */}
-        <div className="overflow-x-auto overflow-hidden rounded-[28px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))]">
+        <div className="overflow-x-auto overflow-hidden rounded-[28px] hover:-translate-y-px bg-[hsl(var(--surface))]">
           <table className="w-full text-sm border-separate border-spacing-0">
             <thead className="bg-[hsl(var(--surface-2))]">
               <tr className="text-left border-b border-[hsl(var(--border))]">
@@ -559,7 +559,7 @@ export function RosterTable({
           </div>
         }
       >
-        <div className="rounded-[var(--radius)] border border-[hsl(var(--danger)/0.25)] bg-[hsl(var(--danger)/0.06)] p-3 text-sm">
+        <div className="rounded-(--radius) border border-[hsl(var(--danger)/0.25)] bg-[hsl(var(--danger)/0.06)] p-3 text-sm">
           Removing a student deletes their access and attempts associated with this classroom.
         </div>
       </Modal>

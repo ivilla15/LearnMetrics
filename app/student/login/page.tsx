@@ -64,7 +64,7 @@ export default function StudentLoginPage() {
               </label>
               <input
                 id="username"
-                className="h-11 rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm outline-none focus:border-[hsl(var(--ring))]"
+                className="h-11 rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm outline-none focus:border-[hsl(var(--ring))]"
                 placeholder="example: jdoe"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
@@ -80,7 +80,7 @@ export default function StudentLoginPage() {
               <input
                 id="password"
                 type="password"
-                className="h-11 rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm outline-none focus:border-[hsl(var(--ring))]"
+                className="h-11 rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm outline-none focus:border-[hsl(var(--ring))]"
                 placeholder="your class password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}

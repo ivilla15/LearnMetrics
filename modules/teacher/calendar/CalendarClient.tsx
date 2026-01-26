@@ -15,6 +15,7 @@ import {
 } from '@/components';
 import { formatInTimeZone, fromZonedTime } from 'date-fns-tz';
 import { cancelOccurrenceApi, unskipOccurrenceApi } from '@/app/api/_shared/schedules';
+import { Tile } from '../classroom';
 
 export type AssignmentStats = {
   attemptedCount: number;
@@ -443,10 +444,10 @@ export function CalendarClient({
               const extra = items.length - firstTwo.length;
 
               return (
-                <div
+                <Tile
                   key={key}
                   className={[
-                    'min-h-27.5 rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-2',
+                    'min-h-27.5 rounded-[18px] bg-[hsl(var(--surface))] p-2',
                     dim ? 'opacity-60' : '',
                     isToday ? 'ring-2 ring-[hsl(var(--brand)/0.35)]' : '',
                   ].join(' ')}
@@ -493,7 +494,7 @@ export function CalendarClient({
                       <div className="text-[11px] text-[hsl(var(--muted-fg))] px-1">—</div>
                     ) : null}
                   </div>
-                </div>
+                </Tile>
               );
             })}
           </div>
@@ -672,7 +673,7 @@ export function CalendarClient({
               type="date"
               value={editLocalDate}
               onChange={(e) => setEditLocalDate(e.target.value)}
-              className="h-10 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+              className="h-10 rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
             />
           </div>
 
@@ -682,7 +683,7 @@ export function CalendarClient({
               type="time"
               value={editLocalTime}
               onChange={(e) => setEditLocalTime(e.target.value)}
-              className="h-10 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+              className="h-10 rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
             />
           </div>
 
@@ -693,7 +694,7 @@ export function CalendarClient({
               value={editWindowMinutes}
               onChange={(e) => setEditWindowMinutes(e.target.value)}
               placeholder="4"
-              className="h-10 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+              className="h-10 rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
             />
           </div>
 
@@ -704,7 +705,7 @@ export function CalendarClient({
               value={editNumQuestions}
               onChange={(e) => setEditNumQuestions(e.target.value)}
               placeholder="12"
-              className="h-10 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+              className="h-10 rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
             />
           </div>
 
