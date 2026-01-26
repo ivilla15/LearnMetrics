@@ -23,6 +23,15 @@ const buttonVariants = cva(
           'hover:bg-[hsl(var(--brand)/0.92)]',
         ].join(' '),
 
+        // --- NEW OUTLINE VARIANT ---
+        outline: [
+          'bg-transparent text-[hsl(var(--brand))]',
+          'border border-[hsl(var(--brand)/0.40)]', // Subtle border by default
+          hoverBrandSoft, // Matches your hover variable
+          hoverBrandSoftBorder, // Darkens border on hover
+        ].join(' '),
+        // ---------------------------
+
         secondary: [
           'bg-[hsl(var(--surface))] text-[hsl(var(--fg))]',
           'border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)]',

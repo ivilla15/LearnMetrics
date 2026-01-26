@@ -32,6 +32,27 @@
   /* Shape */
   --radius: 28px;
   --ring: 214 84% 45%;
+
+  /* ---------- shadcn-style aliases (for v0 sections) ---------- */
+  --background: var(--bg);
+  --foreground: var(--fg);
+
+  --muted: var(--section);
+  --muted-foreground: var(--muted-fg);
+
+  --accent: var(--brand);
+  --accent-foreground: var(--brand-fg);
+
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-fg);
+
+  --card-surface: 0 0% 100%;
+  --card-surface-fg: 240 10% 10%;
+
+  --popover: var(--surface);
+  --popover-foreground: var(--fg);
+
+  --input: var(--border);
 }
 
 /* Dark mode later: we’ll flip tokens here */
@@ -54,6 +75,26 @@
   --brand-fg: 240 10% 8%;
 
   --ring: 214 90% 60%;
+
+  --background: var(--bg);
+  --foreground: var(--fg);
+
+  --muted: var(--section);
+  --muted-foreground: var(--muted-fg);
+
+  --accent: var(--brand);
+  --accent-foreground: var(--brand-fg);
+
+  --primary: var(--brand);
+  --primary-foreground: var(--brand-fg);
+
+  --card: var(--surface);
+  --card-foreground: var(--card-fg);
+
+  --popover: var(--surface);
+  --popover-foreground: var(--fg);
+
+  --input: var(--border);
 }
 
 /* ---------- Base Styles ---------- */
