@@ -31,7 +31,7 @@ export default function StatPill({
 
   if (!clickable) {
     return (
-      <div className="text-left rounded-[18px] border px-4 py-3 border-[hsl(var(--border))] bg-[hsl(var(--surface))] cursor-default">
+      <div className="text-left rounded-[18px] px-4 py-3 border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] cursor-default">
         {inner}
       </div>
     );
@@ -43,7 +43,7 @@ export default function StatPill({
       onClick={onClick}
       className={[
         'text-left rounded-[18px] border px-4 py-3 transition-colors',
-        'border-[hsl(var(--border))] bg-[hsl(var(--surface))]',
+        'border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))]',
         'cursor-pointer hover:bg-[hsl(var(--surface-2))]',
       ].join(' ')}
     >

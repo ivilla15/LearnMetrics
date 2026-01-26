@@ -17,7 +17,7 @@ export function AuthShell({ children, className }: AuthShellProps) {
           </p>
         </div>
 
-        <div className="bg-[hsl(var(--surface))] border border-[hsl(var(--border))] rounded-[var(--radius)] p-8">
+        <div className="bg-[hsl(var(--surface))] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] rounded-(--radius) p-8">
           {children}
         </div>
       </div>

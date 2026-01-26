@@ -155,7 +155,7 @@ function StudentPracticeSessionInner() {
                       {incorrect.map((it) => (
                         <div
                           key={it.id}
-                          className="rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] p-3"
+                          className="rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface-2))] p-3"
                         >
                           <div className="font-medium text-[hsl(var(--fg))]">{it.prompt}</div>
                           <div className="text-sm text-[hsl(var(--muted-fg))]">
@@ -167,7 +167,7 @@ function StudentPracticeSessionInner() {
                     </div>
                   </div>
                 ) : (
-                  <div className="rounded-[var(--radius)] bg-[hsl(var(--surface-2))] p-4 text-sm text-[hsl(var(--fg))]">
+                  <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4 text-sm text-[hsl(var(--fg))]">
                     Perfect score — nice work.
                   </div>
                 )}
@@ -280,7 +280,7 @@ function StudentPracticeSessionInner() {
                         type="button"
                         onClick={() => jumpTo(q.id)}
                         className={cn(
-                          'h-9 rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-xs font-semibold text-[hsl(var(--fg))] transition',
+                          'h-9 rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] text-xs font-semibold text-[hsl(var(--fg))] transition',
                           'hover:bg-[hsl(var(--surface-2))]',
                           done ? '' : 'ring-1 ring-[hsl(var(--brand)/0.25)]',
                         )}

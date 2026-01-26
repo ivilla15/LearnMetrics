@@ -312,7 +312,7 @@ export function AssignMakeupTestModal({
                 />
               </div>
 
-              <div className="max-h-80 overflow-auto rounded-[18px] border border-[hsl(var(--border))]">
+              <div className="max-h-80 overflow-auto rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)]">
                 {filteredEligible.length === 0 ? (
                   <div className="p-4 text-sm text-[hsl(var(--muted-fg))]">No matches.</div>
                 ) : (

@@ -673,7 +673,7 @@ export function CalendarClient({
               type="date"
               value={editLocalDate}
               onChange={(e) => setEditLocalDate(e.target.value)}
-              className="h-10 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+              className="h-10 rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
             />
           </div>
 
@@ -683,7 +683,7 @@ export function CalendarClient({
               type="time"
               value={editLocalTime}
               onChange={(e) => setEditLocalTime(e.target.value)}
-              className="h-10 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+              className="h-10 rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
             />
           </div>
 
@@ -694,7 +694,7 @@ export function CalendarClient({
               value={editWindowMinutes}
               onChange={(e) => setEditWindowMinutes(e.target.value)}
               placeholder="4"
-              className="h-10 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+              className="h-10 rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
             />
           </div>
 
@@ -705,7 +705,7 @@ export function CalendarClient({
               value={editNumQuestions}
               onChange={(e) => setEditNumQuestions(e.target.value)}
               placeholder="12"
-              className="h-10 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm"
+              className="h-10 rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
             />
           </div>
 

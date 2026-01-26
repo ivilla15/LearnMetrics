@@ -12,7 +12,7 @@ export function AssignmentsTable({
   onOpen: (assignmentId: number) => void;
 }) {
   return (
-    <div className="overflow-x-auto rounded-[28px] border border-[hsl(var(--border))] overflow-hidden bg-[hsl(var(--surface))]">
+    <div className="overflow-x-auto rounded-[28px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] overflow-hidden bg-[hsl(var(--surface))]">
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]">

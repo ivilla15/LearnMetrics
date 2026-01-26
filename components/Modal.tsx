@@ -85,14 +85,13 @@ export function Modal({
           role="dialog"
           aria-modal="true"
           className={cn(
-            'pointer-events-auto', // ✅ dialog is clickable
+            'pointer-events-auto',
             'w-full max-h-[85vh] overflow-hidden',
-            'rounded-[28px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] shadow-[0_26px_70px_rgba(0,0,0,0.18)]',
+            'rounded-[28px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))]',
             'flex flex-col',
             sizeClasses(size),
             className,
           )}
-          // prevent clicks inside from bubbling to overlay (extra safety)
           onMouseDown={(e) => e.stopPropagation()}
         >
           {(title || description) && (
@@ -109,7 +108,7 @@ export function Modal({
               <button
                 type="button"
                 onClick={onClose}
-                className="rounded-[var(--radius)] px-2 py-1 text-sm text-[hsl(var(--muted-fg))] hover:bg-[hsl(var(--surface-2))]"
+                className="rounded-(--radius) px-2 py-1 text-sm text-[hsl(var(--muted-fg))] hover:bg-[hsl(var(--surface-2))]"
                 aria-label="Close"
               >
                 ✕

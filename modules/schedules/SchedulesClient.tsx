@@ -123,7 +123,7 @@ export function SchedulesClient({
             active.map((s) => (
               <div
                 key={s.id}
-                className="rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-4"
+                className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-2">
@@ -172,7 +172,7 @@ export function SchedulesClient({
             inactive.map((s) => (
               <div
                 key={s.id}
-                className="rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] p-4"
+                className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="space-y-2">

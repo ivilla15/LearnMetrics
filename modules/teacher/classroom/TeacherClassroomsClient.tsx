@@ -40,7 +40,7 @@ function DotsButton({ onClick }: { onClick: () => void }) {
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]"
+      className="inline-flex h-9 w-9 items-center justify-center rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]"
       aria-label="Open menu"
       title="More"
     >
@@ -62,7 +62,7 @@ function ModalShell({
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-[28px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] shadow-[0_20px_60px_rgba(0,0,0,0.18)]">
+      <div className="w-full max-w-md rounded-[28px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))]">
         <div className="flex items-center justify-between gap-4 p-5">
           <div>
             <div className="text-base font-semibold text-[hsl(var(--fg))]">{title}</div>
@@ -74,7 +74,7 @@ function ModalShell({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-[var(--radius)] px-2 py-1 text-sm text-[hsl(var(--muted-fg))] hover:bg-[hsl(var(--surface-2))]"
+            className="rounded-(--radius) px-2 py-1 text-sm text-[hsl(var(--muted-fg))] hover:bg-[hsl(var(--surface-2))]"
           >
             ✕
           </button>
@@ -198,7 +198,7 @@ export function TeacherClassroomsClient({ classrooms, renameAction, deleteAction
                 className="block"
                 aria-label={`Open ${c.name?.trim() ? c.name : `Classroom ${c.id}`}`}
               >
-                <Card className="group shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0 transition-transform hover:-translate-y-[1px] hover:shadow-[0_26px_70px_rgba(0,0,0,0.12)]">
+                <Card className="group shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0 transition-transform hover:-translate-y-px hover:shadow-[0_26px_70px_rgba(0,0,0,0.12)]">
                   <CardHeader className="pb-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
@@ -251,7 +251,7 @@ export function TeacherClassroomsClient({ classrooms, renameAction, deleteAction
               </Link>
 
               {menuOpenId === c.id ? (
-                <div className="absolute right-4 top-14 z-20 w-44 overflow-hidden rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] shadow-[0_0_40px_10px_rgba(0,0,0,0.18)]">
+                <div className="absolute right-4 top-14 z-20 w-44 overflow-hidden rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))]">
                   <button
                     type="button"
                     onClick={(e) => {
@@ -339,7 +339,7 @@ export function TeacherClassroomsClient({ classrooms, renameAction, deleteAction
           onClose={() => setDeleteOpen(false)}
         >
           <div className="space-y-3">
-            <div className="rounded-[var(--radius)] border border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] p-3 text-sm text-[hsl(var(--fg))]">
+            <div className="rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface-2))] p-3 text-sm text-[hsl(var(--fg))]">
               You’re about to delete{' '}
               <span className="font-semibold">
                 {activeClassroom.name?.trim()

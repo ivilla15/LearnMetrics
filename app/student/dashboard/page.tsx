@@ -334,7 +334,7 @@ export default function StudentDashboardPage() {
                             Level meter
                           </div>
 
-                          <div className="relative h-15 w-10 overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] shadow-sm">
+                          <div className="relative h-15 w-10 overflow-hidden rounded-2xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface-2))]">
                             <div
                               className="absolute inset-x-0 bottom-0 bg-[hsl(var(--brand))]"
                               style={{
