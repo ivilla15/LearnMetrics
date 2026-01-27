@@ -1,61 +1,73 @@
 @import 'tailwindcss';
 
-/* ---------- Design Tokens ---------- */
+@theme {
+  /* Surface Colors */
+  --color-background: hsl(var(--bg));
+  --color-section: hsl(var(--section));
+  --color-surface: hsl(var(--surface));
+  --color-surface-2: hsl(var(--surface-2));
+  --color-surface-3: hsl(var(--surface-3));
+
+  /* Text Colors */
+  --color-foreground: hsl(var(--fg));
+  --color-muted-fg: hsl(var(--muted-fg));
+
+  /* Components */
+  --color-card: hsl(var(--card));
+  --color-card-foreground: hsl(var(--card-fg));
+  --color-popover: hsl(var(--popover));
+  --color-popover-foreground: hsl(var(--popover-foreground));
+  --color-border: hsl(var(--border));
+  --color-input: hsl(var(--input));
+
+  /* Brand / Primary */
+  --color-primary: hsl(var(--brand));
+  --color-primary-foreground: hsl(var(--brand-fg));
+  --color-accent: hsl(var(--brand));
+  --color-accent-foreground: hsl(var(--brand-fg));
+
+  /* Status */
+  --color-danger: hsl(var(--danger));
+  --color-success: hsl(var(--success));
+  --color-warning: hsl(var(--warning));
+
+  /* Utilities */
+  --color-ring: hsl(var(--ring));
+  --radius-xl: var(--radius);
+}
+
+/* ---------- Design Tokens (Raw HSL) ---------- */
 :root {
-  /* Page + section surfaces */
   --bg: 0 0% 100%;
-  --section: 240 5% 96%; /* ~rgb(245,245,247) */
+  --section: 240 5% 96%;
   --surface: 0 0% 100%;
   --surface-2: 240 5% 96%;
   --surface-3: 240 5% 92%;
 
-  /* Card surface */
   --card: 0 0% 100%;
   --card-fg: 240 10% 10%;
 
-  /* Text */
   --fg: 240 10% 10%;
   --muted-fg: 240 4% 40%;
 
-  /* Borders (used sparingly) */
   --border: 240 6% 88%;
 
-  /* Brand */
   --brand: 214 84% 45%;
   --brand-fg: 0 0% 100%;
 
-  /* Status */
   --danger: 0 72% 52%;
   --success: 142 72% 35%;
   --warning: 38 92% 50%;
 
-  /* Shape */
   --radius: 28px;
   --ring: 214 84% 45%;
 
-  /* ---------- shadcn-style aliases (for v0 sections) ---------- */
-  --background: var(--bg);
-  --foreground: var(--fg);
-
-  --muted: var(--section);
-  --muted-foreground: var(--muted-fg);
-
-  --accent: var(--brand);
-  --accent-foreground: var(--brand-fg);
-
-  --primary: var(--brand);
-  --primary-foreground: var(--brand-fg);
-
-  --card-surface: 0 0% 100%;
-  --card-surface-fg: 240 10% 10%;
-
+  /* Aliases for logic consistency */
   --popover: var(--surface);
   --popover-foreground: var(--fg);
-
   --input: var(--border);
 }
 
-/* Dark mode later: we’ll flip tokens here */
 .dark {
   --bg: 240 10% 6%;
   --section: 240 9% 10%;
@@ -75,88 +87,54 @@
   --brand-fg: 240 10% 8%;
 
   --ring: 214 90% 60%;
-
-  --background: var(--bg);
-  --foreground: var(--fg);
-
-  --muted: var(--section);
-  --muted-foreground: var(--muted-fg);
-
-  --accent: var(--brand);
-  --accent-foreground: var(--brand-fg);
-
-  --primary: var(--brand);
-  --primary-foreground: var(--brand-fg);
-
-  --card: var(--surface);
-  --card-foreground: var(--card-fg);
-
-  --popover: var(--surface);
-  --popover-foreground: var(--fg);
-
-  --input: var(--border);
 }
 
 /* ---------- Base Styles ---------- */
-html,
-body {
-  height: 100%;
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background-color: hsl(var(--bg));
+    color: hsl(var(--fg));
+    font-family:
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a:not([class]) {
+    color: hsl(var(--brand));
+    text-underline-offset: 3px;
+    transition: text-decoration 0.2s;
+  }
+
+  a:not([class]):hover {
+    text-decoration: underline;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 3px;
+    border-radius: 8px;
+  }
+
+  ::selection {
+    background: hsl(var(--brand) / 0.2);
+  }
+
+  hr {
+    border: 0;
+    border-top: 1px solid hsl(var(--border));
+  }
 }
 
-body {
-  background: hsl(var(--bg));
-  color: hsl(var(--fg));
-  font-family:
-    ui-sans-serif,
-    system-ui,
-    -apple-system,
-    Segoe UI,
-    Roboto,
-    Helvetica,
-    Arial,
-    'Apple Color Emoji',
-    'Segoe UI Emoji';
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-}
-
-/* Links */
-a:not([class]) {
-  color: hsl(var(--brand));
-  text-underline-offset: 3px;
-}
-
-a:not([class]):hover {
-  text-decoration: underline;
-}
-
-/* Focus: this is a “pro UI” hallmark */
-:focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 3px;
-  border-radius: 8px;
-}
-
-/* Make form controls inherit font */
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
-
-/* Optional: subtle selection */
-::selection {
-  background: hsl(var(--brand) / 0.2);
-}
-
-/* Optional: nicer horizontal rules */
-hr {
-  border: 0;
-  border-top: 1px solid hsl(var(--border));
-}
-
+/* ---------- Utils ---------- */
 .lm-print-only {
   display: none;
 }
@@ -165,12 +143,9 @@ hr {
   .lm-no-print {
     display: none !important;
   }
-
   .lm-print-only {
     display: block !important;
   }
-
-  /* optional: reduce shadows for print */
   * {
     box-shadow: none !important;
   }

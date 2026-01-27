@@ -7,13 +7,10 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 export function Badge({ text, tone = 'muted', children, className, ...props }: BadgeProps) {
   const tones = {
-    danger:
-      'bg-[hsl(var(--danger)/0.10)] text-[hsl(var(--danger))] border-[hsl(var(--danger)/0.22)]',
-    warning:
-      'bg-[hsl(var(--warning)/0.12)] text-[hsl(var(--warning))] border-[hsl(var(--warning)/0.25)]',
-    success:
-      'bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))] border-[hsl(var(--success)/0.25)]',
-    muted: 'bg-[hsl(var(--surface-2))] text-[hsl(var(--muted-fg))] border-[hsl(var(--border))]',
+    danger: 'bg-danger/10 text-danger border-danger/25',
+    warning: 'bg-warning/12 text-warning border-warning/25',
+    success: 'bg-success/12 text-success border-success/25',
+    muted: 'bg-surface-2 text-muted-fg border-border',
   };
 
   return (

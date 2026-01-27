@@ -333,7 +333,7 @@ export function AssignMakeupTestModal({
                             </div>
                             <div className="mt-2 flex flex-wrap gap-2">
                               {s.flags?.missedLastTest
-                                ? Badge('Missed last test', 'warning')
+                                ? Badge({ text: `Missed last test`, tone: 'warning' })
                                 : null}
                             </div>
                           </div>

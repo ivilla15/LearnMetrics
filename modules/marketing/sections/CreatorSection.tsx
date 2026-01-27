@@ -28,10 +28,7 @@ export function CreatorSection() {
                       classrooms. Every feature is designed with teachers in mind, because the best
                       tools come from people who truly care about the problem they&apos;re solving.
                     </p>
-                    <Button
-                      variant="primary"
-                      className="mt-4 px-0 text-accent hover:text-accent/90"
-                    >
+                    <Button variant="primary" href="https://www.ivilla.dev/" className="mt-6">
                       Meet the Creator
                       <ArrowRight className="w-4 h-4 ml-2" />
                     </Button>
