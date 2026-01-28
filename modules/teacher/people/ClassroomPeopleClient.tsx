@@ -49,7 +49,6 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
 
     setStudents(data.students ?? []);
 
-    // stash setup codes for printing
     if (Array.isArray(data?.setupCodes) && data.setupCodes.length > 0) {
       sessionStorage.setItem(
         `lm_setupCodes_${classroomId}`,

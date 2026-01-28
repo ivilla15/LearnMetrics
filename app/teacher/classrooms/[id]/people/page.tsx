@@ -22,7 +22,6 @@ export default async function Page({
     return <div className="p-6 text-sm text-[hsl(var(--danger))]">Invalid classroom id</div>;
   }
 
-  // ✅ initial roster fetch (server)
   let roster: Awaited<ReturnType<typeof getRosterWithLastAttempt>>;
   try {
     roster = await getRosterWithLastAttempt({

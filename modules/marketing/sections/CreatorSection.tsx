@@ -14,7 +14,7 @@ export function CreatorSection() {
               <CardContent className="p-8 sm:p-12">
                 <div className="flex flex-col sm:flex-row items-center gap-8">
                   <div className="w-24 h-24 rounded-full bg-accent/10 flex items-center justify-center shrink-0">
-                    <span className="text-3xl font-bold text-accent">JD</span>
+                    <span className="text-3xl font-bold text-accent">IV</span>
                   </div>
                   <div className="text-center sm:text-left">
                     <span className="text-sm font-medium text-muted-foreground uppercase tracking-widest">

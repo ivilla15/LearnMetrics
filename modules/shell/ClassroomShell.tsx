@@ -7,10 +7,8 @@ import { PageHeader, Section } from '@/components';
 type ClassroomShellProps = {
   classroomId: number;
   classroomName: string;
-  /** The current pathname for the subnav active state (ex: `/teacher/classrooms/12/people`) */
   currentPath: string;
 
-  /** Optional buttons shown on the right side of the PageHeader */
   actions?: React.ReactNode;
 
   children: React.ReactNode;
@@ -24,12 +22,7 @@ export function ClassroomShell({
   children,
 }: ClassroomShellProps) {
   return (
-    <AppShell
-      navItems={teacherNavItems}
-      // AppShell highlights EXACT matches, so keep this stable to highlight "Classrooms"
-      currentPath="/teacher/classrooms"
-      width="full"
-    >
+    <AppShell navItems={teacherNavItems} currentPath="/teacher/classrooms" width="full">
       <PageHeader
         title={classroomName?.trim() ? classroomName : `Classroom ${classroomId}`}
         subtitle="Manage this class."
@@ -37,7 +30,7 @@ export function ClassroomShell({
       />
 
       {/* Sub-nav */}
-      <Section tone="subtle">
+      <Section>
         <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
       </Section>
 

@@ -38,7 +38,7 @@ export function HeroSection() {
       <div className="relative z-10 max-w-6xl mx-auto px-6 pt-32 pb-24 flex flex-col items-center justify-center min-h-screen text-center">
         <FadeIn delay={0.1}>
           <span className="inline-block px-4 py-1.5 mb-8 text-sm font-medium bg-white/10 rounded-full border border-white/10">
-            For Math Teachers
+            For Teachers
           </span>
         </FadeIn>
 
