@@ -1,3 +1,4 @@
+// HeroSection.tsx
 'use client';
 
 import { Button } from '@/components';
@@ -8,13 +9,11 @@ import { HeroSectionMobile } from './HeroSectionMobile';
 export function HeroSection() {
   return (
     <>
-      {/* Mobile-only hero */}
-      <section className="md:hidden">
-        <HeroSectionMobile />
-      </section>
+      {/* Mobile hero replaces the entire section */}
+      <HeroSectionMobile />
 
       {/* Desktop/tablet hero */}
-      <section className="hidden md:block relative min-h-screen bg-[#0A0A0B] text-white overflow-hidden">
+      <section className="relative hidden min-h-screen overflow-hidden bg-[#0A0A0B] text-white md:block">
         {/* HERO ILLUSTRATION LAYER (right-weighted, no text) */}
         <div className="absolute inset-0">
           {/* Background gradient */}
@@ -24,17 +23,17 @@ export function HeroSection() {
           <div className="absolute inset-0 opacity-[0.03]">
             <svg width="100%" height="100%" aria-hidden="true">
               <defs>
-                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <pattern id="grid-desktop" width="40" height="40" patternUnits="userSpaceOnUse">
                   <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="0.5" />
                 </pattern>
               </defs>
-              <rect width="100%" height="100%" fill="url(#grid)" />
+              <rect width="100%" height="100%" fill="url(#grid-desktop)" />
             </svg>
           </div>
 
           {/* Large background glow - top right */}
           <motion.div
-            className="absolute top-0 right-[10%] w-130 h-130 sm:w-150 sm:h-150 rounded-full"
+            className="absolute top-0 right-[10%] h-130 w-130 rounded-full sm:h-150 sm:w-150"
             style={{
               background:
                 'radial-gradient(circle, hsl(var(--brand) / 0.18) 0%, hsl(var(--brand) / 0) 70%)',
@@ -46,7 +45,7 @@ export function HeroSection() {
 
           {/* Background glow - center right */}
           <motion.div
-            className="absolute top-1/2 right-[20%] w-[320px] h-80 sm:w-100 sm:h-100 rounded-full"
+            className="absolute top-1/2 right-[20%] h-80 w-[320px] rounded-full sm:h-100 sm:w-100"
             style={{
               background:
                 'radial-gradient(circle, hsl(var(--brand) / 0.12) 0%, hsl(var(--brand) / 0) 70%)',
@@ -58,10 +57,10 @@ export function HeroSection() {
 
           {/* Main illustration container - right-weighted */}
           <div className="absolute inset-0 flex items-center justify-end pr-[6%] sm:pr-[8%]">
-            <div className="relative w-[62%] sm:w-[55%] h-[70%] sm:h-[75%]">
+            <div className="relative h-[70%] w-[62%] sm:h-[75%] sm:w-[55%]">
               {/* Background card - largest */}
               <motion.div
-                className="absolute top-[5%] right-[15%] w-70 h-52.5 sm:w-[320px] sm:h-60 rounded-lg"
+                className="absolute top-[5%] right-[15%] h-52.5 w-70 rounded-lg sm:h-60 sm:w-[320px]"
                 style={{
                   background:
                     'linear-gradient(135deg, rgba(20, 20, 30, 0.6) 0%, rgba(15, 15, 25, 0.4) 100%)',
@@ -74,11 +73,11 @@ export function HeroSection() {
                 transition={{ duration: 1, delay: 0.2 }}
               >
                 {/* Progress bars */}
-                <div className="p-6 space-y-4">
+                <div className="space-y-4 p-6">
                   {[0.75, 0.6, 0.85, 0.5].map((width, i) => (
                     <motion.div
                       key={i}
-                      className="h-2 rounded-full bg-white/5 overflow-hidden"
+                      className="h-2 overflow-hidden rounded-full bg-white/5"
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.4 + i * 0.1 }}
@@ -103,7 +102,7 @@ export function HeroSection() {
                   {Array.from({ length: 8 }).map((_, i) => (
                     <motion.div
                       key={i}
-                      className="w-3 h-3 rounded-sm bg-white/30"
+                      className="h-3 w-3 rounded-sm bg-white/30"
                       initial={{ opacity: 0, scale: 0 }}
                       animate={{ opacity: 0.3, scale: 1 }}
                       transition={{ delay: 1 + i * 0.05 }}
@@ -114,7 +113,7 @@ export function HeroSection() {
 
               {/* Chart-like stepped visualization */}
               <motion.div
-                className="absolute bottom-[8%] right-[5%] w-60 h-45 sm:w-70 sm:h-50 rounded-lg"
+                className="absolute bottom-[8%] right-[5%] h-45 w-60 rounded-lg sm:h-50 sm:w-70"
                 style={{
                   background:
                     'linear-gradient(135deg, rgba(22, 22, 32, 0.85) 0%, rgba(14, 14, 22, 0.65) 100%)',
@@ -125,7 +124,7 @@ export function HeroSection() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 1, delay: 0.4 }}
               >
-                <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end justify-between gap-2">
+                <div className="absolute bottom-0 left-0 right-0 flex items-end justify-between gap-2 p-6">
                   {[0.4, 0.7, 0.5, 0.9, 0.6, 0.8, 0.65].map((height, i) => (
                     <motion.div
                       key={i}
@@ -146,7 +145,7 @@ export function HeroSection() {
 
               {/* Floating card - top */}
               <motion.div
-                className="absolute top-[15%] right-[45%] w-40 h-31.25 sm:w-45 sm:h-35 rounded-lg"
+                className="absolute top-[15%] right-[45%] h-31.25 w-40 rounded-lg sm:h-35 sm:w-45"
                 style={{
                   background:
                     'linear-gradient(135deg, rgba(22, 22, 32, 0.5) 0%, rgba(16, 16, 24, 0.3) 100%)',
@@ -159,7 +158,7 @@ export function HeroSection() {
                 transition={{ duration: 1, delay: 0.3 }}
               >
                 {/* Circular indicator */}
-                <div className="absolute top-6 left-6 w-16 h-16">
+                <div className="absolute top-6 left-6 h-16 w-16">
                   <svg viewBox="0 0 64 64" className="transform -rotate-90" aria-hidden="true">
                     <circle
                       cx="32"
@@ -188,7 +187,7 @@ export function HeroSection() {
                 {/* Small indicators */}
                 <div className="absolute bottom-5 left-6 right-6 space-y-2">
                   <motion.div
-                    className="h-1.5 rounded-full bg-white/5 overflow-hidden"
+                    className="h-1.5 overflow-hidden rounded-full bg-white/5"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1 }}
@@ -205,7 +204,7 @@ export function HeroSection() {
                     />
                   </motion.div>
                   <motion.div
-                    className="h-1.5 rounded-full bg-white/5 overflow-hidden"
+                    className="h-1.5 overflow-hidden rounded-full bg-white/5"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ delay: 1.1 }}
@@ -226,7 +225,7 @@ export function HeroSection() {
 
               {/* Small accent card */}
               <motion.div
-                className="absolute bottom-[35%] right-[50%] w-31.25 h-22.5 sm:w-35 sm:h-25 rounded-lg"
+                className="absolute bottom-[35%] right-[50%] h-22.5 w-31.25 rounded-lg sm:h-25 sm:w-35"
                 style={{
                   background:
                     'linear-gradient(135deg, rgba(20, 20, 30, 0.4) 0%, rgba(14, 14, 22, 0.3) 100%)',
@@ -237,13 +236,13 @@ export function HeroSection() {
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ duration: 0.8, delay: 0.5 }}
               >
-                <div className="p-4 grid grid-cols-5 gap-2">
+                <div className="grid grid-cols-5 gap-2 p-4">
                   {Array.from({ length: 15 }).map((_, i) => {
                     const isHighlighted = [2, 7, 8, 12, 13].includes(i);
                     return (
                       <motion.div
                         key={i}
-                        className="w-2 h-2 rounded-full"
+                        className="h-2 w-2 rounded-full"
                         style={{
                           background: isHighlighted
                             ? 'hsl(var(--brand) / 0.65)'
@@ -261,7 +260,7 @@ export function HeroSection() {
 
               {/* Abstract connector */}
               <motion.svg
-                className="absolute top-[30%] right-[35%] w-50 h-30"
+                className="absolute top-[30%] right-[35%] h-30 w-50"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.35 }}
                 transition={{ duration: 1.5, delay: 1.5 }}
@@ -307,7 +306,7 @@ export function HeroSection() {
               ].map((pos, i) => (
                 <motion.div
                   key={i}
-                  className="absolute w-1.5 h-1.5 rounded-full"
+                  className="absolute h-1.5 w-1.5 rounded-full"
                   style={{
                     ...pos,
                     background: 'hsl(var(--brand) / 0.65)',
@@ -332,28 +331,28 @@ export function HeroSection() {
         </div>
 
         {/* CONTENT LAYER */}
-        <div className="relative z-10 max-w-6xl mx-auto px-6 pt-32 pb-24 flex flex-col items-start justify-center min-h-screen">
+        <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col items-start justify-center px-6 pt-32 pb-24">
           <FadeIn delay={0.1}>
-            <span className="inline-block px-4 py-1.5 mb-8 text-sm font-medium bg-primary rounded-full border border-white/10">
+            <span className="mb-8 inline-block rounded-full border border-white/10 bg-primary px-4 py-1.5 text-sm font-medium">
               For Teachers
             </span>
           </FadeIn>
 
           <FadeIn delay={0.2}>
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold tracking-tight max-w-3xl leading-[1.08] text-balance">
+            <h1 className="max-w-3xl text-balance text-4xl font-bold leading-[1.08] tracking-tight sm:text-5xl md:text-6xl lg:text-7xl">
               Automated Weekly Mastery, Without the Busywork
             </h1>
           </FadeIn>
 
           <FadeIn delay={0.3}>
-            <p className="mt-8 text-lg sm:text-xl text-white/70 max-w-2xl leading-relaxed text-pretty">
+            <p className="mt-8 max-w-2xl text-pretty text-lg leading-relaxed text-white/70 sm:text-xl">
               LearnMetrics helps teachers run automatic weekly math assessments, track mastery, and
               spot gaps — without spreadsheets or manual grading.
             </p>
           </FadeIn>
 
           <FadeIn delay={0.4}>
-            <div className="mt-12 flex flex-col sm:flex-row gap-4">
+            <div className="mt-12 flex gap-4">
               <Button variant="primary" size="lg">
                 Get Started
               </Button>
