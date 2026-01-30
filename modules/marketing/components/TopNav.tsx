@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Button } from '@/components';
+import { LearnMetricsLogo } from './LearnMetricsLogo';
 
 interface NavLink {
   href: string;
@@ -27,21 +28,8 @@ export function TopNav({ primaryLink, secondaryLink, isLoggedIn }: TopNavProps) 
     >
       <nav className="max-w-6xl mx-auto flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center">
-            <svg
-              viewBox="0 0 24 24"
-              fill="none"
-              className="w-5 h-5 text-[#0a0a0a]"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-            </svg>
-          </div>
-          <span className="text-white font-semibold text-lg tracking-tight">LearnMetrics</span>
+        <Link href="/" className="flex items-center">
+          <LearnMetricsLogo variant="full-white" />
         </Link>
 
         {/* Navigation Links */}
@@ -73,7 +61,7 @@ export function TopNav({ primaryLink, secondaryLink, isLoggedIn }: TopNavProps) 
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-primary text-black rounded-full hover:bg-primary/90 px-4 border-white/0"
+                className="bg-primary text-white rounded-full hover:bg-primary/90 px-4 border-white/0"
                 href={primaryLink.href}
               >
                 {primaryLink.label}
@@ -93,7 +81,7 @@ export function TopNav({ primaryLink, secondaryLink, isLoggedIn }: TopNavProps) 
               <Button
                 variant="outline"
                 size="sm"
-                className="bg-primary text-black hover:bg-primary/90 rounded-full px-4 border-white/0"
+                className="bg-primary text-white hover:bg-primary/90 rounded-full px-4 border-white/0"
                 href={primaryLink.href}
               >
                 {primaryLink.label}

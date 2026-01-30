@@ -3,6 +3,7 @@
 import * as React from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib';
+import { LearnMetricsLogo } from '../marketing/components/LearnMetricsLogo';
 
 interface NavItem {
   label: string;
@@ -44,11 +45,7 @@ export function AppShell({ children, navItems, currentPath = '', accountSlot }: 
     <div className="min-h-screen bg-[hsl(var(--bg))]">
       {/* Topbar for mobile */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))] print:hidden md:hidden">
-        <Link href="/" className="flex items-center">
-          <span className="text-[17px] font-semibold tracking-[-0.01em] text-[hsl(var(--fg))]">
-            LearnMetrics
-          </span>
-        </Link>
+        <LearnMetricsLogo variant="icon-white" />
 
         <div className="flex items-center gap-2">
           {/* account slot can be shown collapsed on mobile if provided */}
@@ -89,9 +86,7 @@ export function AppShell({ children, navItems, currentPath = '', accountSlot }: 
             "
           >
             <Link href="/" className="flex items-center">
-              <span className="text-[17px] font-semibold tracking-[-0.01em] text-white">
-                LearnMetrics
-              </span>
+              <LearnMetricsLogo variant="full-white" />
             </Link>
           </div>
 

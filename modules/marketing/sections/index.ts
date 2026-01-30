@@ -5,3 +5,4 @@ export * from './HeroSection';
 export * from './HowItWorksSection';
 export * from './InsightsSection';
 export * from './PricingSection';
+export * from './HeroSectionMobile';
