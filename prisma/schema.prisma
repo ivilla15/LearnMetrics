@@ -173,6 +173,7 @@ model Teacher {
 
   Classroom Classroom[]
   sessions  TeacherSession[]
+  entitlement TeacherEntitlement?
 }
 
 enum AssignmentKind {
@@ -213,4 +214,36 @@ model StudentSession {
 
   @@index([studentId])
   @@map("StudentSession")
+}
+
+enum TeacherPlan {
+  TRIAL
+  PRO
+  SCHOOL
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  EXPIRED
+  CANCELED
+}
+
+model TeacherEntitlement {
+  id        Int      @id @default(autoincrement())
+  teacherId Int      @unique
+  teacher   Teacher  @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  plan      TeacherPlan       @default(TRIAL)
+  status    EntitlementStatus @default(ACTIVE)
+
+  trialEndsAt DateTime?
+  // Stripe fields later (optional)
+  stripeCustomerId String?
+  stripeSubscriptionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([plan])
+  @@index([status])
 }

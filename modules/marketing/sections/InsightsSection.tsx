@@ -43,7 +43,7 @@ export function InsightsSection() {
         <StaggerContainer className="grid grid-cols-1 md:grid-cols-3 gap-6" staggerDelay={0.15}>
           {stats.map((stat) => (
             <StaggerItem key={stat.label}>
-              <div className="rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 p-8 text-center">
+              <div className="h-60 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10 p-8 text-center">
                 <div className="w-12 h-12 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-6">
                   <stat.icon className="w-6 h-6 text-white" />
                 </div>

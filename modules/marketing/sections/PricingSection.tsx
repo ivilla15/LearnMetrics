@@ -1,116 +1,160 @@
 'use client';
 
-import {
-  Card,
-  Badge,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-  CardContent,
-  Button,
-} from '@/components';
-import { FadeIn, StaggerContainer, StaggerItem, HoverLift } from '../components/MotionWrapper';
+import * as React from 'react';
 import { Check } from 'lucide-react';
+import { Card, CardContent, Button, Badge } from '@/components';
+import { FadeIn, StaggerContainer, StaggerItem, HoverLift } from '../components/MotionWrapper';
 
-const plans = [
+type Plan = {
+  name: string;
+  price: string;
+  period?: string;
+  description: string;
+  subDescription?: string;
+  features: string[];
+  cta: string;
+  href?: string;
+  popular?: boolean;
+};
+
+const plans: Plan[] = [
   {
-    name: 'Starter',
-    price: 'Free',
-    description: 'Perfect for trying out LearnMetrics',
-    features: ['1 teacher account', '1 classroom', '1 weekly schedule', 'Unlimited students'],
-    cta: 'Start free',
-    popular: false,
+    name: 'Free Trial',
+    price: '$0',
+    description: '1 month full access',
+    subDescription: 'No credit card required',
+    features: [
+      'Automated weekly tests',
+      'Student progress dashboard',
+      'Auto grading',
+      'Class-level insights',
+      'Email support',
+    ],
+    cta: 'Start Free Trial',
+    href: '/teacher/signup',
   },
   {
     name: 'Pro',
-    price: '$19',
+    price: '$9.99',
     period: '/month',
-    description: 'For teachers managing multiple classes',
+    description: 'For individual teachers',
+    subDescription: 'Multiple classrooms + schedules',
     features: [
-      '1 teacher account',
-      'Up to 5 classrooms',
-      'Up to 5 schedules',
+      'Everything in Free Trial',
+      'Multiple classrooms',
+      'Multiple schedules per classroom',
+      'Upcoming test calendar + edits',
       'Priority support',
-      'Advanced analytics',
+      'More analytics over time',
     ],
-    cta: 'Upgrade',
+    cta: 'Get Started',
+    href: '/teacher/signup',
     popular: true,
   },
   {
     name: 'School',
     price: 'Custom',
-    description: 'For entire schools and districts',
+    description: 'For schools and districts',
+    subDescription: 'Volume pricing available',
     features: [
+      'Everything in Pro',
       'Multiple teacher accounts',
-      'Unlimited classrooms',
-      'Custom integrations',
-      'Dedicated support',
-      'Admin dashboard',
+      'Admin-level reporting',
+      'Centralized onboarding support',
+      'Dedicated success contact',
+      'Custom rollout planning',
     ],
-    cta: 'Contact us',
-    popular: false,
+    cta: 'Contact Sales',
+    href: '/contact',
   },
 ];
 
 export function PricingSection() {
   return (
-    <section id="pricing" className="py-24 sm:py-32 bg-background">
-      <div className="max-w-6xl mx-auto px-6">
+    <section id="pricing" className="bg-[hsl(var(--bg))] py-24 px-6 sm:py-32">
+      <div className="mx-auto w-full max-w-7xl">
+        {/* Header */}
         <FadeIn>
-          <div className="text-center mb-16">
-            <span className="text-sm font-medium text-muted-foreground uppercase tracking-widest">
-              Pricing
-            </span>
-            <h2 className="mt-4 text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground">
-              Simple, transparent pricing
+          <div className="mb-16 text-center sm:mb-20">
+            <h2 className="text-4xl font-semibold tracking-tight sm:text-5xl text-[hsl(var(--fg))]">
+              LearnMetrics Pricing
             </h2>
-            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
-              Start free and scale as you grow. No hidden fees, no surprises.
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-[hsl(var(--muted-fg))] sm:text-xl">
+              Automated weekly math mastery assessments and progress tracking built for real
+              classrooms.
             </p>
           </div>
         </FadeIn>
 
+        {/* Pricing Cards */}
         <StaggerContainer
-          className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start"
-          staggerDelay={0.15}
+          className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8"
+          staggerDelay={0.12}
         >
           {plans.map((plan) => (
             <StaggerItem key={plan.name}>
               <HoverLift>
                 <Card
-                  className={`h-full relative ${
+                  className={[
+                    'h-150 7relative flex flex-col rounded-[24px] border bg-[hsl(var(--surface))]',
                     plan.popular
-                      ? 'border-accent shadow-lg ring-1 ring-accent/20'
-                      : 'border-border/50'
-                  }`}
+                      ? 'border-[hsl(var(--brand))] shadow-[0_20px_60px_rgba(0,0,0,0.12)]'
+                      : 'border-[hsl(var(--border))] shadow-[0_10px_30px_rgba(0,0,0,0.08)]',
+                  ].join(' ')}
                 >
-                  {plan.popular && (
-                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-accent text-white border-0">
-                      Most Popular
+                  {plan.popular ? (
+                    <Badge
+                      className="absolute -top-3 left-1/2 -translate-x-1/2 border-0 text-white"
+                      style={{ background: 'hsl(var(--brand))' }}
+                    >
+                      Recommended
                     </Badge>
-                  )}
-                  <CardHeader className="pb-4">
-                    <CardTitle className="text-xl">{plan.name}</CardTitle>
-                    <CardDescription>{plan.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-bold text-foreground">{plan.price}</span>
-                      {plan.period && <span className="text-muted-foreground">{plan.period}</span>}
+                  ) : null}
+
+                  <CardContent className="flex h-full flex-col p-8">
+                    {/* Top */}
+                    <div className="mb-8">
+                      <h3 className="text-xl font-semibold text-[hsl(var(--fg))]">{plan.name}</h3>
+
+                      <div className="mt-4 flex items-baseline gap-2">
+                        <span className="text-3xl font-semibold tracking-tight text-[hsl(var(--fg))]">
+                          {plan.price}
+                        </span>
+                        {plan.period ? (
+                          <span className="text-lg text-[hsl(var(--muted-fg))]">{plan.period}</span>
+                        ) : null}
+                      </div>
+
+                      <p className="mt-4 text-[hsl(var(--muted-fg))]">{plan.description}</p>
+                      {plan.subDescription ? (
+                        <p className="text-[hsl(var(--muted-fg))]">{plan.subDescription}</p>
+                      ) : null}
                     </div>
-                    <ul className="space-y-3">
+
+                    {/* Features */}
+                    <ul className="mb-8 flex-1 space-y-4">
                       {plan.features.map((feature) => (
-                        <li key={feature} className="flex items-center gap-3 text-sm">
-                          <Check className="w-4 h-4 text-accent shrink-0" />
-                          <span className="text-muted-foreground">{feature}</span>
+                        <li key={feature} className="flex items-start gap-3">
+                          <Check
+                            className="mt-0.5 h-5 w-5 shrink-0"
+                            style={{ color: 'hsl(var(--brand))' }}
+                          />
+                          <span className="text-[hsl(var(--fg))] opacity-90">{feature}</span>
                         </li>
                       ))}
                     </ul>
+
+                    {/* CTA */}
                     <Button
-                      className={`w-full rounded-full ${
-                        plan.popular ? 'bg-accent hover:bg-accent/90 text-white' : ''
-                      }`}
+                      href={plan.href ?? '/teacher/signup'}
                       variant={plan.popular ? 'primary' : 'outline'}
+                      size="lg"
+                      className={[
+                        'w-full rounded-xl py-4',
+                        plan.popular
+                          ? ''
+                          : 'border-[hsl(var(--border))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--brand)/0.08)]',
+                      ].join(' ')}
                     >
                       {plan.cta}
                     </Button>

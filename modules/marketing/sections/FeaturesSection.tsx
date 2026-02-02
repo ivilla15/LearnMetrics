@@ -63,7 +63,7 @@ export function FeaturesSection() {
           {features.map((feature) => (
             <StaggerItem key={feature.title}>
               <HoverLift>
-                <Card className="h-full border border-border/50 shadow-none bg-background hover:border-accent/30 transition-colors">
+                <Card className="h-60 border border-border/50 shadow-none bg-background hover:border-accent/30 transition-colors">
                   <CardContent className="p-8">
                     <div className="w-12 h-12 rounded-2xl bg-accent/10 flex items-center justify-center mb-6">
                       <feature.icon className="w-6 h-6 text-accent" />

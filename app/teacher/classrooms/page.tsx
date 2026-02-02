@@ -4,6 +4,7 @@ import { prisma, getTeacherClassroomsWithCounts } from '@/data';
 import { requireTeacher } from '@/core';
 import { AppShell, teacherNavItems, TeacherClassroomsClient, NewClassroomButton } from '@/modules';
 import { PageHeader, Section } from '@/components';
+import { createTeacherClassroom } from '@/core/classrooms/createTeacherClassroom';
 
 function clampName(raw: unknown) {
   const name = String(raw ?? '').trim();
@@ -24,12 +25,10 @@ async function createClassroomAction(formData: FormData) {
   const tzRaw = formData.get('timeZone');
   const tz = typeof tzRaw === 'string' && tzRaw.trim() ? tzRaw.trim() : 'America/Los_Angeles';
 
-  await prisma.classroom.create({
-    data: {
-      name: parsed.name,
-      teacherId: auth.teacher.id,
-      timeZone: tz,
-    },
+  await createTeacherClassroom({
+    teacherId: auth.teacher.id,
+    name: parsed.name,
+    timeZone: tz,
   });
 
   revalidatePath('/teacher/classrooms');
