@@ -11,18 +11,16 @@ const SignupBodySchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
   password: z.string().min(8),
-  signupCode: z.string().min(1),
 });
+
+function addDays(d: Date, days: number) {
+  return new Date(d.getTime() + days * 24 * 60 * 60 * 1000);
+}
 
 export async function POST(req: Request) {
   try {
-    const expectedCode = process.env.TEACHER_SIGNUP_CODE;
-    if (!expectedCode) return jsonError('Server missing TEACHER_SIGNUP_CODE', 500);
-
     const raw = await readJson(req);
-    const { name, email, password, signupCode } = SignupBodySchema.parse(raw);
-
-    if (signupCode !== expectedCode) return jsonError('Invalid signup code', 403);
+    const { name, email, password } = SignupBodySchema.parse(raw);
 
     const normalizedEmail = email.trim().toLowerCase();
 
@@ -34,12 +32,22 @@ export async function POST(req: Request) {
 
     const passwordHash = await bcrypt.hash(password, 10);
 
+    const now = new Date();
+    const trialEndsAt = addDays(now, 30);
+
     const teacher = await prisma.teacher.create({
       data: {
         name: name.trim(),
         email: normalizedEmail,
         password: passwordHash,
-        updatedAt: new Date(),
+        updatedAt: now,
+        entitlement: {
+          create: {
+            plan: 'TRIAL',
+            status: 'ACTIVE',
+            trialEndsAt,
+          },
+        },
       },
       select: { id: true, name: true, email: true },
     });

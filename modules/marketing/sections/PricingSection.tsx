@@ -48,7 +48,7 @@ const plans: Plan[] = [
       'More analytics over time',
     ],
     cta: 'Get Started',
-    href: '/teacher/signup',
+    href: '/billing/checkout?plan=pro',
     popular: true,
   },
   {
@@ -73,7 +73,6 @@ export function PricingSection() {
   return (
     <section id="pricing" className="bg-[hsl(var(--bg))] py-24 px-6 sm:py-32">
       <div className="mx-auto w-full max-w-7xl">
-        {/* Header */}
         <FadeIn>
           <div className="mb-16 text-center sm:mb-20">
             <h2 className="text-4xl font-semibold tracking-tight sm:text-5xl text-[hsl(var(--fg))]">
@@ -86,7 +85,6 @@ export function PricingSection() {
           </div>
         </FadeIn>
 
-        {/* Pricing Cards */}
         <StaggerContainer
           className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-6 lg:grid-cols-3 lg:gap-8"
           staggerDelay={0.12}
@@ -96,7 +94,7 @@ export function PricingSection() {
               <HoverLift>
                 <Card
                   className={[
-                    'h-150 7relative flex flex-col rounded-[24px] border bg-[hsl(var(--surface))]',
+                    'relative flex h-full flex-col rounded-[24px] border bg-[hsl(var(--surface))]',
                     plan.popular
                       ? 'border-[hsl(var(--brand))] shadow-[0_20px_60px_rgba(0,0,0,0.12)]'
                       : 'border-[hsl(var(--border))] shadow-[0_10px_30px_rgba(0,0,0,0.08)]',
@@ -112,7 +110,6 @@ export function PricingSection() {
                   ) : null}
 
                   <CardContent className="flex h-full flex-col p-8">
-                    {/* Top */}
                     <div className="mb-8">
                       <h3 className="text-xl font-semibold text-[hsl(var(--fg))]">{plan.name}</h3>
 
@@ -131,7 +128,6 @@ export function PricingSection() {
                       ) : null}
                     </div>
 
-                    {/* Features */}
                     <ul className="mb-8 flex-1 space-y-4">
                       {plan.features.map((feature) => (
                         <li key={feature} className="flex items-start gap-3">
@@ -144,7 +140,6 @@ export function PricingSection() {
                       ))}
                     </ul>
 
-                    {/* CTA */}
                     <Button
                       href={plan.href ?? '/teacher/signup'}
                       variant={plan.popular ? 'primary' : 'outline'}
