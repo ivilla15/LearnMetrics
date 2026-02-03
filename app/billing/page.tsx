@@ -1,9 +1,14 @@
 import Link from 'next/link';
 
+type BillingSearchParams = {
+  reason?: string;
+  plan?: string;
+};
+
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: { reason?: string; plan?: string };
+  searchParams: Promise<BillingSearchParams>;
 }) {
   const sp = await searchParams;
   const reason = sp.reason;
