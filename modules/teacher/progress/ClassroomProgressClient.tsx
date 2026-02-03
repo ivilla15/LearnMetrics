@@ -345,12 +345,6 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
             />
           </div>
 
-          <HelpText>
-            Range affects: score buckets, missed facts, and range-based flags
-            (median/mastery/attempts). Streaks, last attempt, and last-3 trend use a longer recent
-            window.
-          </HelpText>
-
           {/* Today’s focus */}
           <div className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4">
             <div className="flex items-start justify-between gap-3">
@@ -470,7 +464,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
       <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
         <CardHeader>
           <CardTitle>Score Distribution</CardTitle>
-          <CardDescription>How attempts are clustered by score range.</CardDescription>
+          <CardDescription>Current student percentages accross the class last test</CardDescription>
         </CardHeader>
 
         <CardContent>
@@ -971,10 +965,6 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                 </tbody>
               </table>
             </div>
-
-            <HelpText>
-              Next upgrade: “Print report” should open a print-friendly report layout route.
-            </HelpText>
           </CardContent>
         </Card>
       </div>

@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { requireTeacher } from '@/core/auth/requireTeacher';
 
-import { AppShell, teacherNavItems, ClassroomSubNav, AssignmentDetailClient } from '@/modules';
+import { ClassroomSubNav, AssignmentDetailClient } from '@/modules';
 import { PageHeader, Section } from '@/components';
 import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch';
 
@@ -49,7 +49,7 @@ export default async function Page({
   const currentPath = `/teacher/classrooms/${classroomId}/assignments`;
 
   return (
-    <AppShell navItems={teacherNavItems} currentPath="/teacher/classrooms" width="full">
+    <>
       <PageHeader
         title={`Assignment ${aid}`}
         subtitle="Assignment details — who attempted, who mastered, and who is missing."
@@ -59,6 +59,6 @@ export default async function Page({
         <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
         <AssignmentDetailClient classroomId={classroomId} assignmentId={aid} initial={dto} />
       </Section>
-    </AppShell>
+    </>
   );
 }

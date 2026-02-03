@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { requireTeacher } from '@/core/auth/requireTeacher';
 
-import { AppShell, teacherNavItems, ClassroomSubNav, AssignmentsClient } from '@/modules';
+import { ClassroomSubNav, AssignmentsClient } from '@/modules';
 import { PageHeader, Section } from '@/components';
 import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils';
 
@@ -34,7 +34,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const currentPath = `/teacher/classrooms/${classroomId}/assignments`;
 
   return (
-    <AppShell navItems={teacherNavItems} currentPath="/teacher/classrooms" width="full">
+    <>
       <PageHeader
         title={dto?.classroom?.name ? `${dto.classroom.name}` : `Classroom ${classroomId}`}
         subtitle="Assignments — view past tests, open tests, and upcoming tests."
@@ -44,6 +44,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
         <AssignmentsClient classroomId={classroomId} initial={dto} />
       </Section>
-    </AppShell>
+    </>
   );
 }

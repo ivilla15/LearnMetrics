@@ -3,7 +3,7 @@ import Link from 'next/link';
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ reason?: string; plan?: string }>;
+  searchParams: { reason?: string; plan?: string };
 }) {
   const sp = await searchParams;
   const reason = sp.reason;
@@ -25,22 +25,18 @@ export default async function BillingPage({
         <div className="text-sm text-[hsl(var(--muted-fg))]">Selected plan</div>
         <div className="text-xl font-semibold capitalize">{plan}</div>
 
-        <div className="flex flex-wrap gap-3 pt-2">
+        <div className="flex flex-col w-50 gap-3 pt-2">
           <Link
             className="inline-flex items-center justify-center rounded-full bg-[hsl(var(--brand))] px-5 py-2 text-white font-medium hover:bg-[hsl(var(--brand)/0.92)]"
-            href="/api/billing/checkout?plan=pro"
+            href={`/api/billing/checkout?plan=${encodeURIComponent(plan)}`}
           >
             Continue to checkout
           </Link>
 
           <Link className="underline text-sm" href="/">
-            Back to home
+            Home Page
           </Link>
         </div>
-
-        <p className="text-xs text-[hsl(var(--muted-fg))]">
-          Checkout can be wired to Stripe next. This page is the “upgrade wall” for now.
-        </p>
       </div>
     </main>
   );

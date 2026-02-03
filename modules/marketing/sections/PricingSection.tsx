@@ -48,7 +48,7 @@ const plans: Plan[] = [
       'More analytics over time',
     ],
     cta: 'Get Started',
-    href: '/billing/checkout?plan=pro',
+    href: '/api/billing/checkout?plan=pro',
     popular: true,
   },
   {
@@ -94,7 +94,7 @@ export function PricingSection() {
               <HoverLift>
                 <Card
                   className={[
-                    'relative flex h-full flex-col rounded-[24px] border bg-[hsl(var(--surface))]',
+                    'relative flex h-full flex-col rounded-[24px] border bg-[hsl(var(--surface))] h-140',
                     plan.popular
                       ? 'border-[hsl(var(--brand))] shadow-[0_20px_60px_rgba(0,0,0,0.12)]'
                       : 'border-[hsl(var(--border))] shadow-[0_10px_30px_rgba(0,0,0,0.08)]',

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { requireTeacher } from '@/core';
 
-import { AppShell, teacherNavItems, ClassroomSubNav, ClassroomProgressClient } from '@/modules';
+import { ClassroomSubNav, ClassroomProgressClient } from '@/modules';
 import { PageHeader, Section } from '@/components';
 import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils';
 
@@ -33,7 +33,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const currentPath = `/teacher/classrooms/${classroomId}/progress`;
 
   return (
-    <AppShell navItems={teacherNavItems} currentPath="/teacher/classrooms" width="full">
+    <>
       <PageHeader
         title={`${dto.classroom.name}`}
         subtitle="Progress — class trends, at-risk flags, and the most missed facts."
@@ -43,6 +43,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
         <ClassroomProgressClient classroomId={classroomId} initial={dto} />
       </Section>
-    </AppShell>
+    </>
   );
 }

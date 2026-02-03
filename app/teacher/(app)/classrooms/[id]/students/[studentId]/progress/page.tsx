@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { requireTeacher } from '@/core';
 
-import { AppShell, teacherNavItems, ClassroomSubNav, StudentProgressClient } from '@/modules';
+import { ClassroomSubNav, StudentProgressClient } from '@/modules';
 
 import { PageHeader, Section } from '@/components';
 import { getTeacherStudentProgress } from '@/core/teacher/Progress/studentService';
@@ -43,7 +43,7 @@ export default async function Page({
   const currentPath = `/teacher/classrooms/${classroomId}/students/${sid}/progress`;
 
   return (
-    <AppShell navItems={teacherNavItems} currentPath="/teacher/classrooms" width="full">
+    <>
       <PageHeader
         title={`${dto.student.name}`}
         subtitle={`@${dto.student.username} — Progress report`}
@@ -56,6 +56,6 @@ export default async function Page({
 
         <StudentProgressClient classroomId={classroomId} studentId={sid} initial={dto} />
       </Section>
-    </AppShell>
+    </>
   );
 }

@@ -16,10 +16,17 @@ interface AppShellProps {
   navItems: NavItem[];
   currentPath?: string;
   accountSlot?: React.ReactNode;
+  topSlot?: React.ReactNode;
   width?: 'default' | 'wide' | 'full';
 }
 
-export function AppShell({ children, navItems, currentPath = '', accountSlot }: AppShellProps) {
+export function AppShell({
+  children,
+  navItems,
+  currentPath = '',
+  accountSlot,
+  topSlot,
+}: AppShellProps) {
   const [menuOpen, setMenuOpen] = React.useState(false);
 
   // close on escape
@@ -122,7 +129,10 @@ export function AppShell({ children, navItems, currentPath = '', accountSlot }: 
 
         {/* Main content */}
         <main className="flex-1 min-w-0 overflow-y-auto bg-[hsl(var(--bg))]">
-          <div className="w-full">{children}</div>
+          <div className="w-full">
+            {topSlot ? <div className="w-full">{topSlot}</div> : null}
+            {children}
+          </div>
         </main>
       </div>
 

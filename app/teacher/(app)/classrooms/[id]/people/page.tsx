@@ -1,8 +1,7 @@
-// app/teacher/classrooms/[id]/people/page.tsx
 import * as React from 'react';
 
 import { requireTeacher, getRosterWithLastAttempt } from '@/core';
-import { AppShell, teacherNavItems, ClassroomSubNav, PeopleClient } from '@/modules';
+import { ClassroomSubNav, PeopleClient } from '@/modules';
 import { PageHeader, Section } from '@/components';
 
 export default async function Page({
@@ -36,7 +35,7 @@ export default async function Page({
   const currentPath = `/teacher/classrooms/${classroomId}/people`;
 
   return (
-    <AppShell navItems={teacherNavItems} currentPath="/teacher/classrooms" width="full">
+    <>
       <PageHeader
         title={roster.classroom?.name?.trim() ? roster.classroom.name : `Classroom ${classroomId}`}
         subtitle="People — manage your roster and student access."
@@ -47,6 +46,6 @@ export default async function Page({
 
         <PeopleClient classroomId={classroomId} initialStudents={roster.students} />
       </Section>
-    </AppShell>
+    </>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import {
   Section,
@@ -18,6 +18,10 @@ import {
 
 export default function TeacherLoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const next = searchParams.get('next');
+
   const toast = useToast();
 
   const [email, setEmail] = useState('');
@@ -50,7 +54,11 @@ export default function TeacherLoginPage() {
       }
 
       toast('Welcome back.', 'success');
-      router.push('/teacher/classrooms');
+      if (next && next.startsWith('/')) {
+        router.push(next);
+      } else {
+        router.push('/teacher/classrooms');
+      }
       router.refresh();
     } finally {
       setBusy(false);
@@ -99,7 +107,11 @@ export default function TeacherLoginPage() {
               Need an account?{' '}
               <button
                 type="button"
-                onClick={() => router.push('/teacher/signup')}
+                onClick={() =>
+                  router.push(
+                    next ? `/teacher/signup?next=${encodeURIComponent(next)}` : '/teacher/signup',
+                  )
+                }
                 className="font-semibold text-[hsl(var(--fg))] underline underline-offset-4"
               >
                 Create one

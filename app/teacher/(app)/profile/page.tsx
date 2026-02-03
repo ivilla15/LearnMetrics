@@ -1,9 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { usePathname } from 'next/navigation';
-
-import { AppShell, teacherNavItems } from '@/modules';
 import {
   PageHeader,
   Section,
@@ -59,8 +56,6 @@ function ProfileSkeleton() {
 }
 
 export default function TeacherProfilePage() {
-  const pathname = usePathname();
-
   const [me, setMe] = useState<MeDTO | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -90,7 +85,7 @@ export default function TeacherProfilePage() {
   }, []);
 
   return (
-    <AppShell navItems={teacherNavItems} currentPath={pathname}>
+    <>
       <PageHeader
         title={loading ? 'Profile' : me ? me.name : 'Profile'}
         subtitle={loading ? 'Loading your account…' : me ? 'View your account info' : undefined}
@@ -143,6 +138,6 @@ export default function TeacherProfilePage() {
           </Card>
         </Section>
       )}
-    </AppShell>
+    </>
   );
 }

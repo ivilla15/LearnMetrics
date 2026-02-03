@@ -2,7 +2,7 @@ import { revalidatePath } from 'next/cache';
 
 import { prisma, getTeacherClassroomsWithCounts } from '@/data';
 import { requireTeacher } from '@/core';
-import { AppShell, teacherNavItems, TeacherClassroomsClient, NewClassroomButton } from '@/modules';
+import { TeacherClassroomsClient, NewClassroomButton } from '@/modules';
 import { PageHeader, Section } from '@/components';
 import { createTeacherClassroom } from '@/core/classrooms/createTeacherClassroom';
 
@@ -86,7 +86,7 @@ export default async function TeacherClassroomsPage() {
   const classrooms = await getTeacherClassroomsWithCounts(auth.teacher.id);
 
   return (
-    <AppShell navItems={teacherNavItems} currentPath="/teacher/classrooms" width="full">
+    <>
       <PageHeader
         title="Your Classrooms"
         subtitle="Open a class to manage students, schedules, and tests."
@@ -100,6 +100,6 @@ export default async function TeacherClassroomsPage() {
           deleteAction={deleteClassroomAction}
         />
       </Section>
-    </AppShell>
+    </>
   );
 }

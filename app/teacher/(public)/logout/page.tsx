@@ -26,13 +26,17 @@ export default function TeacherLogoutPage() {
         const res = await fetch('/api/teacher/logout', { method: 'POST' });
         if (!cancelled) {
           if (!res.ok) toast('Logout failed', 'error');
-          else toast('Logged out.', 'success');
+          else {
+            toast('Logged out.', 'success');
+            router.push('/');
+            router.refresh();
+          }
         }
       } catch {
         if (!cancelled) toast('Logout failed', 'error');
       } finally {
         if (!cancelled) {
-          router.push('/teacher/login');
+          router.push('/');
           router.refresh();
         }
       }

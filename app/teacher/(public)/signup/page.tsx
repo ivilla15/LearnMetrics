@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import {
   Section,
@@ -18,6 +18,9 @@ import {
 
 export default function TeacherSignupPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const next = searchParams.get('next');
+
   const toast = useToast();
 
   const [name, setName] = useState('');
@@ -59,8 +62,11 @@ export default function TeacherSignupPage() {
       }
 
       toast('Account created.', 'success');
-      router.push('/teacher/classrooms');
-      router.refresh();
+      if (next && next.startsWith('/')) {
+        router.push(next);
+      } else {
+        router.push('/teacher/classrooms');
+      }
     } finally {
       setBusy(false);
     }
@@ -83,7 +89,7 @@ export default function TeacherSignupPage() {
                 autoComplete="name"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Ms. Johnson"
+                placeholder="John Doe"
               />
             </div>
 
@@ -119,7 +125,11 @@ export default function TeacherSignupPage() {
               Already have an account?{' '}
               <button
                 type="button"
-                onClick={() => router.push('/teacher/login')}
+                onClick={() =>
+                  router.push(
+                    next ? `/teacher/login?next=${encodeURIComponent(next)}` : '/teacher/login',
+                  )
+                }
                 className="font-semibold text-[hsl(var(--fg))] underline underline-offset-4"
               >
                 Sign in

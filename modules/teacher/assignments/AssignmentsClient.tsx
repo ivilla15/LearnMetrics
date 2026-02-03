@@ -12,7 +12,6 @@ import {
   Button,
   Input,
   Label,
-  HelpText,
   useToast,
   Modal,
 } from '@/components';
@@ -177,10 +176,6 @@ export function AssignmentsClient({
               }
             />
           )}
-
-          <HelpText>
-            Tip: Use the table below for Canvas-style browsing when you have lots of assignments.
-          </HelpText>
         </CardContent>
       </Card>
 

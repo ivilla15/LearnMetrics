@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { requireTeacher } from '@/core';
 
-import { AppShell, teacherNavItems, ClassroomSubNav, CalendarClient } from '@/modules';
+import { ClassroomSubNav, CalendarClient } from '@/modules';
 import { PageHeader, Section } from '@/components';
 import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch';
 
@@ -34,13 +34,13 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const currentPath = `/teacher/classrooms/${classroomId}/calendar`;
 
   return (
-    <AppShell navItems={teacherNavItems} currentPath="/teacher/classrooms" width="full">
+    <>
       <PageHeader title="Calendar" subtitle="Plan and manage assignments by date." />
 
       <Section className="space-y-4">
         <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
         <CalendarClient classroomId={classroomId} initial={dto} />
       </Section>
-    </AppShell>
+    </>
   );
 }

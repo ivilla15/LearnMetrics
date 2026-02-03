@@ -1,7 +1,6 @@
-// components/shell/ClassroomShell.tsx
 import * as React from 'react';
 
-import { AppShell, teacherNavItems, ClassroomSubNav } from '@/modules';
+import { ClassroomSubNav } from '@/modules';
 import { PageHeader, Section } from '@/components';
 
 type ClassroomShellProps = {
@@ -9,6 +8,7 @@ type ClassroomShellProps = {
   classroomName: string;
   currentPath: string;
 
+  topSlot?: React.ReactNode;
   actions?: React.ReactNode;
 
   children: React.ReactNode;
@@ -19,23 +19,24 @@ export function ClassroomShell({
   classroomName,
   currentPath,
   actions,
+  topSlot,
   children,
 }: ClassroomShellProps) {
   return (
-    <AppShell navItems={teacherNavItems} currentPath="/teacher/classrooms" width="full">
+    <>
+      {topSlot ? <div>{topSlot}</div> : null}
+
       <PageHeader
         title={classroomName?.trim() ? classroomName : `Classroom ${classroomId}`}
         subtitle="Manage this class."
         actions={actions}
       />
 
-      {/* Sub-nav */}
       <Section>
         <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
       </Section>
 
-      {/* Page content */}
       <Section>{children}</Section>
-    </AppShell>
+    </>
   );
 }

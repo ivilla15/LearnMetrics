@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { requireTeacher } from '@/core/auth/requireTeacher';
 
-import { AppShell, teacherNavItems, ClassroomSubNav } from '@/modules';
+import { ClassroomSubNav } from '@/modules';
 import { PageHeader, Section } from '@/components';
 import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils';
 import PrintCardsClient from './PrintCardsClient';
@@ -42,7 +42,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
   const currentPath = `/teacher/classrooms/${classroomId}/print-cards`;
 
   return (
-    <AppShell navItems={teacherNavItems} currentPath="/teacher/classrooms" width="full">
+    <>
       <div className="print:hidden">
         <PageHeader
           title={title}
@@ -58,6 +58,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
       <Section>
         <PrintCardsClient classroomId={classroomId} />
       </Section>
-    </AppShell>
+    </>
   );
 }
