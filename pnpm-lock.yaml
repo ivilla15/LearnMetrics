@@ -58,6 +58,9 @@ importers:
       sharp:
         specifier: ^0.33.5
         version: 0.33.5
+      stripe:
+        specifier: ^20.3.0
+        version: 20.3.0(@types/node@22.10.7)
       tailwind-merge:
         specifier: ^3.4.0
         version: 3.4.0
@@ -4280,6 +4283,18 @@ packages:
       }
     engines: { node: '>=8' }
 
+  stripe@20.3.0:
+    resolution:
+      {
+        integrity: sha512-DYzcmV1MfYhycr1GwjCjeQVYk9Gu8dpxyTlu7qeDCsuguug7oUTxPsUQuZeSf/OPzK7pofqobvOKVqAwlpgf/Q==,
+      }
+    engines: { node: '>=16' }
+    peerDependencies:
+      '@types/node': '>=16'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
   styled-jsx@5.1.6:
     resolution:
       {
@@ -7120,6 +7135,10 @@ snapshots:
   strip-final-newline@3.0.0: {}
 
   strip-json-comments@3.1.1: {}
+
+  stripe@20.3.0(@types/node@22.10.7):
+    optionalDependencies:
+      '@types/node': 22.10.7
 
   styled-jsx@5.1.6(react@19.0.0):
     dependencies:
