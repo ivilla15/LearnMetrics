@@ -4,6 +4,7 @@ import * as React from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib';
 import { LearnMetricsLogo } from '../marketing/components/LearnMetricsLogo';
+import { Footer } from '@/components/Footer';
 
 interface NavItem {
   label: string;
@@ -49,13 +50,12 @@ export function AppShell({
   }, [menuOpen]);
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--bg))]">
+    <div className="min-h-screen bg-[hsl(var(--bg))] flex flex-col">
       {/* Topbar for mobile */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))] print:hidden md:hidden">
         <LearnMetricsLogo variant="icon-white" />
 
         <div className="flex items-center gap-2">
-          {/* account slot can be shown collapsed on mobile if provided */}
           {accountSlot ? <div className="hidden sm:block">{accountSlot}</div> : null}
 
           <button
@@ -64,7 +64,6 @@ export function AppShell({
             onClick={() => setMenuOpen(true)}
             className="inline-flex items-center justify-center rounded-full p-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
           >
-            {/* simple hamburger icon */}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path
                 d="M4 7h16M4 12h16M4 17h16"
@@ -78,7 +77,8 @@ export function AppShell({
         </div>
       </header>
 
-      <div className="flex min-h-[calc(100vh-48px)]">
+      {/* Body */}
+      <div className="flex flex-1 min-h-0">
         {/* Sidebar (desktop only) */}
         <aside className="hidden md:flex w-60 bg-[hsl(var(--surface))] shadow-[2px_0_24px_rgba(0,0,0,0.08)] flex-col z-10 print:hidden">
           <div
@@ -125,6 +125,11 @@ export function AppShell({
           {accountSlot ? (
             <div className="p-4 border-t border-[hsl(var(--border))]">{accountSlot}</div>
           ) : null}
+
+          {/* ✅ Footer under the sidebar */}
+          <div className="border-t border-[hsl(var(--border))]">
+            <Footer variant="muted" />
+          </div>
         </aside>
 
         {/* Main content */}
@@ -132,6 +137,11 @@ export function AppShell({
           <div className="w-full">
             {topSlot ? <div className="w-full">{topSlot}</div> : null}
             {children}
+          </div>
+
+          {/* ✅ Footer under main content (mobile + no-sidebar widths) */}
+          <div className="md:hidden border-t border-[hsl(var(--border))]">
+            <Footer variant="muted" />
           </div>
         </main>
       </div>
@@ -144,13 +154,11 @@ export function AppShell({
           aria-label="Navigation"
           className="fixed inset-0 z-50 flex items-start justify-center"
         >
-          {/* backdrop */}
           <div
             className="absolute inset-0 bg-black/45 backdrop-blur-sm"
             onClick={() => setMenuOpen(false)}
           />
 
-          {/* panel */}
           <div className="relative mt-12 w-[min(92%,420px)] max-h-[80vh] overflow-auto rounded-2xl bg-[hsl(var(--surface))] shadow-[0_10px_40px_rgba(0,0,0,0.25)] p-4 print:hidden">
             <div className="flex items-center justify-between mb-3">
               <Link href="/" className="flex items-center">

@@ -1,3 +1,4 @@
+import { Footer } from '@/components/Footer';
 import { MarketingPageClient } from '@/modules/marketing';
 import { cookies } from 'next/headers';
 
@@ -32,6 +33,7 @@ export default async function HomePage() {
         secondaryLink={secondaryLink}
         isLoggedIn={isLoggedIn}
       />
+      <Footer variant="brand-solid" />
     </main>
   );
 }

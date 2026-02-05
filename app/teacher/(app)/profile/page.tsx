@@ -13,6 +13,8 @@ import {
   Button,
 } from '@/components';
 import { MeDTO } from '@/types';
+import { AppShell, teacherNavItems } from '@/modules';
+import { usePathname } from 'next/navigation';
 
 function ProfileSkeleton() {
   return (
@@ -58,6 +60,7 @@ function ProfileSkeleton() {
 export default function TeacherProfilePage() {
   const [me, setMe] = useState<MeDTO | null>(null);
   const [loading, setLoading] = useState(true);
+  const pathname = usePathname() ?? '';
 
   useEffect(() => {
     let cancelled = false;
@@ -85,7 +88,7 @@ export default function TeacherProfilePage() {
   }, []);
 
   return (
-    <>
+    <AppShell navItems={teacherNavItems} currentPath={pathname} width="full">
       <PageHeader
         title={loading ? 'Profile' : me ? me.name : 'Profile'}
         subtitle={loading ? 'Loading your account…' : me ? 'View your account info' : undefined}
@@ -138,6 +141,6 @@ export default function TeacherProfilePage() {
           </Card>
         </Section>
       )}
-    </>
+    </AppShell>
   );
 }
