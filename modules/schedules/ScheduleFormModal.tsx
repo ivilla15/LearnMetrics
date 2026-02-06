@@ -201,11 +201,6 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
               </div>
             </div>
           </div>
-
-          <HelpText>
-            Open time uses <span className="font-medium">opensAtLocalTime</span> (e.g. 08:00). Your
-            backend can interpret this per classroom timezone rules later if you want.
-          </HelpText>
         </div>
       </div>
     </Modal>

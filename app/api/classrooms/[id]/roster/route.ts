@@ -3,6 +3,7 @@ import { classroomIdParamSchema } from '@/validation/classrooms.schema';
 import { jsonResponse, errorResponse } from '@/utils/http';
 import { RouteContext, handleApiError } from '@/app';
 import { prisma } from '@/data/prisma';
+import z from 'zod';
 
 export async function GET(_request: Request, context: RouteContext) {
   const { id } = await context.params;
@@ -52,8 +53,8 @@ export async function GET(_request: Request, context: RouteContext) {
         {
           classroom: {
             id: classroomId,
-            name: 'Unavailable (dev)',
-            timeZone: 'America/Los_Angeles',
+            name: z.string().trim().min(1).max(80),
+            timeZone: z.string().optional(),
           },
           students: [],
           warning: 'Roster temporarily unavailable (pooler/prepared-statement issue in dev).',

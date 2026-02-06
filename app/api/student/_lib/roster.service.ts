@@ -9,6 +9,7 @@ import {
 } from '@/core/auth/setupCodes';
 
 import type { AttemptSummary, BulkCreateStudentArgs, StudentRosterRow } from '@/types';
+import { requireWithinTrialLimits } from '@/core/billing/entitlement';
 
 async function requireTeacherOwnsClassroom(teacherId: number, classroomId: number) {
   const ok = await prisma.classroom.findFirst({
@@ -25,6 +26,14 @@ export async function bulkCreateClassroomStudents(args: BulkCreateStudentArgs): 
   const { teacherId, classroomId, students } = args;
 
   await requireTeacherOwnsClassroom(teacherId, classroomId);
+
+  const gate = await requireWithinTrialLimits({
+    teacherId,
+    classroomId,
+    kind: 'ADD_STUDENTS',
+    addStudentsCount: students.length,
+  });
+  if (!gate.ok) throw new ConflictError(gate.error);
 
   const saltRounds = 10;
   const expiresAt = expiresAtFromNowHours(SETUP_CODE_TTL_HOURS);

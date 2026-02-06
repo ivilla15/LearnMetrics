@@ -15,20 +15,23 @@ export function RecentAssignmentsCards({
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {rows.map((t) => (
-        <Tile key={t.assignmentId}>
+        <Tile
+          key={t.assignmentId}
+          className="group cursor-pointer transition-colors hover:bg-[hsl(var(--surface-2))]"
+        >
           <button
             type="button"
             onClick={() => onOpen(t.assignmentId)}
-            className="text-left rounded-[14px] bg-[hsl(var(--surface))] p-4 transition-colors cursor-pointer hover:bg-[hsl(var(--surface-2))]"
+            className="w-full text-left rounded-[14px] bg-transparent p-4 transition-colors"
           >
             <div className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--muted-fg))]">
               Opens: {formatLocal(t.opensAt)}
             </div>
 
             <div className="mt-2 flex flex-wrap gap-2">
-              {Badge(t.assignmentMode, 'muted')}
-              {Badge(t.kind, 'muted')}
-              {Badge(`${t.numQuestions} Q`, 'muted')}
+              {Badge({ text: `${t.assignmentMode}`, tone: 'muted' })}
+              {Badge({ text: `${t.kind}`, tone: 'muted' })}
+              {Badge({ text: `${t.numQuestions}`, tone: 'muted' })}
             </div>
 
             <div className="mt-3 grid grid-cols-3 gap-3">

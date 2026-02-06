@@ -2,6 +2,7 @@ import { prisma } from '@/data';
 import { NotFoundError, ConflictError } from '@/core';
 import { Prisma } from '@prisma/client';
 import { AssignmentDTO, AssignmentRow } from '@/types';
+import { requireTeacherActiveEntitlement } from '@/core/billing/entitlement';
 
 type Params = {
   classroomId: number;
@@ -66,9 +67,20 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
 
   const classroom = await prisma.classroom.findUnique({
     where: { id: classroomId },
-    select: { id: true },
+    select: { id: true, teacherId: true },
   });
   if (!classroom) throw new NotFoundError('Classroom not found');
+
+  // ENTITLEMENT GATE: refuse creation when teacher entitlement is NOT active (expired/canceled).
+  // Note: requireTeacherActiveEntitlement returns { ok: true, entitlement } for active; { ok: false } otherwise.
+  const entGate = await requireTeacherActiveEntitlement(classroom.teacherId);
+  if (!entGate.ok) {
+    // Block creation if entitlement is not active (scheduler will auto-deactivate schedules).
+    throw new ConflictError(entGate.error);
+  }
+
+  // IMPORTANT: trial users are allowed to create MANUAL assignments.
+  // Therefore, no further blocking for manual mode for TRIAL.
 
   let normalizedStudentIds: number[] | null = null;
 
@@ -88,6 +100,7 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
     normalizedStudentIds = uniq;
   }
 
+  // If not from a schedule run, create directly
   if (scheduleId == null) {
     const created: AssignmentRow = await prisma.assignment.create({
       data: {
@@ -126,6 +139,7 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
     return toDto(created);
   }
 
+  // ---- schedule-run path (idempotent via assignmentScheduleRun) ----
   const dto = await prisma.$transaction(async (tx) => {
     const run = await tx.assignmentScheduleRun.upsert({
       where: {
@@ -210,6 +224,7 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
+        // Unique constraint (another process created the assignment) — fall back to existing.
         const existing = await tx.assignment.findFirst({
           where: { scheduleId, opensAt },
           select: {
@@ -226,7 +241,6 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
         });
 
         if (!existing) throw err;
-
         created = existing as AssignmentRow;
       } else {
         throw err;

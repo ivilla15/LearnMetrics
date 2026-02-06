@@ -12,7 +12,8 @@ import {
   Button,
   Input,
   Label,
-  HelpText,
+  useToast,
+  Modal,
 } from '@/components';
 
 import type {
@@ -39,6 +40,10 @@ export function AssignmentsClient({
 
   const [status, setStatus] = React.useState<AssignmentStatusFilter>('all');
   const [search, setSearch] = React.useState('');
+
+  const toast = useToast();
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<number | null>(null);
+  const [deleteBusy, setDeleteBusy] = React.useState(false);
 
   const [assignOpen, setAssignOpen] = React.useState(false);
   const [assignStudents, setAssignStudents] = React.useState<
@@ -171,10 +176,6 @@ export function AssignmentsClient({
               }
             />
           )}
-
-          <HelpText>
-            Tip: Use the table below for Canvas-style browsing when you have lots of assignments.
-          </HelpText>
         </CardContent>
       </Card>
 
@@ -252,6 +253,7 @@ export function AssignmentsClient({
             onOpen={(assignmentId) =>
               router.push(`/teacher/classrooms/${classroomId}/assignments/${assignmentId}`)
             }
+            onDelete={(assignmentId) => setConfirmDeleteId(assignmentId)}
           />
 
           {data.nextCursor ? (
@@ -283,6 +285,65 @@ export function AssignmentsClient({
       ) : null}
 
       {assignError ? <div className="text-xs text-[hsl(var(--danger))]">{assignError}</div> : null}
+      <Modal
+        open={confirmDeleteId !== null}
+        onClose={() => setConfirmDeleteId(null)}
+        title="Delete assignment?"
+        description="This will permanently delete the assignment. This cannot be undone."
+        footer={
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="secondary"
+              onClick={() => setConfirmDeleteId(null)}
+              disabled={deleteBusy}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              variant="destructive"
+              disabled={deleteBusy}
+              onClick={async () => {
+                if (!confirmDeleteId) return;
+
+                try {
+                  setDeleteBusy(true);
+
+                  const res = await fetch(
+                    `/api/classrooms/${classroomId}/assignments/${confirmDeleteId}`,
+                    { method: 'DELETE', credentials: 'include' },
+                  );
+
+                  if (res.status !== 204) {
+                    const data = await res.json().catch(() => null);
+                    throw new Error(
+                      typeof data?.error === 'string' ? data.error : 'Failed to delete assignment',
+                    );
+                  }
+
+                  toast('Assignment deleted', 'success');
+                  setConfirmDeleteId(null);
+
+                  // refresh list
+                  router.refresh();
+                } catch (err) {
+                  console.error(err);
+                  toast((err as Error)?.message ?? 'Failed to delete assignment', 'error');
+                } finally {
+                  setDeleteBusy(false);
+                }
+              }}
+            >
+              {deleteBusy ? 'Deleting…' : 'Delete assignment'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="rounded-(--radius) border border-[hsl(var(--danger)/0.25)] bg-[hsl(var(--danger)/0.06)] p-3 text-sm">
+          Deleting an assignment removes it from this classroom. Students will no longer be able to
+          access it.
+        </div>
+      </Modal>
     </div>
   );
 }

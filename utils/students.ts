@@ -1,5 +1,3 @@
-// utils/students.ts
-
 export type NewStudentName = {
   firstName: string;
   lastName: string;
@@ -12,7 +10,9 @@ export type NewStudentInput = {
   level: number;
 };
 
-// Normalize and generate username from first + last with uniqueness
+const LEVEL_MIN = 1;
+const LEVEL_MAX = 12;
+
 export function generateUsernames(names: NewStudentName[], existingUsernames: string[]): string[] {
   const taken = new Set(existingUsernames.map((u) => u.toLowerCase()));
   const results: string[] = [];
@@ -59,4 +59,74 @@ export function generatePasswords(count: number): string[] {
 export function parsePositiveInt(raw: string | undefined | null) {
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+function clampLevel(n: number) {
+  return Math.max(LEVEL_MIN, Math.min(LEVEL_MAX, n));
+}
+
+type ParsedStudentDraft = {
+  firstName: string;
+  lastName: string;
+  level: number;
+};
+
+function splitOnceComma(line: string): [string, string | null] {
+  const idx = line.indexOf(',');
+  if (idx === -1) return [line, null];
+  return [line.slice(0, idx), line.slice(idx + 1)];
+}
+
+/**
+ * Accepts lines like:
+ * - "John Ulises"
+ * - "John Ulises, 5"
+ */
+export function parseBulkStudentsText(
+  input: string,
+  existingUsernames: string[],
+): NewStudentInput[] {
+  const lines = input
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const drafts: ParsedStudentDraft[] = [];
+
+  for (const line of lines) {
+    const [nameRaw, levelRaw] = splitOnceComma(line);
+    const namePart = (nameRaw ?? '').trim();
+
+    const nameTokens = namePart.split(/\s+/).filter(Boolean);
+    if (nameTokens.length < 2) {
+      throw new Error(`Each line must be "First Last" (optionally ", level"): "${line}"`);
+    }
+
+    const firstName = nameTokens[0];
+    const lastName = nameTokens.slice(1).join(' ');
+
+    let level = 1;
+    if (levelRaw && levelRaw.trim().length > 0) {
+      const parsed = Number.parseInt(levelRaw.trim(), 10);
+      if (Number.isNaN(parsed)) {
+        throw new Error(`Invalid level in line: "${line}"`);
+      }
+      level = clampLevel(parsed);
+    }
+
+    drafts.push({ firstName, lastName, level });
+  }
+
+  // generate usernames once, using drafts + existingUsernames
+  const usernames = generateUsernames(
+    drafts.map(({ firstName, lastName }) => ({ firstName, lastName })),
+    existingUsernames,
+  );
+
+  return drafts.map((d, i) => ({
+    firstName: d.firstName,
+    lastName: d.lastName,
+    username: usernames[i],
+    level: d.level,
+  }));
 }

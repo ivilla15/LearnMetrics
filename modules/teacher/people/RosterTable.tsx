@@ -18,7 +18,7 @@ import {
   Label,
   Modal,
 } from '@/components';
-import { generateUsernames, type NewStudentName, type NewStudentInput } from '@/utils/students';
+import { type NewStudentInput, parseBulkStudentsText } from '@/utils/students';
 
 type SetupCodeRow = {
   studentId: number;
@@ -147,24 +147,8 @@ export function RosterTable({
     setBulkError(null);
   };
 
-  const parseNames = (raw: string): NewStudentName[] => {
-    return raw
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .map((line) => {
-        const parts = line.split(/\s+/);
-        const firstName = parts[0] ?? '';
-        const lastName = parts.slice(1).join(' ') || '';
-        return { firstName, lastName };
-      })
-      .filter((n) => n.firstName && n.lastName);
-  };
-
   const handleSaveAdd = async () => {
-    const names = parseNames(bulkNamesText);
-
-    if (!names.length) {
+    if (!bulkNamesText.trim()) {
       setBulkError('Please enter at least one line with "First Last".');
       return;
     }
@@ -172,14 +156,13 @@ export function RosterTable({
     try {
       setBulkError(null);
 
-      const usernames = generateUsernames(names, existingUsernames);
+      // parseBulkStudentsText will throw on bad lines (we catch below)
+      const payload = parseBulkStudentsText(bulkNamesText, existingUsernames);
 
-      const payload: NewStudentInput[] = names.map((n, idx) => ({
-        firstName: n.firstName,
-        lastName: n.lastName,
-        username: usernames[idx],
-        level: 1,
-      }));
+      if (!payload.length) {
+        setBulkError('Please enter at least one valid "First Last" line.');
+        return;
+      }
 
       const result = await onBulkAdd(payload);
 
@@ -187,7 +170,7 @@ export function RosterTable({
       setBulkNamesText('');
       toast(`Added ${payload.length} student${payload.length === 1 ? '' : 's'}`, 'success');
 
-      if (result.setupCodes.length > 0) {
+      if (Array.isArray(result.setupCodes) && result.setupCodes.length > 0) {
         router.push(`/teacher/classrooms/${classroomId}/print-cards`);
       } else {
         toast(
@@ -197,11 +180,11 @@ export function RosterTable({
       }
     } catch (err) {
       console.error(err);
-      setBulkError('Could not add students. Please try again.');
+      const message = (err as Error)?.message || 'Could not add students. Please try again.';
+      setBulkError(message);
       toast('Failed to add students', 'error');
     }
   };
-
   // ----- Edit row -----
   const startEditing = (student: StudentRow) => {
     setEditing({
@@ -318,7 +301,10 @@ export function RosterTable({
               <div className="text-sm font-semibold text-[hsl(var(--fg))]">
                 Add multiple students
               </div>
-              <HelpText>One student per line in the format: First Last</HelpText>
+              <HelpText>
+                One student per line. Optionally append a level after a comma:{' '}
+                <code>First Last, 5</code>
+              </HelpText>
             </div>
 
             <div className="grid gap-2">
@@ -329,7 +315,7 @@ export function RosterTable({
                 value={bulkNamesText}
                 onChange={(e) => setBulkNamesText(e.target.value)}
                 className="w-full rounded-(--radius) hover:-translate-y-px bg-[hsl(var(--surface))] px-3 py-2 text-sm outline-none focus:border-[hsl(var(--border-strong))]"
-                placeholder={`Ada Lovelace\nAlan Turing\nGrace Hopper`}
+                placeholder={`Ada Lovelace\nAlan Turing, 5\nGrace Hopper, 12`}
               />
               {bulkError ? (
                 <div className="text-xs text-[hsl(var(--danger))]">{bulkError}</div>

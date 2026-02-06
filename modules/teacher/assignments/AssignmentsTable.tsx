@@ -6,10 +6,12 @@ import { formatLocal } from '@/lib';
 export function AssignmentsTable({
   rows,
   onOpen,
+  onDelete,
 }: {
   classroomId: number;
   rows: TeacherAssignmentListItem[];
   onOpen: (assignmentId: number) => void;
+  onDelete: (assignmentId: number) => void;
 }) {
   return (
     <div className="overflow-x-auto rounded-[28px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] overflow-hidden bg-[hsl(var(--surface))]">
@@ -60,9 +62,12 @@ export function AssignmentsTable({
                 <td className="py-3 px-3 text-center">{a.stats.masteryRate}%</td>
                 <td className="py-3 px-3 text-center">{a.stats.avgPercent}%</td>
 
-                <td className="py-3 pl-3 pr-5 text-right">
+                <td className="py-3 pl-3 pr-5 flex justify-end gap-4">
                   <Button variant="secondary" size="sm" onClick={() => onOpen(a.assignmentId)}>
                     View
+                  </Button>
+                  <Button variant="destructive" size="sm" onClick={() => onDelete(a.assignmentId)}>
+                    Delete
                   </Button>
                 </td>
               </tr>

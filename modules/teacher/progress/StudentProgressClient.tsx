@@ -173,12 +173,16 @@ export function StudentProgressClient({ classroomId, studentId, initial }: Props
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {s.flags?.needsSetup ? Badge('Needs setup', 'warning') : Badge('Active', 'success')}
-            {s.flags?.atRisk ? Badge('At-risk', 'danger') : null}
-            {s.flags?.stale14Days ? Badge('14+ days', 'warning') : null}
-            {s.flags?.nonMasteryStreak2 ? Badge('2+ not mastery', 'warning') : null}
-            {s.flags?.noAttemptsInRange ? Badge('No attempts', 'muted') : null}
-            {s.flags?.missedLastTest ? Badge('Missed last test', 'warning') : null}
+            {s.flags?.needsSetup ? (
+              <Badge tone="warning">Needs setup</Badge>
+            ) : (
+              <Badge tone="success">Active</Badge>
+            )}
+            {s.flags?.atRisk && <Badge tone="danger">At-risk</Badge>}
+            {s.flags?.stale14Days && <Badge tone="warning">14+ days</Badge>}
+            {s.flags?.nonMasteryStreak2 && <Badge tone="warning">2+ not mastery</Badge>}
+            {s.flags?.noAttemptsInRange && <Badge tone="muted">No attempts</Badge>}
+            {s.flags?.missedLastTest && <Badge tone="warning">Missed last test</Badge>}
           </div>
 
           <HelpText>

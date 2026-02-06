@@ -339,13 +339,6 @@ export function AttemptExplorer({
                     if (!row.attemptId) return;
                     void openDetail(row.attemptId);
                   }}
-                  helpText={
-                    hideControls
-                      ? null
-                      : nextCursor
-                        ? null
-                        : 'New attempts will appear at the bottom.'
-                  }
                 />
               )}
 
@@ -354,9 +347,6 @@ export function AttemptExplorer({
                   <Button variant="secondary" disabled={loadingMore} onClick={loadMore}>
                     {loadingMore ? 'Loading…' : 'Load more'}
                   </Button>
-                  <div className="text-xs text-[hsl(var(--muted-fg))]">
-                    New attempts will appear at the bottom.
-                  </div>
                 </div>
               ) : null}
             </CardContent>

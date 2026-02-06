@@ -345,12 +345,6 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
             />
           </div>
 
-          <HelpText>
-            Range affects: score buckets, missed facts, and range-based flags
-            (median/mastery/attempts). Streaks, last attempt, and last-3 trend use a longer recent
-            window.
-          </HelpText>
-
           {/* Today’s focus */}
           <div className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4">
             <div className="flex items-start justify-between gap-3">
@@ -389,7 +383,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                       {s.username}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {Badge(`Lvl ${s.level}`, 'muted')}
+                      {Badge({ text: `Lvl ${s.level}`, tone: 'muted' })}
                     </div>
                     <div className="mt-2 text-xs text-[hsl(var(--muted-fg))]">
                       Last attempt: {formatLocal(s.lastAttemptAt ?? null)}
@@ -422,8 +416,8 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                       {formatLocal(t.opensAt)}
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      {Badge(t.assignmentMode, 'muted')}
-                      {Badge(`${t.numQuestions} Q`, 'muted')}
+                      {Badge({ text: `${t.assignmentMode}`, tone: 'muted' })}
+                      {Badge({ text: `${t.numQuestions} Q`, tone: 'muted' })}
                     </div>
 
                     <div className="mt-3 grid grid-cols-3 gap-3">
@@ -470,7 +464,7 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
       <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
         <CardHeader>
           <CardTitle>Score Distribution</CardTitle>
-          <CardDescription>How attempts are clustered by score range.</CardDescription>
+          <CardDescription>Current student percentages accross the class last test</CardDescription>
         </CardHeader>
 
         <CardContent>
@@ -843,17 +837,19 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                             </div>
 
                             <div className="flex flex-wrap gap-2 pt-1">
-                              {s.flags?.needsSetup
-                                ? Badge('Needs setup', 'warning')
-                                : Badge('Active', 'success')}
-                              {s.flags?.atRisk ? Badge('At-risk', 'danger') : null}
-                              {s.flags?.stale14Days ? Badge('14+ days', 'warning') : null}
-                              {s.flags?.nonMasteryStreak2
-                                ? Badge('2+ not mastery', 'warning')
-                                : null}
-                              {s.flags?.missedLastTest
-                                ? Badge('Missed last test', 'warning')
-                                : null}
+                              {s.flags?.needsSetup ? (
+                                <Badge tone="warning">Needs setup</Badge>
+                              ) : (
+                                <Badge tone="success">Active</Badge>
+                              )}
+                              {s.flags?.atRisk && <Badge tone="danger">At-risk</Badge>}
+                              {s.flags?.stale14Days && <Badge tone="warning">14+ days</Badge>}
+                              {s.flags?.nonMasteryStreak2 && (
+                                <Badge tone="warning">2+ not mastery</Badge>
+                              )}
+                              {s.flags?.missedLastTest && (
+                                <Badge tone="warning">Missed last test</Badge>
+                              )}
                             </div>
                           </div>
                         </td>
@@ -862,24 +858,28 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                         <td className="py-3 px-3">
                           <div className="flex flex-col gap-1">
                             <div>{formatLocal(s.lastAttemptAt)}</div>
-
-                            {hasLastTest
-                              ? s.flags?.missedLastTest
-                                ? Badge('Missing', 'warning')
-                                : s.flags?.lastTestMastery
-                                  ? Badge('Mastered', 'success')
-                                  : s.flags?.lastTestAttempted
-                                    ? Badge('Not mastered', 'danger')
-                                    : Badge('—', 'muted')
-                              : Badge('—', 'muted')}
+                            {hasLastTest ? (
+                              s.flags?.missedLastTest ? (
+                                <Badge tone="warning">Missing</Badge>
+                              ) : s.flags?.lastTestMastery ? (
+                                <Badge tone="success">Mastered</Badge>
+                              ) : s.flags?.lastTestAttempted ? (
+                                <Badge tone="danger">Not mastered</Badge>
+                              ) : (
+                                <Badge tone="muted">—</Badge>
+                              )
+                            ) : (
+                              <Badge tone="muted">—</Badge>
+                            )}
                           </div>
                         </td>
+
                         <td className="py-3 px-3 text-center">
                           {s.lastPercent === null ? (
                             '—'
                           ) : (
                             <span className="inline-flex justify-center">
-                              {Badge(`${s.lastPercent}%`, pctTone(s.lastPercent))}
+                              <Badge tone={pctTone(s.lastPercent)}>{s.lastPercent}%</Badge>
                             </span>
                           )}
                         </td>
@@ -889,7 +889,9 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                             '—'
                           ) : (
                             <span className="inline-flex justify-center">
-                              {Badge(`${s.avgPercentInRange}%`, pctTone(s.avgPercentInRange))}
+                              <Badge tone={pctTone(s.avgPercentInRange)}>
+                                {s.avgPercentInRange}%
+                              </Badge>
                             </span>
                           )}
                         </td>
@@ -899,25 +901,33 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                             '—'
                           ) : (
                             <span className="inline-flex justify-center">
-                              {Badge(`${s.masteryRateInRange}%`, pctTone(s.masteryRateInRange))}
+                              <Badge tone={pctTone(s.masteryRateInRange)}>
+                                {s.masteryRateInRange}%
+                              </Badge>
                             </span>
                           )}
                         </td>
+
                         <td className="py-3 px-3 text-center">
-                          {s.masteryStreak > 0
-                            ? Badge(`M${s.masteryStreak}`, 'success')
-                            : s.nonMasteryStreak > 0
-                              ? Badge(`N${s.nonMasteryStreak}`, 'danger')
-                              : Badge('0', 'warning')}
+                          {s.masteryStreak > 0 ? (
+                            <Badge tone="success">M{s.masteryStreak}</Badge>
+                          ) : s.nonMasteryStreak > 0 ? (
+                            <Badge tone="danger">N{s.nonMasteryStreak}</Badge>
+                          ) : (
+                            <Badge tone="warning">0</Badge>
+                          )}
                         </td>
+
                         <td className="py-3 px-3">
-                          {s.trendLast3 === 'improving'
-                            ? Badge('Improving', 'success')
-                            : s.trendLast3 === 'regressing'
-                              ? Badge('Regressing', 'warning')
-                              : s.trendLast3 === 'flat'
-                                ? Badge('Flat', 'muted')
-                                : Badge('Need 3 attempts', 'muted')}
+                          {s.trendLast3 === 'improving' ? (
+                            <Badge tone="success">Improving</Badge>
+                          ) : s.trendLast3 === 'regressing' ? (
+                            <Badge tone="warning">Regressing</Badge>
+                          ) : s.trendLast3 === 'flat' ? (
+                            <Badge tone="muted">Flat</Badge>
+                          ) : (
+                            <Badge tone="muted">Need 3 attempts</Badge>
+                          )}
                         </td>
 
                         <td className="py-3 pl-3 pr-5 text-right">
@@ -955,10 +965,6 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
                 </tbody>
               </table>
             </div>
-
-            <HelpText>
-              Next upgrade: “Print report” should open a print-friendly report layout route.
-            </HelpText>
           </CardContent>
         </Card>
       </div>

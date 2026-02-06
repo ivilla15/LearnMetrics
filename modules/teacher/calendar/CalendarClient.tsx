@@ -400,10 +400,7 @@ export function CalendarClient({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle>{monthLabel(month)}</CardTitle>
-              <CardDescription>
-                Click an item to view details. Calendar is based on{' '}
-                <span className="font-medium">opensAt</span> in the classroom timezone.
-              </CardDescription>
+              <CardDescription>Click an item to view details.</CardDescription>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -498,11 +495,6 @@ export function CalendarClient({
               );
             })}
           </div>
-
-          <HelpText>
-            Upcoming tests are projections. You can edit them — saving will create the real
-            assignment (idempotent by schedule + run date).
-          </HelpText>
         </CardContent>
       </Card>
 
