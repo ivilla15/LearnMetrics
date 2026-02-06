@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import Link from 'next/link';
 import {
   Card,
   CardContent,
@@ -17,6 +18,19 @@ import { useSchedules } from './useSchedules';
 import { ScheduleFormModal } from './ScheduleFormModal';
 import { formatTimeAmPm } from '@/utils/time';
 
+type ScheduleGate =
+  | { ok: true }
+  | {
+      ok: false;
+      reason:
+        | 'TRIAL_LIMIT_REACHED'
+        | 'ENTITLEMENT_REQUIRED'
+        | 'SUBSCRIPTION_CANCELED'
+        | 'SUBSCRIPTION_EXPIRED';
+      message: string;
+      upgradeHref: string; // e.g. "/billing?reason=expired"
+    };
+
 function scheduleSummary(s: ScheduleDTO) {
   const days = Array.isArray(s.days) ? s.days.join(', ') : '—';
   return `${days} • ${formatTimeAmPm(s.opensAtLocalTime)} • ${s.numQuestions} Q • ${s.windowMinutes} min`;
@@ -25,9 +39,11 @@ function scheduleSummary(s: ScheduleDTO) {
 export function SchedulesClient({
   classroomId,
   initial,
+  gate,
 }: {
   classroomId: number;
   initial?: ScheduleDTO[];
+  gate: ScheduleGate;
 }) {
   const { schedules, loading, createSchedule, updateSchedule, deleteSchedule } = useSchedules(
     classroomId,
@@ -45,7 +61,13 @@ export function SchedulesClient({
   const [busy, setBusy] = React.useState(false);
   const [formError, setFormError] = React.useState<string | null>(null);
 
+  const canCreate = gate.ok;
+
   function openCreate() {
+    if (!canCreate) {
+      toast(gate.message, 'error');
+      return;
+    }
     setMode('create');
     setEditing(null);
     setFormError(null);
@@ -68,7 +90,14 @@ export function SchedulesClient({
   }) {
     setBusy(true);
     setFormError(null);
+
     try {
+      if (mode === 'create' && !canCreate) {
+        setFormError(gate.message);
+        toast(gate.message, 'error');
+        return;
+      }
+
       if (mode === 'edit' && editing) {
         await updateSchedule(editing.id, input);
         toast('Successfully edited schedule', 'success');
@@ -76,6 +105,7 @@ export function SchedulesClient({
         await createSchedule(input);
         toast('Successfully created schedule', 'success');
       }
+
       setModalOpen(false);
       setEditing(null);
     } catch (e) {
@@ -99,6 +129,34 @@ export function SchedulesClient({
 
   return (
     <div className="space-y-6">
+      {/* Gate banner (only when locked) */}
+      {!gate.ok ? (
+        <Card className="rounded-[28px] border border-[hsl(var(--brand)/0.22)] bg-[hsl(var(--brand)/0.10)] shadow-[0_20px_60px_rgba(0,0,0,0.06)]">
+          <CardContent className="p-5 sm:p-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  {pill('Upgrade required', 'warning')}
+                  <div className="text-sm font-semibold text-[hsl(var(--fg))]">
+                    Scheduling is locked
+                  </div>
+                </div>
+                <p className="mt-2 text-sm text-[hsl(var(--muted-fg))]">{gate.message}</p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button href={gate.upgradeHref} variant="primary" size="sm">
+                  Upgrade
+                </Button>
+                <Button href="/#pricing" variant="secondary" size="sm">
+                  View plans
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      ) : null}
+
       {/* Active schedules */}
       <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
         <CardHeader>
@@ -108,10 +166,22 @@ export function SchedulesClient({
               <CardDescription>These schedules are currently running.</CardDescription>
             </div>
 
-            <Button variant="primary" onClick={openCreate}>
+            <Button variant="primary" onClick={openCreate} disabled={!canCreate}>
               Create schedule
             </Button>
           </div>
+
+          {!canCreate ? (
+            <div className="mt-3 text-xs text-[hsl(var(--muted-fg))]">
+              <span>{gate.message} </span>
+              <Link
+                href={gate.upgradeHref}
+                className="font-semibold text-[hsl(var(--fg))] underline underline-offset-4"
+              >
+                Upgrade
+              </Link>
+            </div>
+          ) : null}
         </CardHeader>
 
         <CardContent className="space-y-3">

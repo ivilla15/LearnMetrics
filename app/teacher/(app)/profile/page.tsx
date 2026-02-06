@@ -12,48 +12,40 @@ import {
   Skeleton,
   Button,
 } from '@/components';
-import { MeDTO } from '@/types';
+import type { MeDTO } from '@/types';
 import { AppShell, teacherNavItems } from '@/modules';
 import { usePathname } from 'next/navigation';
 
 function ProfileSkeleton() {
   return (
-    <>
-      <Section>
-        <Card>
-          <CardHeader>
+    <Section>
+      <Card>
+        <CardHeader>
+          <div className="space-y-2">
+            <Skeleton className="h-5 w-28" />
+            <Skeleton className="h-4 w-52" />
+          </div>
+        </CardHeader>
+
+        <CardContent className="min-h-[180px]">
+          <div className="grid gap-6 md:grid-cols-3 md:items-end">
             <div className="space-y-2">
-              <Skeleton className="h-5 w-28" />
-              <Skeleton className="h-4 w-52" />
-            </div>
-          </CardHeader>
-
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-6 w-56" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-6 w-40" />
-              </div>
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-56" />
             </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-6 w-48" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-6 w-28" />
-              </div>
+            <div className="space-y-2">
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-6 w-40" />
             </div>
-          </CardContent>
-        </Card>
-      </Section>
-    </>
+
+            <div className="flex md:justify-end">
+              <Skeleton className="h-10 w-40" />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Section>
   );
 }
 
@@ -112,30 +104,25 @@ export default function TeacherProfilePage() {
               <CardDescription>Your teacher details</CardDescription>
             </CardHeader>
 
-            <CardContent className="grid gap-6 sm:grid-cols-2">
-              <div>
-                <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
-                  Name
+            <CardContent className="min-h-[100px]">
+              <div className="grid gap-6 md:grid-cols-3 md:items-end">
+                <div>
+                  <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+                    Name
+                  </div>
+                  <div className="mt-2 text-[17px] font-semibold">{me.name}</div>
                 </div>
-                <div className="mt-2 text-[17px] font-semibold">{me.name}</div>
-              </div>
 
-              <div>
-                <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
-                  Email
+                <div>
+                  <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+                    Email
+                  </div>
+                  <div className="mt-2 text-[17px] font-semibold">{me.email}</div>
                 </div>
-                <div className="mt-2 text-[17px] font-semibold">{me.email}</div>
-              </div>
 
-              <div>
-                <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
-                  Teacher ID
+                <div className="flex md:justify-end">
+                  <Button variant="destructive">Reset Password</Button>
                 </div>
-                <div className="mt-2 text-[17px] font-semibold">{me.id}</div>
-              </div>
-
-              <div>
-                <Button variant={'destructive'}>Reset Password</Button>
               </div>
             </CardContent>
           </Card>
