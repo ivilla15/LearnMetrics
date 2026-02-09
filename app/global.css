@@ -124,8 +124,13 @@
     border-radius: 8px;
   }
 
+  /* Works across light/dark/colored backgrounds without changing text color */
   ::selection {
-    background: hsl(var(--brand) / 0.2);
+    background: rgba(0, 153, 255, 0.35);
+  }
+
+  ::-moz-selection {
+    background: rgba(0, 153, 255, 0.35);
   }
 
   hr {
@@ -134,7 +139,7 @@
   }
 }
 
-/* ---------- Utils ---------- */
+/* ---------- Print utilities ---------- */
 .lm-print-only {
   display: none;
 }
@@ -143,10 +148,22 @@
   .lm-no-print {
     display: none !important;
   }
+
   .lm-print-only {
     display: block !important;
   }
+
+  .lm-print-root {
+    padding: 0;
+    margin: 0;
+  }
+
   * {
-    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  @page {
+    margin: 12mm;
   }
 }

@@ -5,7 +5,6 @@ export * from './attempts';
 export * from './questions';
 export * from './schedules';
 export * from './teacher';
-export { createScheduledAssignment, getLatestAssignmentForClassroom } from './assignments';
-
-// ---- classrooms ----
-export { getRosterWithLastAttempt } from './classrooms';
+export * from './billing';
+export * from './classrooms';
+export * from './assignments';

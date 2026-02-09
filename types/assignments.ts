@@ -1,103 +1,86 @@
-export type AssignmentRow = {
-  id: number;
-  classroomId: number;
-  kind: 'SCHEDULED_TEST';
-  opensAt: Date;
-  closesAt: Date;
-  windowMinutes: number | null;
-  assignmentMode: 'SCHEDULED' | 'MANUAL';
-  numQuestions: number;
-  _count: { recipients: number };
+export type AssignmentStatusFilter = 'all' | 'open' | 'closed' | 'upcoming';
+
+export type TeacherAssignmentStats = {
+  attemptedCount: number;
+  totalStudents: number;
+  masteryRate: number;
+  avgPercent: number;
 };
 
-export type AssignmentDTO = {
-  id: number;
-  classroomId: number;
+export type TeacherAssignmentListItem = {
+  assignmentId: number;
   kind: string;
+  assignmentMode: string;
   opensAt: string;
   closesAt: string;
   windowMinutes: number | null;
-  assignmentMode: 'SCHEDULED' | 'MANUAL';
   numQuestions: number;
-  recipientCount: number;
+  stats: TeacherAssignmentStats;
 };
 
-export type AssignmentAttemptRow = {
-  attemptId: number;
-  studentId: number;
-  studentName: string;
-  studentUsername: string;
-  completedAt: string;
-  levelAtTime: number;
-  score: number;
-  total: number;
-  percent: number;
-  wasMastery: boolean;
+export type TeacherAssignmentsListResponse = {
+  classroom: { id: number; name: string };
+  rows: TeacherAssignmentListItem[];
+  nextCursor: string | null;
 };
 
-export type AssignmentAttemptDetail = {
-  attemptId: number;
+export type AssignModalStudentRow = {
+  id: number;
+  name: string;
+  username: string;
+  flags?: { missedLastTest?: boolean; needsSetup?: boolean };
+};
+
+export type AssignModalLastMeta = {
+  numQuestions?: number;
+  windowMinutes?: number | null;
+  questionSetId?: number | null;
+};
+
+export type AssignModalBootstrapResponse = {
+  students?: AssignModalStudentRow[];
+  recent?: {
+    last3Tests?: Array<{
+      numQuestions: number;
+    }>;
+  };
+};
+
+export type TeacherAssignmentAttemptRow = {
   studentId: number;
-  studentName: string;
-  studentUsername: string;
-  completedAt: string;
-  levelAtTime: number;
-  score: number;
-  total: number;
-  percent: number;
-  wasMastery: boolean;
-  assignment?: {
+  name: string;
+  username: string;
+
+  attemptId: number | null;
+  completedAt: string | null;
+
+  score: number | null;
+  total: number | null;
+  percent: number | null;
+  missed: number | null;
+
+  wasMastery: boolean | null;
+  levelAtTime: number | null;
+};
+
+export type TeacherAssignmentAttemptsResponse = {
+  assignment: {
+    assignmentId: number;
     kind: string;
     assignmentMode: string;
     opensAt: string;
     closesAt: string;
     windowMinutes: number | null;
-    numQuestions?: number | null;
+    numQuestions: number;
   };
-  items: {
-    id: number;
-    prompt: string;
-    studentAnswer: number;
-    correctAnswer: number;
-    isCorrect: boolean;
-  }[];
+  rows: TeacherAssignmentAttemptRow[];
 };
 
-export type ProjectionRow = {
-  kind: 'projection';
-  scheduleId: number;
-  runDate: string;
-  opensAt: string;
-  closesAt: string;
-  windowMinutes: number | null;
-  numQuestions: number;
-  assignmentMode: 'SCHEDULED';
-};
+export type AssignmentAttemptsFilter = 'ALL' | 'MASTERY' | 'NOT_MASTERY' | 'MISSING';
 
-export type CalendarItem = (AssignmentRow & { kind?: string }) | ProjectionRow;
-
-export interface RosterDTO {
-  classroom: { id: number; name: string; timeZone: string };
-  students: {
-    id: number;
-    name: string;
-    username: string;
-    level: number;
-    mustSetPassword: boolean;
-    lastAttempt: {
-      assignmentId: number;
-      score: number;
-      total: number;
-      percent: number;
-      completedAt: string;
-      wasMastery: boolean;
-    } | null;
-  }[];
-}
-
-export type AssignmentsListResponse = {
-  classroom?: { id: number; name: string; timeZone?: string };
-  rows: AssignmentRow[];
-  projections?: ProjectionRow[];
-  nextCursor: string | null;
+export type AttemptDetailSelection = {
+  studentId: number;
+  attemptId: number;
+  studentName: string;
+  studentUsername: string;
 };

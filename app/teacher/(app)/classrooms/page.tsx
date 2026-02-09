@@ -1,17 +1,10 @@
+import { Suspense } from 'react';
 import { revalidatePath } from 'next/cache';
 
-import { prisma, getTeacherClassroomsWithCounts } from '@/data';
-import { requireTeacher } from '@/core';
-import { TeacherClassroomsClient, NewClassroomButton } from '@/modules';
+import { clampClassroomName, createTeacherClassroom, requireTeacher } from '@/core';
 import { PageHeader, Section } from '@/components';
-import { createTeacherClassroom } from '@/core/classrooms/createTeacherClassroom';
-
-function clampName(raw: unknown) {
-  const name = String(raw ?? '').trim();
-  if (!name) return { ok: false as const, error: 'Classroom name is required.' };
-  if (name.length > 80) return { ok: false as const, error: 'Classroom name must be ≤ 80 chars.' };
-  return { ok: true as const, name };
-}
+import { NewClassroomButton } from '@/modules';
+import { ClassroomsGridSkeleton, ClassroomsSection } from './_components';
 
 async function createClassroomAction(formData: FormData) {
   'use server';
@@ -19,7 +12,7 @@ async function createClassroomAction(formData: FormData) {
   const auth = await requireTeacher();
   if (!auth.ok) return;
 
-  const parsed = clampName(formData.get('name'));
+  const parsed = clampClassroomName(formData.get('name'));
   if (!parsed.ok) return;
 
   const tzRaw = formData.get('timeZone');
@@ -34,56 +27,9 @@ async function createClassroomAction(formData: FormData) {
   revalidatePath('/teacher/classrooms');
 }
 
-async function renameClassroomAction(formData: FormData) {
-  'use server';
-
-  const auth = await requireTeacher();
-  if (!auth.ok) return;
-
-  const classroomId = Number(formData.get('classroomId'));
-  if (!Number.isFinite(classroomId) || classroomId <= 0) return;
-
-  const parsed = clampName(formData.get('name'));
-  if (!parsed.ok) return;
-
-  const owned = await prisma.classroom.findFirst({
-    where: { id: classroomId, teacherId: auth.teacher.id },
-    select: { id: true },
-  });
-  if (!owned) return;
-
-  await prisma.classroom.update({
-    where: { id: classroomId },
-    data: { name: parsed.name },
-  });
-
-  revalidatePath('/teacher/classrooms');
-}
-
-async function deleteClassroomAction(formData: FormData) {
-  'use server';
-
-  const auth = await requireTeacher();
-  if (!auth.ok) return;
-
-  const classroomId = Number(formData.get('classroomId'));
-  if (!Number.isFinite(classroomId) || classroomId <= 0) return;
-
-  const owned = await prisma.classroom.findFirst({
-    where: { id: classroomId, teacherId: auth.teacher.id },
-    select: { id: true },
-  });
-  if (!owned) return;
-
-  await prisma.classroom.delete({ where: { id: classroomId } });
-  revalidatePath('/teacher/classrooms');
-}
-
 export default async function TeacherClassroomsPage() {
   const auth = await requireTeacher();
   if (!auth.ok) return <div className="p-6">{auth.error}</div>;
-
-  const classrooms = await getTeacherClassroomsWithCounts(auth.teacher.id);
 
   return (
     <>
@@ -94,11 +40,9 @@ export default async function TeacherClassroomsPage() {
       />
 
       <Section>
-        <TeacherClassroomsClient
-          classrooms={classrooms}
-          renameAction={renameClassroomAction}
-          deleteAction={deleteClassroomAction}
-        />
+        <Suspense fallback={<ClassroomsGridSkeleton />}>
+          <ClassroomsSection teacherId={auth.teacher.id} />
+        </Suspense>
       </Section>
     </>
   );

@@ -1,17 +1,12 @@
-export type AttemptSummary = {
+export type AttemptDetailItem = {
   id: number;
-  assignmentId: number;
-  score: number;
-  total: number;
-  completedAt: Date;
+  prompt: string;
+  studentAnswer: number;
+  correctAnswer: number;
+  isCorrect: boolean;
 };
 
-// For API responses / client (JSON can’t carry Date)
-export type AttemptSummaryDTO = Omit<AttemptSummary, 'completedAt'> & {
-  completedAt: string;
-};
-
-export type AttemptDetailDTO = {
+export type AttemptDetailForModal = {
   attemptId: number;
   completedAt: string;
   levelAtTime: number;
@@ -19,20 +14,7 @@ export type AttemptDetailDTO = {
   total: number;
   percent: number;
   wasMastery: boolean;
-  assignment?: {
-    kind: string;
-    assignmentMode: string;
-    opensAt: string;
-    closesAt: string;
-    windowMinutes: number | null;
-  };
-  items: Array<{
-    id: number;
-    prompt: string;
-    studentAnswer: number;
-    correctAnswer: number;
-    isCorrect: boolean;
-  }>;
+  items: AttemptDetailItem[];
 };
 
 export type AttemptRow = {
@@ -63,11 +45,32 @@ export type AttemptDetail = {
     closesAt: string;
     windowMinutes: number | null;
   };
-  items: {
-    id: number;
-    prompt: string;
-    studentAnswer: number;
-    correctAnswer: number;
-    isCorrect: boolean;
-  }[];
+  items: AttemptDetailItem[];
 };
+
+export type AttemptResultsFilterKey = string;
+
+export type AttemptResultsFilterOption = {
+  key: AttemptResultsFilterKey;
+  label: string;
+};
+
+export type AttemptResultsRow = {
+  studentId?: number;
+  name?: string;
+  username?: string;
+
+  attemptId: number | null;
+
+  completedAt: string | null;
+  score: number | null;
+  total: number | null;
+  percent: number | null;
+  missed: number | null;
+  wasMastery: boolean | null;
+  levelAtTime: number | null;
+};
+
+export type AttemptExplorerFilter = 'ALL' | 'MASTERY' | 'NOT_MASTERY';
+
+export type AttemptExplorerMe = { id: number; name: string; username: string };

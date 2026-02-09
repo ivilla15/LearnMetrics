@@ -1,9 +1,10 @@
 import * as React from 'react';
-import { requireTeacher } from '@/core';
+import { Suspense } from 'react';
 
-import { ClassroomSubNav, ClassroomProgressClient } from '@/modules';
-import { PageHeader, Section } from '@/components';
-import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils';
+import { requireTeacher, getTeacherClassroomHeader } from '@/core';
+import { ClassroomShell } from '@/modules';
+
+import { ClassroomProgressSection, ProgressSectionSkeleton } from './_components';
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const auth = await requireTeacher();
@@ -16,33 +17,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     return <div className="p-6 text-sm text-[hsl(var(--danger))]">Invalid classroom id</div>;
   }
 
-  const baseUrl = await getBaseUrlFromHeaders();
-  const cookie = await getCookieHeader();
-
-  const res = await fetch(`${baseUrl}/api/teacher/classrooms/${classroomId}/progress?days=30`, {
-    cache: 'no-store',
-    headers: { cookie },
+  const header = await getTeacherClassroomHeader({
+    teacherId: auth.teacher.id,
+    classroomId,
   });
-
-  if (!res.ok) {
-    return <div className="p-6 text-sm text-[hsl(var(--danger))]">Failed to load progress</div>;
-  }
-
-  const dto = await res.json();
 
   const currentPath = `/teacher/classrooms/${classroomId}/progress`;
 
   return (
-    <>
-      <PageHeader
-        title={`${dto.classroom.name}`}
-        subtitle="Progress — class trends, at-risk flags, and the most missed facts."
-      />
-
-      <Section className="space-y-4">
-        <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
-        <ClassroomProgressClient classroomId={classroomId} initial={dto} />
-      </Section>
-    </>
+    <ClassroomShell classroomId={classroomId} classroomName={header.name} currentPath={currentPath}>
+      <Suspense fallback={<ProgressSectionSkeleton />}>
+        <ClassroomProgressSection teacherId={auth.teacher.id} classroomId={classroomId} days={30} />
+      </Suspense>
+    </ClassroomShell>
   );
 }

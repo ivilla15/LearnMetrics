@@ -1,4 +1,4 @@
-import type { Tone } from './types';
+import type { Tone } from '../types/tone';
 
 export function pctTone(p: number | null): Tone {
   if (p === null || !Number.isFinite(p)) return 'muted';

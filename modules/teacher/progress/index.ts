@@ -1,4 +1,4 @@
 export * from './ClassroomProgressClient';
-export * from './StudentProgressClient';
-export * from './types';
 export * from './AssignMakeupTestModal';
+export * from './_components';
+export * from './hooks';

@@ -14,3 +14,7 @@ export function clampTake(raw: unknown, def = 20, max = 50) {
   if (!Number.isFinite(n) || n <= 0) return def;
   return Math.min(Math.floor(n), max);
 }
+
+export function clampInt(n: number, min: number, max: number) {
+  return Math.min(Math.max(Math.trunc(n), min), max);
+}

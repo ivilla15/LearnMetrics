@@ -4,7 +4,7 @@ import { requireTeacher } from '@/core/auth/requireTeacher';
 
 import { ClassroomSubNav, AssignmentsClient } from '@/modules';
 import { PageHeader, Section } from '@/components';
-import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils';
+import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch';
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const auth = await requireTeacher();

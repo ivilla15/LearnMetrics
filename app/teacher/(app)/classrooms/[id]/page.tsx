@@ -1,9 +1,10 @@
-// app/teacher/classrooms/[id]/page.tsx
 import * as React from 'react';
+import { Suspense } from 'react';
 
-import { requireTeacher } from '@/core';
-import { ClassroomShell, ClassroomStatsGrid } from '@/modules';
-import { getTeacherClassroomOverview } from '@/core/classrooms';
+import { requireTeacher, getTeacherClassroomHeader } from '@/core';
+import { ClassroomShell } from '@/modules';
+
+import { ClassroomOverviewSection, ClassroomStatsGridSkeleton } from './_components';
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const auth = await requireTeacher();
@@ -18,27 +19,18 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     return <div className="p-6 text-sm text-[hsl(var(--danger))]">Invalid classroom id</div>;
   }
 
-  let overview: Awaited<ReturnType<typeof getTeacherClassroomOverview>>;
-
-  try {
-    overview = await getTeacherClassroomOverview({
-      classroomId,
-      teacherId: auth.teacher.id,
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : 'Failed to load classroom';
-    return <div className="p-6 text-sm text-[hsl(var(--danger))]">{message}</div>;
-  }
+  const header = await getTeacherClassroomHeader({
+    teacherId: auth.teacher.id,
+    classroomId,
+  });
 
   const currentPath = `/teacher/classrooms/${classroomId}`;
 
   return (
-    <ClassroomShell
-      classroomId={classroomId}
-      classroomName={overview.classroom.name}
-      currentPath={currentPath}
-    >
-      <ClassroomStatsGrid stats={overview} />
+    <ClassroomShell classroomId={classroomId} classroomName={header.name} currentPath={currentPath}>
+      <Suspense fallback={<ClassroomStatsGridSkeleton />}>
+        <ClassroomOverviewSection classroomId={classroomId} teacherId={auth.teacher.id} />
+      </Suspense>
     </ClassroomShell>
   );
 }

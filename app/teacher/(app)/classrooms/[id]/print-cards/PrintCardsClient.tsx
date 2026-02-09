@@ -1,8 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { SetupCodeRow } from '@/modules';
 import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components';
+import { SetupCodeRow } from '@/types/classroom';
 
 export default function PrintCardsClient({ classroomId }: { classroomId: number }) {
   const [rows, setRows] = useState<SetupCodeRow[]>([]);
@@ -11,7 +11,6 @@ export default function PrintCardsClient({ classroomId }: { classroomId: number 
   useEffect(() => {
     if (!Number.isFinite(classroomId) || classroomId <= 0) return;
 
-    // 1) setup codes from sessionStorage
     try {
       const raw = sessionStorage.getItem(`lm_setupCodes_${classroomId}`);
       if (raw) {
@@ -28,7 +27,6 @@ export default function PrintCardsClient({ classroomId }: { classroomId: number 
       setRows([]);
     }
 
-    // 2) classroom name
     fetch(`/api/classrooms/${classroomId}/roster`, { credentials: 'include' })
       .then(async (res) => {
         const data = await res.json().catch(() => null);
@@ -45,8 +43,8 @@ export default function PrintCardsClient({ classroomId }: { classroomId: number 
   const activateUrl = '/student/activate';
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-start justify-between gap-4 print:hidden">
+    <div className="space-y-6 p-6 print:p-0">
+      <div className="lm-no-print flex items-start justify-between gap-4">
         <div>
           <div className="text-sm text-[hsl(var(--muted-fg))]">Classroom</div>
           <h1 className="text-2xl font-semibold text-[hsl(var(--fg))]">{classroomName}</h1>
@@ -59,21 +57,24 @@ export default function PrintCardsClient({ classroomId }: { classroomId: number 
       </div>
 
       {rows.length === 0 ? (
-        <Card>
+        <Card className="print:shadow-none print:border-0">
           <CardContent className="py-8 text-sm text-[hsl(var(--muted-fg))]">
             No setup codes found. Add students (bulk add) to generate new setup codes.
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-2 print:gap-3">
           {rows.map((r) => (
-            <Card key={`${r.studentId}-${r.username}`} className="print:shadow-none">
-              <CardHeader>
+            <Card
+              key={`${r.studentId}-${r.username}`}
+              className="shadow-[0_12px_40px_rgba(0,0,0,0.08)] rounded-[18px] border-0 print:shadow-none print:border print:rounded-[12px] [break-inside:avoid] print:[break-inside:avoid]"
+            >
+              <CardHeader className="pb-3">
                 <CardTitle className="text-base">LearnMetrics</CardTitle>
                 <CardDescription>Student login card</CardDescription>
               </CardHeader>
 
-              <CardContent className="space-y-3 text-sm">
+              <CardContent className="space-y-3 text-sm pt-0">
                 {r.name ? (
                   <div>
                     <div className="text-xs text-[hsl(var(--muted-fg))]">Student</div>

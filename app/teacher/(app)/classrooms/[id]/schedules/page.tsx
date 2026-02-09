@@ -1,9 +1,9 @@
 import { requireTeacher } from '@/core/auth/requireTeacher';
 import { ClassroomSubNav } from '@/modules';
 import { PageHeader, Section } from '@/components';
-import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils';
-import { SchedulesClient } from '@/modules';
 import { getTeacherEntitlement } from '@/core/billing/entitlement';
+import { SchedulesClient } from '@/modules/teacher/schedules';
+import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch';
 
 function buildScheduleGate(params: {
   plan: string | null | undefined;

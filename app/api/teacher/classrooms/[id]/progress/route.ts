@@ -5,10 +5,7 @@ import { errorResponse, jsonResponse } from '@/utils';
 import { handleApiError, type RouteContext } from '@/app';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms';
 import { getTeacherClassroomProgress } from '@/core/teacher/Progress';
-
-function clampInt(n: number, min: number, max: number) {
-  return Math.min(Math.max(Math.trunc(n), min), max);
-}
+import { clampInt } from '@/utils/math';
 
 export async function GET(req: Request, { params }: RouteContext) {
   try {

@@ -1,11 +1,10 @@
 import * as React from 'react';
 
 import { requireTeacher } from '@/core/auth/requireTeacher';
-
 import { ClassroomSubNav } from '@/modules';
 import { PageHeader, Section } from '@/components';
-import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils';
 import PrintCardsClient from './PrintCardsClient';
+import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch';
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const auth = await requireTeacher();
@@ -31,8 +30,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     if (res.ok) {
       const dto = await res.json().catch(() => null);
       classroomName = typeof dto?.classroom?.name === 'string' ? dto.classroom.name : null;
-    } else {
-      classroomName = null;
     }
   } catch {
     classroomName = null;
@@ -43,7 +40,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   return (
     <>
-      <div className="print:hidden">
+      <div className="lm-no-print">
         <PageHeader
           title={title}
           subtitle="Hand one card to each student. Each setup code is one-time use."
@@ -54,8 +51,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
         </Section>
       </div>
 
-      {/* Printable content */}
-      <Section>
+      <Section className="lm-print-root">
         <PrintCardsClient classroomId={classroomId} />
       </Section>
     </>
