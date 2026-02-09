@@ -24,7 +24,7 @@ export function DayTile({ date, tz, inMonth, isToday, items, onOpenDetails, onOp
   return (
     <div
       className={[
-        'min-h-27.5 rounded-[18px] bg-[hsl(var(--surface))] p-2',
+        'min-h-27.5 rounded-[18px] bg-[hsl(var(--surface))] p-2 shadow-[0_4px_10px_rgba(0,0,0,0.08)]',
         !inMonth ? 'opacity-60' : '',
         isToday ? 'ring-2 ring-[hsl(var(--brand)/0.35)]' : '',
       ].join(' ')}

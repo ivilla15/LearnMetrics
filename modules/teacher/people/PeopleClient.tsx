@@ -157,6 +157,7 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
       );
 
       const dataUnknown: unknown = await res.json().catch(() => null);
+
       if (!res.ok) {
         const msg =
           typeof (dataUnknown as { error?: unknown } | null)?.error === 'string'
@@ -165,27 +166,43 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
         throw new Error(msg);
       }
 
-      const setupCode =
-        typeof (dataUnknown as { setupCode?: unknown } | null)?.setupCode === 'string'
-          ? ((dataUnknown as { setupCode: string }).setupCode as string)
-          : null;
+      // normalize response into SetupCodeRow
+      const body = dataUnknown as Record<string, unknown> | null;
 
-      const username =
-        typeof (dataUnknown as { username?: unknown } | null)?.username === 'string'
-          ? ((dataUnknown as { username: string }).username as string)
-          : 'student';
+      // try the shape your API returns: { setupCode: SetupCodeRow }
+      let row: SetupCodeRow | null = null;
 
-      if (!setupCode) throw new Error('No setup code returned');
+      if (body?.setupCode && typeof body.setupCode === 'object') {
+        row = body.setupCode as SetupCodeRow;
+      } else if (Array.isArray(body?.setupCodes) && body.setupCodes.length > 0) {
+        // fallback: { setupCodes: [SetupCodeRow, ...] }
+        const first = (body.setupCodes as unknown[])[0];
+        if (first && typeof first === 'object') row = first as SetupCodeRow;
+      } else if (typeof body?.setupCode === 'string') {
+        // fallback: { setupCode: "ABC123", username?: "joe" }
+        const username = typeof body?.username === 'string' ? (body.username as string) : 'student';
+        row = {
+          studentId,
+          username,
+          setupCode: body.setupCode as string,
+          expiresAt: typeof body?.expiresAt === 'string' ? (body.expiresAt as string) : undefined,
+          name: typeof body?.name === 'string' ? (body.name as string) : undefined,
+        };
+      }
+
+      if (!row || typeof row.setupCode !== 'string') {
+        throw new Error('No setup code returned');
+      }
 
       sessionStorage.setItem(
         `lm_setupCodes_${classroomId}`,
-        JSON.stringify({ setupCodes: [setupCode], createdAt: new Date().toISOString() }),
+        JSON.stringify({ setupCodes: [row], createdAt: new Date().toISOString() }),
       );
 
-      toast(`New setup code generated for ${username}`, 'success');
+      toast(`New setup code generated for ${row.username}`, 'success');
       router.push(`/teacher/classrooms/${classroomId}/print-cards`);
 
-      return setupCode;
+      return row.setupCode;
     } catch (err) {
       toast(getErrorMessage(err, 'Failed to reset access'), 'error');
       throw err;

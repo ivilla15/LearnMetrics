@@ -5,6 +5,22 @@ import { Button } from '@/components';
 
 export type AuthMode = 'login' | 'signup';
 
+type Copy = {
+  // tab labels (mobile)
+  loginTab?: string;
+  signupTab?: string;
+
+  // desktop headings/subheadings
+  loginTitle?: string;
+  loginSubtitle?: string;
+  signupTitle?: string;
+  signupSubtitle?: string;
+
+  // desktop footers
+  loginFooter?: string;
+  signupFooter?: string;
+};
+
 type Props = {
   mode: AuthMode;
   onChangeMode: (next: AuthMode) => void;
@@ -25,6 +41,7 @@ type Props = {
     cta: string;
     bullets?: string[];
   };
+  copy?: Copy;
 };
 
 function BulletList({ items }: { items?: string[] }) {
@@ -48,8 +65,23 @@ export function AuthSplitShell({
   signupForm,
   overlayLogin,
   overlaySignup,
+  copy,
 }: Props) {
   const isSignup = mode === 'signup';
+
+  const loginTab = copy?.loginTab ?? 'Sign in';
+  const signupTab = copy?.signupTab ?? 'Create account';
+
+  const loginTitle = copy?.loginTitle ?? 'Sign in';
+  const loginSubtitle = copy?.loginSubtitle ?? 'Welcome back.';
+
+  const signupTitle = copy?.signupTitle ?? 'Create account';
+  const signupSubtitle = copy?.signupSubtitle ?? 'Get started in minutes.';
+
+  const loginFooter =
+    copy?.loginFooter ?? 'Trouble signing in? Double-check your email and password.';
+  const signupFooter =
+    copy?.signupFooter ?? 'By creating an account, you agree to use LearnMetrics responsibly.';
 
   return (
     <div className="w-full">
@@ -63,7 +95,7 @@ export function AuthSplitShell({
               !isSignup ? 'bg-[hsl(var(--brand))] text-white' : 'text-[hsl(var(--brand))] bg-white',
             ].join(' ')}
           >
-            Sign in
+            {loginTab}
           </Button>
           <Button
             onClick={() => onChangeMode('signup')}
@@ -72,7 +104,7 @@ export function AuthSplitShell({
               isSignup ? 'bg-[hsl(var(--brand))] text-white' : 'text-[hsl(var(--brand))] bg-white',
             ].join(' ')}
           >
-            Create account
+            {signupTab}
           </Button>
         </div>
 
@@ -102,8 +134,8 @@ export function AuthSplitShell({
 
       {/* Desktop */}
       <div className="hidden md:block">
-        <div className="mx-auto w-full max-w-5xl rounded-[32px] border-0 bg-[hsl(var(--card))] shadow-[0_30px_90px_rgba(0,0,0,0.10)] overflow-hidden">
-          <div className="relative grid grid-cols-2 min-h-[560px]">
+        <div className="mx-auto w-full max-w-5xl rounded-4xl border-0 bg-[hsl(var(--card))] shadow-[0_30px_90px_rgba(0,0,0,0.10)] overflow-hidden">
+          <div className="relative grid grid-cols-2 min-h-140">
             {/* Left form column */}
             <div
               className={[
@@ -113,15 +145,13 @@ export function AuthSplitShell({
             >
               <div className="flex flex-col justify-evenly flex-1">
                 <div>
-                  <div className="text-2xl font-semibold text-[hsl(var(--fg))]">Sign in</div>
-                  <div className="text-sm text-[hsl(var(--muted-fg))]">Welcome back.</div>
+                  <div className="text-2xl font-semibold text-[hsl(var(--fg))]">{loginTitle}</div>
+                  <div className="text-sm text-[hsl(var(--muted-fg))]">{loginSubtitle}</div>
                 </div>
 
                 <div>{loginForm}</div>
 
-                <div className="text-xs text-[hsl(var(--muted-fg))]">
-                  Trouble signing in? Double-check your email and password.
-                </div>
+                <div className="text-xs text-[hsl(var(--muted-fg))]">{loginFooter}</div>
               </div>
             </div>
 
@@ -134,15 +164,13 @@ export function AuthSplitShell({
             >
               <div className="flex flex-col justify-evenly flex-1">
                 <div>
-                  <div className="text-2xl font-semibold text-[hsl(var(--fg))]">Create account</div>
-                  <div className="text-sm text-[hsl(var(--muted-fg))]">Get started in minutes.</div>
+                  <div className="text-2xl font-semibold text-[hsl(var(--fg))]">{signupTitle}</div>
+                  <div className="text-sm text-[hsl(var(--muted-fg))]">{signupSubtitle}</div>
                 </div>
 
                 <div>{signupForm}</div>
 
-                <div className="text-xs text-[hsl(var(--muted-fg))]">
-                  By creating an account, you agree to use LearnMetrics responsibly.
-                </div>
+                <div className="text-xs text-[hsl(var(--muted-fg))]">{signupFooter}</div>
               </div>
             </div>
 
@@ -158,14 +186,14 @@ export function AuthSplitShell({
               <div className="h-full flex flex-col justify-center">
                 <div className="max-w-sm">
                   <div className="text-3xl font-semibold">
-                    {isSignup ? overlaySignup.title : overlayLogin.title}
+                    {isSignup ? overlayLogin.title : overlaySignup.title}
                   </div>
 
                   <div className="mt-3 text-white/85 leading-relaxed">
-                    {isSignup ? overlaySignup.body : overlayLogin.body}
+                    {isSignup ? overlayLogin.body : overlaySignup.body}
                   </div>
 
-                  <BulletList items={isSignup ? overlaySignup.bullets : overlayLogin.bullets} />
+                  <BulletList items={isSignup ? overlayLogin.bullets : overlaySignup.bullets} />
 
                   <div className="mt-8">
                     <Button
@@ -174,11 +202,12 @@ export function AuthSplitShell({
                       className="bg-white text-[hsl(var(--brand))] hover:bg-white/90"
                       onClick={() => onChangeMode(isSignup ? 'login' : 'signup')}
                     >
-                      {isSignup ? overlaySignup.cta : overlayLogin.cta}
+                      {isSignup ? overlayLogin.cta : overlaySignup.cta}
                     </Button>
 
                     <div className="mt-4 text-xs text-white/80">
-                      Switch to {isSignup ? 'sign in' : 'create account'} anytime.
+                      Switch to {isSignup ? signupTab.toLowerCase() : loginTab.toLowerCase()}{' '}
+                      anytime.
                     </div>
                   </div>
                 </div>

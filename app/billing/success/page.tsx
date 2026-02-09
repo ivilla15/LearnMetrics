@@ -88,9 +88,7 @@ export default async function BillingSuccessPage({ searchParams }: Props) {
     return (
       <main className="min-h-[calc(100vh-48px)] bg-[hsl(var(--bg))]">
         <header className="flex items-center px-6 py-4 border-b border-[hsl(var(--border))]">
-          <Link href="/" className="flex items-center gap-2">
-            <LearnMetricsLogo variant="full-blue" />
-          </Link>
+          <LearnMetricsLogo variant="full-blue" href="/" />
         </header>
         {/* Full-width “success band” to make the layout feel intentional */}
         <div className="w-full border-b border-[hsl(var(--border))] bg-[hsl(var(--brand)/0.10)]">

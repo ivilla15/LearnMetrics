@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/components';
 import { AuthLogoutShell } from '@/modules/auth/_components/AuthLogoutShell';
 
-export default function TeacherLogoutClient() {
+export default function StudentLogoutClient() {
   const router = useRouter();
   const toast = useToast();
 
@@ -15,11 +15,8 @@ export default function TeacherLogoutClient() {
 
     async function run() {
       try {
-        const res = await fetch('/api/teacher/logout', { method: 'POST' });
-
-        if (!cancelled && !res.ok) {
-          toast('Logout failed', 'error');
-        }
+        const res = await fetch('/api/student/logout', { method: 'POST' });
+        if (!cancelled && !res.ok) toast('Logout failed', 'error');
       } catch {
         if (!cancelled) toast('Logout failed', 'error');
       } finally {
@@ -38,10 +35,10 @@ export default function TeacherLogoutClient() {
 
   return (
     <AuthLogoutShell
-      pillText="Teacher portal"
+      pillText="Student portal"
       title="Logging out…"
-      subtitle="Clearing your teacher session."
-      hint="If you are not redirected, use your browser back button or go to Home."
+      subtitle="Clearing your student session."
+      hint="If you are not redirected, go to Home."
       toHref="/"
     />
   );

@@ -1,6 +1,9 @@
+import Link from 'next/link';
+
 interface LogoProps {
   variant: 'full-blue' | 'full-white' | 'icon-blue' | 'icon-white';
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  href?: string;
 }
 
 const sizeConfig = {
@@ -65,13 +68,13 @@ function LearnMetricsIcon({ color, size }: { color: string; size: number }) {
   );
 }
 
-export function LearnMetricsLogo({ variant, size = 'md' }: LogoProps) {
+export function LearnMetricsLogo({ variant, size = 'md', href }: LogoProps) {
   const config = sizeConfig[size];
   const isWhite = variant.includes('white');
   const isIconOnly = variant.includes('icon');
   const color = isWhite ? '#FFFFFF' : 'hsl(214, 84%, 45%)';
 
-  return (
+  const content = (
     <div className="inline-flex items-center" style={{ gap: `${config.spacing}px` }}>
       <LearnMetricsIcon color={color} size={config.icon} />
 
@@ -89,5 +92,17 @@ export function LearnMetricsLogo({ variant, size = 'md' }: LogoProps) {
         </span>
       )}
     </div>
+  );
+
+  if (!href) return content;
+
+  return (
+    <Link
+      href={href}
+      aria-label="LearnMetrics home"
+      className="inline-flex focus:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] rounded-md"
+    >
+      {content}
+    </Link>
   );
 }

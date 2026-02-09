@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { Label, Input, Button, useToast, Pill } from '@/components';
 import { AuthSplitShell, type AuthMode } from '@/modules/auth/_components/AuthSplitShell';
 import { teacherLogin, teacherSignup } from './actions';
-import Link from 'next/link';
 import { LearnMetricsLogo } from '@/modules/marketing/components/LearnMetricsLogo';
 
 function safeNext(next?: string) {
@@ -183,9 +182,7 @@ export default function TeacherAuthClient({
       <div className="w-full max-w-5xl space-y-4">
         <div className="text-center md:text-left">
           <div className="flex flex-wrap gap-2 align-items center justify-center md:justify-start">
-            <Link href="/" className="flex items-center">
-              <LearnMetricsLogo variant="icon-blue" />
-            </Link>
+            <LearnMetricsLogo variant="icon-blue" href="/" />
             {Pill('Teacher portal', 'primary', 'md')}
           </div>
           <div className="mt-3 text-3xl font-semibold text-[hsl(var(--fg))]">

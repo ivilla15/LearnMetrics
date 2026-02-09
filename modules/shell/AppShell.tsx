@@ -53,7 +53,7 @@ export function AppShell({
     <div className="min-h-screen bg-[hsl(var(--bg))] flex flex-col">
       {/* Topbar for mobile */}
       <header className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))] print:hidden md:hidden">
-        <LearnMetricsLogo variant="icon-white" />
+        <LearnMetricsLogo variant="icon-white" href="/" />
 
         <div className="flex items-center gap-2">
           {accountSlot ? <div className="hidden sm:block">{accountSlot}</div> : null}
@@ -92,9 +92,7 @@ export function AppShell({
               shadow-[0_1px_0_rgba(0,0,0,0.15)]
             "
           >
-            <Link href="/" className="flex items-center">
-              <LearnMetricsLogo variant="full-white" />
-            </Link>
+            <LearnMetricsLogo variant="full-white" href="/" />
           </div>
 
           <nav className="flex-1 overflow-y-auto py-6 px-3">

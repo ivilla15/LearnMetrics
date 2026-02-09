@@ -107,7 +107,7 @@ export function RosterTable(props: {
               return (
                 <tr
                   key={student.id}
-                  className="border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--surface-2))]"
+                  className="border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--surface-2))] shadow-[0_4px_10px_rgba(0,0,0,0.08)]"
                 >
                   <td className="py-3 pl-5 pr-3">
                     <input

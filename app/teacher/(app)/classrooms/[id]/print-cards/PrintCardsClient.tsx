@@ -67,7 +67,7 @@ export default function PrintCardsClient({ classroomId }: { classroomId: number 
           {rows.map((r) => (
             <Card
               key={`${r.studentId}-${r.username}`}
-              className="shadow-[0_12px_40px_rgba(0,0,0,0.08)] rounded-[18px] border-0 print:shadow-none print:border print:rounded-[12px] [break-inside:avoid] print:[break-inside:avoid]"
+              className="shadow-[0_12px_40px_rgba(0,0,0,0.08)] rounded-[18px] border-0 print:shadow-none print:border print:rounded-[12px] break-inside-avoid print:break-inside-avoid"
             >
               <CardHeader className="pb-3">
                 <CardTitle className="text-base">LearnMetrics</CardTitle>

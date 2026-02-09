@@ -28,9 +28,7 @@ export function TopNav({ primaryLink, secondaryLink, isLoggedIn }: TopNavProps) 
     >
       <nav className="max-w-6xl mx-auto flex items-center justify-between">
         {/* Logo */}
-        <Link href="/" className="flex items-center">
-          <LearnMetricsLogo variant="full-white" />
-        </Link>
+        <LearnMetricsLogo variant="full-white" href="/" />
 
         {/* Navigation Links */}
         <div className="hidden md:flex items-center gap-8">
