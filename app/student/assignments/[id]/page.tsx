@@ -1,50 +1,10 @@
-'use client';
-
 import { useParams, useRouter } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
-import { Button, Card, CardContent, Section, Skeleton, useToast } from '@/components';
-import { QuestionCard, TestSidebar, AppPage } from '@/modules';
-import { cn, formatLocal } from '@/lib';
-
-type AssignmentPayload = {
-  id: number;
-  kind: string;
-  mode: string;
-  opensAt: string;
-  closesAt: string;
-  windowMinutes: number | null;
-  numQuestions: number;
-};
-
-type StudentPayload = {
-  id: number;
-  name: string;
-  level: number;
-};
-
-type AlreadySubmittedResult = {
-  score: number;
-  total: number;
-  percent: number;
-  completedAt: string;
-};
-
-type QuestionPayload = {
-  id: number;
-  factorA: number;
-  factorB: number;
-};
-
-type LoadResponse =
-  | { status: 'NOT_OPEN' | 'CLOSED'; assignment: AssignmentPayload }
-  | { status: 'ALREADY_SUBMITTED'; assignment: AssignmentPayload; result: AlreadySubmittedResult }
-  | {
-      status: 'READY';
-      student: StudentPayload;
-      assignment: AssignmentPayload;
-      questions: QuestionPayload[];
-    };
+import { useToast, Card, CardContent, Skeleton, Button, Section } from '@/components';
+import { formatLocal, cn } from '@/lib';
+import { AppPage, QuestionCard, TestSidebar } from '@/modules';
+import { LoadResponse, AssignmentPayload } from '@/types';
+import { parseAssignmentId } from '@/utils';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 
 function getAssignment(data: LoadResponse | null): AssignmentPayload | null {
   return data ? data.assignment : null;
@@ -55,7 +15,7 @@ export default function StudentAssignmentPage() {
   const router = useRouter();
   const toast = useToast();
 
-  const assignmentId = params?.id;
+  const assignmentId = parseAssignmentId(params?.id);
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<LoadResponse | null>(null);
@@ -79,32 +39,39 @@ export default function StudentAssignmentPage() {
     let cancelled = false;
 
     async function load() {
+      if (!assignmentId) return;
+
       setLoading(true);
 
-      const res = await fetch(`/api/student/assignments/${assignmentId}`);
-      const json = (await res.json().catch(() => null)) as LoadResponse | null;
+      try {
+        const res = await fetch(`/api/student/assignments/${assignmentId}`);
+        const json = (await res.json().catch(() => null)) as LoadResponse | null;
 
-      if (cancelled) return;
+        if (cancelled) return;
 
-      if (!res.ok || !json) {
-        toast('Could not load test', 'error');
-        setLoading(false);
-        return;
+        if (!res.ok || !json) {
+          toast('Could not load test', 'error');
+          setLoading(false);
+          return;
+        }
+
+        setData(json);
+      } catch {
+        if (!cancelled) toast('Could not load test', 'error');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      setData(json);
-      setLoading(false);
     }
 
-    if (assignmentId) void load();
+    void load();
 
     return () => {
       cancelled = true;
     };
   }, [assignmentId, toast]);
 
-  // Countdown ticker
   const [now, setNow] = useState(Date.now());
+
   useEffect(() => {
     if (!assignment?.closesAt) return;
     const t = setInterval(() => setNow(Date.now()), 250);
@@ -120,6 +87,7 @@ export default function StudentAssignmentPage() {
   const handleSubmit = useCallback(
     async (isAuto = false) => {
       if (submitting) return;
+      if (!assignmentId) return;
       if (!data || data.status !== 'READY') return;
 
       const qs = data.questions;
@@ -181,9 +149,24 @@ export default function StudentAssignmentPage() {
       e.preventDefault();
       e.returnValue = '';
     }
+
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [data?.status]);
+
+  if (!assignmentId) {
+    return (
+      <AppPage title="Test">
+        <Section>
+          <Card className="shadow-sm">
+            <CardContent className="py-8 text-sm text-[hsl(var(--muted-fg))]">
+              Invalid assignment.
+            </CardContent>
+          </Card>
+        </Section>
+      </AppPage>
+    );
+  }
 
   if (loading) {
     return (
@@ -311,7 +294,6 @@ export default function StudentAssignmentPage() {
     <AppPage title="Test" subtitle="Answer each question, then submit.">
       <Section>
         <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-          {/* MAIN */}
           <main className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
               {questions.map((q, i) => {
@@ -341,7 +323,6 @@ export default function StudentAssignmentPage() {
             </div>
           </main>
 
-          {/* SIDEBAR */}
           <aside className="lg:sticky lg:top-6 lg:self-start">
             <TestSidebar
               title="Questions"

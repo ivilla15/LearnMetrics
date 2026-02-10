@@ -7,8 +7,8 @@ import { useToast } from '@/components';
 import { RosterTableCard } from '@/modules/teacher/people';
 
 import type { BulkAddResponse, RosterStudentRow } from '@/types';
-import type { NewStudentInput } from '@/utils/students';
 import { SetupCodeRow } from '@/types/classroom';
+import { NewStudentInput } from '@/utils';
 
 type Props = {
   classroomId: number;

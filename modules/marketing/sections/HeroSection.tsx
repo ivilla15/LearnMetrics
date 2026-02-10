@@ -1,4 +1,3 @@
-// HeroSection.tsx
 'use client';
 
 import { Button } from '@/components';
@@ -353,11 +352,11 @@ export function HeroSection() {
 
           <FadeIn delay={0.4}>
             <div className="mt-12 flex gap-4">
-              <Button variant="primary" size="lg">
+              <Button variant="primary" size="lg" href="#pricing">
                 Get Started
               </Button>
-              <Button size="lg" variant="outline">
-                View Demo
+              <Button size="lg" variant="outline" href="#about">
+                Meet the Creator
               </Button>
             </div>
           </FadeIn>

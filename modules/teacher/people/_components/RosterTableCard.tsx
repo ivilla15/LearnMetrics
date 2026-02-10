@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { parseBulkStudentsText, type NewStudentInput } from '@/utils/students';
+import { parseBulkStudentsText, type NewStudentInput } from '@/utils/student/students';
 import { Card, CardContent, useToast } from '@/components';
 
 import type { EditingState, RosterStudentRow } from '@/types';

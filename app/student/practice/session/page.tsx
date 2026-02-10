@@ -1,16 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+
 import {
+  Section,
+  Button,
   Card,
   CardContent,
   CardHeader,
   CardTitle,
   CardDescription,
-  Section,
-  Button,
 } from '@/components';
 import {
   QuestionCard,
@@ -18,21 +18,28 @@ import {
   TestSidebar,
   makePracticeQuestions,
   gradePractice,
-  PracticeQuestion,
 } from '@/modules';
+import type { PracticeQuestion } from '@/modules';
 import { cn } from '@/lib';
+import { getNumberParam } from '@/utils';
 
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
+function PracticeSessionFallback() {
+  return (
+    <div className="min-h-screen w-screen bg-[hsl(var(--bg))] flex items-center justify-center p-4 md:p-8">
+      <div className="w-full max-w-5xl rounded-[32px] border-0 bg-[hsl(var(--card))] shadow-[0_30px_90px_rgba(0,0,0,0.10)] p-6 md:p-10">
+        <div className="text-sm text-[hsl(var(--muted-fg))]">Loading practice…</div>
+      </div>
+    </div>
+  );
 }
 
 function StudentPracticeSessionInner() {
   const router = useRouter();
   const params = useSearchParams();
 
-  const level = clamp(Number(params.get('level') ?? 3), 1, 12);
-  const count = clamp(Number(params.get('count') ?? 30), 6, 40);
-  const minutes = clamp(Number(params.get('minutes') ?? 4), 0, 30); // 0 = off
+  const level = getNumberParam(params, 'level', 3, 1, 12);
+  const count = getNumberParam(params, 'count', 30, 6, 40);
+  const minutes = getNumberParam(params, 'minutes', 4, 0, 30);
 
   const [questions, setQuestions] = useState<PracticeQuestion[]>(() =>
     makePracticeQuestions(level, count),
@@ -47,11 +54,10 @@ function StudentPracticeSessionInner() {
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
 
   // timer
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(() => Date.now());
   const [startedAt, setStartedAt] = useState(() => Date.now());
 
   useEffect(() => {
-    // if params change (back/forward), regenerate deterministically-ish
     setQuestions(makePracticeQuestions(level, count));
     setAnswers({});
     setFinished(false);
@@ -90,7 +96,6 @@ function StudentPracticeSessionInner() {
 
     setSubmitting(true);
 
-    // instant (no API)
     const graded = gradePractice(questions, answers);
 
     setResult(graded);
@@ -98,7 +103,6 @@ function StudentPracticeSessionInner() {
     setSubmitting(false);
   }, [answers, finished, questions, submitting]);
 
-  // auto-submit when time hits 0 (only if timer is on)
   useEffect(() => {
     if (minutes <= 0) return;
     if (finished) return;
@@ -106,7 +110,6 @@ function StudentPracticeSessionInner() {
     submit();
   }, [finished, minutes, msLeft, submit]);
 
-  // focus first question on mount / regen
   useEffect(() => {
     requestAnimationFrame(() => {
       const first = questions[0];
@@ -115,9 +118,7 @@ function StudentPracticeSessionInner() {
     });
   }, [questions]);
 
-  // -----------------------------
   // Results screen
-  // -----------------------------
   if (finished && result) {
     const incorrect = result.items.filter((i) => !i.isCorrect);
 
@@ -218,9 +219,7 @@ function StudentPracticeSessionInner() {
     );
   }
 
-  // -----------------------------
   // Active session screen
-  // -----------------------------
   return (
     <AppPage
       title="Practice"
@@ -229,7 +228,6 @@ function StudentPracticeSessionInner() {
     >
       <Section>
         <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-          {/* MAIN */}
           <main className="space-y-6">
             <div className="grid gap-6 md:grid-cols-2">
               {questions.map((q, i) => {
@@ -259,7 +257,6 @@ function StudentPracticeSessionInner() {
             </div>
           </main>
 
-          {/* SIDEBAR (same API as assignment page) */}
           <aside className="lg:sticky lg:top-6 lg:self-start">
             <TestSidebar
               title="Practice"
@@ -318,7 +315,7 @@ function StudentPracticeSessionInner() {
 
 export default function StudentPracticeSessionPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<PracticeSessionFallback />}>
       <StudentPracticeSessionInner />
     </Suspense>
   );

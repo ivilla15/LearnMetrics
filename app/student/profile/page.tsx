@@ -14,18 +14,7 @@ import {
   Skeleton,
 } from '@/components';
 import { studentNavItems, AppShell } from '@/modules';
-import { MeDTO } from '@/types';
-
-function isMeDTO(value: unknown): value is MeDTO {
-  if (!value || typeof value !== 'object') return false;
-  const v = value as Record<string, unknown>;
-  return (
-    typeof v.id === 'number' &&
-    typeof v.name === 'string' &&
-    typeof v.username === 'string' &&
-    typeof v.level === 'number'
-  );
-}
+import { isMeDTO, MeDTO } from '@/types';
 
 function ProfileSkeleton() {
   return (
@@ -80,20 +69,27 @@ export default function StudentProfilePage() {
     async function load() {
       setLoading(true);
 
-      const res = await fetch('/api/student/me');
-      if (!res.ok) {
+      try {
+        const res = await fetch('/api/student/me');
+        if (!res.ok) {
+          if (!cancelled) setLoading(false);
+          return;
+        }
+
+        const json = await res.json().catch(() => null);
+        if (cancelled) return;
+
+        const candidate =
+          json && typeof json === 'object'
+            ? ((json as { student?: unknown }).student ?? json)
+            : null;
+
+        setMe(isMeDTO(candidate) ? candidate : null);
+      } catch {
+        setMe(null);
+      } finally {
         if (!cancelled) setLoading(false);
-        return;
       }
-
-      const json = await res.json().catch(() => null);
-      if (cancelled) return;
-
-      const candidate =
-        json && typeof json === 'object' ? ((json as { student?: unknown }).student ?? json) : null;
-
-      setMe(isMeDTO(candidate) ? candidate : null);
-      setLoading(false);
     }
 
     void load();
@@ -149,11 +145,15 @@ export default function StudentProfilePage() {
                 <div className="mt-2 text-[17px] font-semibold">{me.username}</div>
               </div>
 
-              <div>
-                <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
-                  Student ID
+              <div className="flex items-center gap-3">
+                <div>
+                  <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+                    Help / reset access
+                  </div>
+                  <div className="mt-2 text-[17px] font-semibold">
+                    If you lost your password, request a reset with your teacher.
+                  </div>
                 </div>
-                <div className="mt-2 text-[17px] font-semibold">{me.id}</div>
               </div>
             </CardContent>
           </Card>

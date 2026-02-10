@@ -17,20 +17,11 @@ import {
   Skeleton,
   Section,
 } from '@/components';
-import { MeDTO } from '@/types';
+
+import type { MeDTO } from '@/types';
+import { parseIntSafe, clamp } from '@/utils';
 
 type MinutesOption = 'OFF' | '2' | '4' | '6' | '8';
-
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
-
-function parseIntSafe(raw: string) {
-  if (!raw) return null;
-  if (!/^\d+$/.test(raw)) return null;
-  const n = Number(raw);
-  return Number.isFinite(n) ? n : null;
-}
 
 export default function StudentPracticeSetupPage() {
   const router = useRouter();
@@ -47,6 +38,7 @@ export default function StudentPracticeSetupPage() {
 
     async function load() {
       setLoading(true);
+
       const res = await fetch('/api/student/me');
       const json = await res.json().catch(() => null);
 
@@ -62,8 +54,6 @@ export default function StudentPracticeSetupPage() {
       setMe(student);
 
       const defaultLevel = clamp(student.level ?? 3, 1, 12);
-
-      // ✅ set string defaults
       setLevelText(String(defaultLevel));
       setCountText('30');
       setMinutes('4');
@@ -72,6 +62,7 @@ export default function StudentPracticeSetupPage() {
     }
 
     void load();
+
     return () => {
       cancelled = true;
     };
@@ -88,12 +79,16 @@ export default function StudentPracticeSetupPage() {
     return { lvl, c, m };
   }, [levelText, countText, minutes, me?.level]);
 
+  const qsString = useMemo(() => {
+    const qs = new URLSearchParams({
+      level: String(summary.lvl),
+      count: String(summary.c),
+      minutes: String(summary.m),
+    });
+    return qs.toString();
+  }, [summary.lvl, summary.c, summary.m]);
+
   const canStart = !loading && !!me;
-  const qs = new URLSearchParams({
-    level: String(summary.lvl),
-    count: String(summary.c),
-    minutes: String(summary.m),
-  });
 
   return (
     <AppPage
@@ -131,6 +126,7 @@ export default function StudentPracticeSetupPage() {
                       id="level"
                       inputMode="numeric"
                       value={levelText}
+                      className="shadow-[0_4px_10px_rgba(0,0,0,0.08)]"
                       onChange={(e) => {
                         const raw = e.target.value;
                         if (raw === '' || /^\d+$/.test(raw)) setLevelText(raw);
@@ -149,6 +145,7 @@ export default function StudentPracticeSetupPage() {
                       id="count"
                       inputMode="numeric"
                       value={countText}
+                      className="shadow-[0_4px_10px_rgba(0,0,0,0.08)]"
                       onChange={(e) => {
                         const raw = e.target.value;
                         if (raw === '' || /^\d+$/.test(raw)) setCountText(raw);
@@ -181,9 +178,7 @@ export default function StudentPracticeSetupPage() {
                   <Button
                     size="lg"
                     disabled={!canStart}
-                    onClick={() => {
-                      router.push(`/student/practice/session?${qs.toString()}`);
-                    }}
+                    onClick={() => router.push(`/student/practice/session?${qsString}`)}
                   >
                     Start practice
                   </Button>

@@ -2,8 +2,9 @@
 
 import { usePathname } from 'next/navigation';
 
-import { AppShell, studentNavItems, AttemptExplorer } from '@/modules';
+import { AppShell, studentNavItems } from '@/modules';
 import { Section, PageHeader } from '@/components';
+import { AttemptExplorer } from '@/modules/teacher/student-progress';
 
 export default function StudentProgressPage() {
   const pathname = usePathname();
