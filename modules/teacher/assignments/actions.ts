@@ -35,7 +35,7 @@ export async function deleteAssignment(params: {
   assignmentId: number;
 }): Promise<void> {
   const res = await fetch(
-    `/api/classrooms/${params.classroomId}/assignments/${params.assignmentId}`,
+    `/api/teacher/classrooms/${params.classroomId}/assignments/${params.assignmentId}`,
     { method: 'DELETE', credentials: 'include' },
   );
 
