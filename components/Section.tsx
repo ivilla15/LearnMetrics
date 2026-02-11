@@ -16,7 +16,6 @@ export function Section({
       className={cn(
         'w-full',
         tone === 'default' && 'bg-[hsl(var(--bg))]',
-        tone === 'subtle' && 'bg-[hsl(var(--section))]',
         pad === 'sm' && 'py-6 sm:py-8',
         pad === 'md' && 'py-8 sm:py-10',
         pad === 'lg' && 'py-10 sm:py-12',

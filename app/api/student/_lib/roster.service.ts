@@ -8,7 +8,9 @@ import {
   SETUP_CODE_TTL_HOURS,
 } from '@/core/auth/setupCodes';
 
-import type { AttemptSummary, BulkCreateStudentArgs, StudentRosterRow } from '@/types';
+import type { BulkCreateStudentArgs, StudentRosterRow } from '@/types';
+import type { AttemptSummary } from '@/types/attempts';
+import { requireWithinTrialLimits } from '@/core/billing/entitlement';
 
 async function requireTeacherOwnsClassroom(teacherId: number, classroomId: number) {
   const ok = await prisma.classroom.findFirst({
@@ -25,6 +27,14 @@ export async function bulkCreateClassroomStudents(args: BulkCreateStudentArgs): 
   const { teacherId, classroomId, students } = args;
 
   await requireTeacherOwnsClassroom(teacherId, classroomId);
+
+  const gate = await requireWithinTrialLimits({
+    teacherId,
+    classroomId,
+    kind: 'ADD_STUDENTS',
+    addStudentsCount: students.length,
+  });
+  if (!gate.ok) throw new ConflictError(gate.error);
 
   const saltRounds = 10;
   const expiresAt = expiresAtFromNowHours(SETUP_CODE_TTL_HOURS);
@@ -80,14 +90,28 @@ export async function bulkCreateClassroomStudents(args: BulkCreateStudentArgs): 
       orderBy: { name: 'asc' },
     });
 
-    return roster.map((s) => ({
-      id: s.id,
-      name: s.name,
-      username: s.username,
-      level: s.level,
-      mustSetPassword: s.mustSetPassword,
-      lastAttempt: (s.Attempt.length ? s.Attempt[0] : null) as AttemptSummary | null,
-    }));
+    return roster.map((s) => {
+      const a = s.Attempt.length ? s.Attempt[0] : null;
+
+      const lastAttempt: AttemptSummary | null = a
+        ? {
+            id: a.id,
+            assignmentId: a.assignmentId,
+            score: a.score,
+            total: a.total,
+            completedAt: a.completedAt.toISOString(),
+          }
+        : null;
+
+      return {
+        id: s.id,
+        name: s.name,
+        username: s.username,
+        level: s.level,
+        mustSetPassword: s.mustSetPassword,
+        lastAttempt,
+      };
+    });
   });
 
   const createdByUsername = new Map(created.map((s) => [s.username, s.id]));

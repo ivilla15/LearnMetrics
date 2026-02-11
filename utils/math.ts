@@ -14,3 +14,27 @@ export function clampTake(raw: unknown, def = 20, max = 50) {
   if (!Number.isFinite(n) || n <= 0) return def;
   return Math.min(Math.floor(n), max);
 }
+
+export function clampInt(n: number, min: number, max: number) {
+  return Math.min(Math.max(Math.trunc(n), min), max);
+}
+
+export function clamp(n: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, n));
+}
+
+export function parseIntSafe(raw: string) {
+  if (!raw) return null;
+  if (!/^\d+$/.test(raw)) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function parseAssignmentId(raw: unknown): number | null {
+  if (typeof raw === 'number' && Number.isFinite(raw) && raw > 0) return raw;
+  if (typeof raw === 'string') {
+    const n = Number(raw);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
+}

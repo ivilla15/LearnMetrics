@@ -1,19 +1,23 @@
-// core/schedules/service.ts
 import type { UpsertScheduleInput } from '@/validation/assignmentSchedules.schema';
 
-import { ConflictError, NotFoundError } from '@/core/errors';
-import { createScheduledAssignment } from '@/core/assignments/service';
+import {
+  ConflictError,
+  NotFoundError,
+  createScheduledAssignment,
+  requireTeacherActiveEntitlement,
+} from '@/core';
 
 import * as ClassroomsRepo from '@/data/classrooms.repo';
 import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
+import { prisma } from '@/data';
 
 import {
   getNextScheduledDateForSchedule,
   localDateTimeToUtcRange,
   localDayToUtcDate,
   TZ,
-} from '@/utils/time';
-import { AssignmentDTO } from '@/types';
+} from '@/utils';
+import type { CoreAssignmentDTO } from '@/core';
 
 export type ScheduleDTO = {
   id: number;
@@ -162,36 +166,33 @@ export async function createAdditionalClassroomSchedule(params: {
 
 export async function runActiveSchedulesForDate(
   baseDate: Date = new Date(),
-): Promise<AssignmentDTO[]> {
+): Promise<CoreAssignmentDTO[]> {
   const schedules = await SchedulesRepo.findAllActiveSchedulesWithTimezone();
-  const results: AssignmentDTO[] = [];
+  const results: CoreAssignmentDTO[] = [];
 
   for (const sched of schedules) {
     try {
+      const gate = await gateScheduleByEntitlement(sched);
+      if (!gate.ok) continue;
+
       const days = Array.isArray(sched.days) ? sched.days : [];
       if (days.length === 0) {
-        // Nothing configured for this schedule — skip it.
         console.warn(`Skipping schedule ${sched.id} (no days configured)`);
         continue;
       }
 
       const tz = sched.Classroom?.timeZone ?? TZ;
 
-      // 1) Determine the scheduled local day (YYYY-MM-DD) for THIS schedule in THIS classroom timezone
       const scheduledLocalDate = getNextScheduledDateForSchedule(baseDate, days, tz);
-
-      // 2) Idempotency key (same schedule + same local day) in THIS classroom timezone
       const runDate = localDayToUtcDate(scheduledLocalDate, tz);
 
-      // 3) Build opens/closes in UTC correctly for THIS classroom timezone
       const { opensAtUTC, closesAtUTC } = localDateTimeToUtcRange({
         localDate: scheduledLocalDate,
-        localTime: sched.opensAtLocalTime, // "HH:mm"
+        localTime: sched.opensAtLocalTime,
         windowMinutes: sched.windowMinutes,
         tz,
       });
 
-      // 4) Create assignment (service handles idempotency via schedule run)
       const dto = await createScheduledAssignment({
         classroomId: sched.classroomId,
         scheduleId: sched.id,
@@ -263,4 +264,31 @@ export async function deleteClassroomScheduleById(params: {
   }
 
   await SchedulesRepo.deleteScheduleById(existing.id);
+}
+
+async function gateScheduleByEntitlement(sched: {
+  id: number;
+  classroomId: number;
+  Classroom?: { teacherId?: number | null; timeZone?: string | null } | null;
+}) {
+  const teacherId = sched.Classroom?.teacherId;
+
+  if (!teacherId) {
+    console.warn(`Skipping schedule ${sched.id} (missing teacherId)`);
+    return { ok: false as const };
+  }
+
+  const gate = await requireTeacherActiveEntitlement(teacherId);
+
+  if (!gate.ok) {
+    await prisma.assignmentSchedule.update({
+      where: { id: sched.id },
+      data: { isActive: false },
+    });
+
+    console.warn(`Deactivated schedule ${sched.id} (teacher ${teacherId} not entitled)`);
+    return { ok: false as const };
+  }
+
+  return { ok: true as const, teacherId };
 }

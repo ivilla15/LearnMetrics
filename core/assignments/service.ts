@@ -1,7 +1,7 @@
 import { prisma } from '@/data';
 import { NotFoundError, ConflictError } from '@/core';
 import { Prisma } from '@prisma/client';
-import { AssignmentDTO, AssignmentRow } from '@/types';
+import { requireTeacherActiveEntitlement } from '@/core/billing/entitlement';
 
 type Params = {
   classroomId: number;
@@ -19,7 +19,33 @@ type Params = {
   runDate?: Date;
 };
 
-function toDto(a: AssignmentRow): AssignmentDTO {
+export type CoreAssignmentDTO = {
+  id: number;
+  classroomId: number;
+  kind: string;
+  opensAt: string; // ISO
+  closesAt: string; // ISO
+  windowMinutes: number | null;
+  assignmentMode: 'SCHEDULED' | 'MANUAL';
+  numQuestions: number;
+  recipientCount: number;
+};
+
+type CoreAssignmentRow = Prisma.AssignmentGetPayload<{
+  select: {
+    id: true;
+    classroomId: true;
+    kind: true;
+    opensAt: true;
+    closesAt: true;
+    windowMinutes: true;
+    assignmentMode: true;
+    numQuestions: true;
+    _count: { select: { recipients: true } };
+  };
+}>;
+
+function toDto(a: CoreAssignmentRow): CoreAssignmentDTO {
   return {
     id: a.id,
     classroomId: a.classroomId,
@@ -33,7 +59,7 @@ function toDto(a: AssignmentRow): AssignmentDTO {
   };
 }
 
-export async function createScheduledAssignment(params: Params): Promise<AssignmentDTO> {
+export async function createScheduledAssignment(params: Params): Promise<CoreAssignmentDTO> {
   const {
     classroomId,
     opensAt,
@@ -59,16 +85,20 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
     throw new ConflictError('closesAt must be after opensAt');
   }
 
-  // If scheduleId is provided, require runDate for idempotency.
   if (typeof scheduleId === 'number' && (!runDate || Number.isNaN(runDate.getTime()))) {
     throw new ConflictError('runDate is required when scheduleId is provided');
   }
 
   const classroom = await prisma.classroom.findUnique({
     where: { id: classroomId },
-    select: { id: true },
+    select: { id: true, teacherId: true },
   });
   if (!classroom) throw new NotFoundError('Classroom not found');
+
+  const entGate = await requireTeacherActiveEntitlement(classroom.teacherId);
+  if (!entGate.ok) {
+    throw new ConflictError(entGate.error);
+  }
 
   let normalizedStudentIds: number[] | null = null;
 
@@ -88,8 +118,21 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
     normalizedStudentIds = uniq;
   }
 
+  const selectAssignment = {
+    id: true,
+    classroomId: true,
+    kind: true,
+    opensAt: true,
+    closesAt: true,
+    windowMinutes: true,
+    assignmentMode: true,
+    numQuestions: true,
+    _count: { select: { recipients: true } },
+  } satisfies Prisma.AssignmentSelect;
+
+  // If not from a schedule run, create directly
   if (scheduleId == null) {
-    const created: AssignmentRow = await prisma.assignment.create({
+    const created: CoreAssignmentRow = await prisma.assignment.create({
       data: {
         classroomId,
         opensAt,
@@ -110,22 +153,13 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
             }
           : {}),
       },
-      select: {
-        id: true,
-        classroomId: true,
-        kind: true,
-        opensAt: true,
-        closesAt: true,
-        windowMinutes: true,
-        assignmentMode: true,
-        numQuestions: true,
-        _count: { select: { recipients: true } },
-      },
+      select: selectAssignment,
     });
 
     return toDto(created);
   }
 
+  // ---- schedule-run path (idempotent via assignmentScheduleRun) ----
   const dto = await prisma.$transaction(async (tx) => {
     const run = await tx.assignmentScheduleRun.upsert({
       where: {
@@ -149,20 +183,10 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
     if (run.assignmentId) {
       const existing = await tx.assignment.findUnique({
         where: { id: run.assignmentId },
-        select: {
-          id: true,
-          classroomId: true,
-          kind: true,
-          opensAt: true,
-          closesAt: true,
-          windowMinutes: true,
-          assignmentMode: true,
-          numQuestions: true,
-          _count: { select: { recipients: true } },
-        },
+        select: selectAssignment,
       });
 
-      if (existing) return toDto(existing as AssignmentRow);
+      if (existing) return toDto(existing as CoreAssignmentRow);
 
       await tx.assignmentScheduleRun.update({
         where: { id: run.id },
@@ -170,7 +194,7 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
       });
     }
 
-    let created: AssignmentRow;
+    let created: CoreAssignmentRow;
 
     try {
       created = await tx.assignment.create({
@@ -196,38 +220,17 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
               }
             : {}),
         },
-        select: {
-          id: true,
-          classroomId: true,
-          kind: true,
-          opensAt: true,
-          closesAt: true,
-          windowMinutes: true,
-          assignmentMode: true,
-          numQuestions: true,
-          _count: { select: { recipients: true } },
-        },
+        select: selectAssignment,
       });
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         const existing = await tx.assignment.findFirst({
           where: { scheduleId, opensAt },
-          select: {
-            id: true,
-            classroomId: true,
-            kind: true,
-            opensAt: true,
-            closesAt: true,
-            windowMinutes: true,
-            assignmentMode: true,
-            numQuestions: true,
-            _count: { select: { recipients: true } },
-          },
+          select: selectAssignment,
         });
 
         if (!existing) throw err;
-
-        created = existing as AssignmentRow;
+        created = existing as CoreAssignmentRow;
       } else {
         throw err;
       }
@@ -246,12 +249,12 @@ export async function createScheduledAssignment(params: Params): Promise<Assignm
 
 export async function getLatestAssignmentForClassroom(
   classroomId: number,
-): Promise<AssignmentDTO | null> {
+): Promise<CoreAssignmentDTO | null> {
   if (!Number.isFinite(classroomId) || classroomId <= 0) {
     throw new ConflictError('Invalid classroomId');
   }
 
-  const latest: AssignmentRow | null = await prisma.assignment.findFirst({
+  const latest: CoreAssignmentRow | null = await prisma.assignment.findFirst({
     where: { classroomId },
     orderBy: { opensAt: 'desc' },
     select: {

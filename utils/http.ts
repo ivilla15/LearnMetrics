@@ -13,3 +13,13 @@ export function errorResponse(
     status,
   );
 }
+
+export type ApiErrorShape = { error?: unknown };
+
+export function getApiErrorMessage(payload: unknown, fallback: string): string {
+  if (payload && typeof payload === 'object' && 'error' in payload) {
+    const maybe = (payload as ApiErrorShape).error;
+    if (typeof maybe === 'string' && maybe.trim().length > 0) return maybe;
+  }
+  return fallback;
+}

@@ -1,1 +1,0 @@
-export type Filter = 'ALL' | 'MASTERY' | 'NOT_MASTERY' | 'MISSING';

@@ -16,6 +16,8 @@ export * from './ErrorMessage';
 export * from './LoadingSpinner';
 export * from './Skeleton';
 export * from './Help-Text';
+export * from './Tile';
+export * from './tones';
 
 // Charts & visuals
 export * from './LevelProgressChart';
@@ -26,7 +28,3 @@ export * from './Page-Header';
 
 // Toasts
 export * from './ToastProvider';
-
-// Shared UI logic / types
-export * from './types';
-export * from './tones';

@@ -27,7 +27,7 @@ model Assignment {
 
   scheduleId Int?
   Schedule   AssignmentSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
-  runDate DateTime?
+  runDate    DateTime?
 
   Classroom    Classroom               @relation(fields: [classroomId], references: [id], onDelete: Cascade)
   QuestionSet  QuestionSet?            @relation(fields: [questionSetId], references: [id])
@@ -69,9 +69,9 @@ model AssignmentScheduleRun {
   Schedule   AssignmentSchedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
   Assignment Assignment?        @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
 
-  isSkipped  Boolean  @default(false)
+  isSkipped  Boolean   @default(false)
   skippedAt  DateTime?
-  skipReason  String? 
+  skipReason String?
 
   @@unique([scheduleId, runDate])
   @@index([scheduleId])
@@ -171,8 +171,9 @@ model Teacher {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Classroom Classroom[]
-  sessions  TeacherSession[]
+  Classroom   Classroom[]
+  sessions    TeacherSession[]
+  entitlement TeacherEntitlement?
 }
 
 enum AssignmentKind {
@@ -213,4 +214,36 @@ model StudentSession {
 
   @@index([studentId])
   @@map("StudentSession")
+}
+
+enum TeacherPlan {
+  TRIAL
+  PRO
+  SCHOOL
+}
+
+enum EntitlementStatus {
+  ACTIVE
+  EXPIRED
+  CANCELED
+}
+
+model TeacherEntitlement {
+  id        Int     @id @default(autoincrement())
+  teacherId Int     @unique
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  plan   TeacherPlan       @default(TRIAL)
+  status EntitlementStatus @default(ACTIVE)
+
+  trialEndsAt          DateTime?
+  // Stripe fields later (optional)
+  stripeCustomerId     String?
+  stripeSubscriptionId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([plan])
+  @@index([status])
 }

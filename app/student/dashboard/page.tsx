@@ -1,7 +1,6 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
 
 import {
   Button,
@@ -15,79 +14,9 @@ import {
   Skeleton,
 } from '@/components';
 
-import { AppShell, studentNavItems } from '@/modules';
+import { AppShell, studentNavItems, useStudentDashboard } from '@/modules';
 import { formatLocal } from '@/lib';
-import { AttemptRow, MeDTO } from '@/types';
-
-type NextAssignmentDTO = {
-  id: number;
-  kind: string;
-  mode: 'SCHEDULED' | 'MANUAL';
-  opensAt: string;
-  closesAt: string;
-  windowMinutes: number | null;
-} | null;
-
-type AssignmentStatus = 'NOT_OPEN' | 'CLOSED' | 'READY' | 'ALREADY_SUBMITTED' | null;
-
-/* ---------- type guards ---------- */
-
-function isMeDTO(value: unknown): value is MeDTO {
-  if (!value || typeof value !== 'object') return false;
-  const v = value as Record<string, unknown>;
-  return (
-    typeof v.id === 'number' &&
-    typeof v.name === 'string' &&
-    typeof v.username === 'string' &&
-    typeof v.level === 'number'
-  );
-}
-
-function isNextAssignment(value: unknown): value is Exclude<NextAssignmentDTO, null> {
-  if (!value || typeof value !== 'object') return false;
-  const v = value as Record<string, unknown>;
-  return (
-    (typeof v.id === 'number' &&
-      typeof v.kind === 'string' &&
-      (v.mode === 'SCHEDULED' || v.mode === 'MANUAL') &&
-      typeof v.opensAt === 'string' &&
-      typeof v.closesAt === 'string' &&
-      v.windowMinutes === null) ||
-    typeof v.windowMinutes === 'number'
-  );
-}
-
-function isAttemptRow(value: unknown): value is AttemptRow {
-  if (!value || typeof value !== 'object') return false;
-  const v = value as Record<string, unknown>;
-
-  return (
-    typeof v.attemptId === 'number' &&
-    typeof v.assignmentId === 'number' &&
-    typeof v.completedAt === 'string' &&
-    typeof v.assignmentKind === 'string' &&
-    typeof v.assignmentMode === 'string' &&
-    typeof v.levelAtTime === 'number' &&
-    typeof v.score === 'number' &&
-    typeof v.total === 'number' &&
-    typeof v.percent === 'number' &&
-    typeof v.wasMastery === 'boolean'
-  );
-}
-
-/* ---------- helpers ---------- */
-
-function statusFor(a: NextAssignmentDTO) {
-  if (!a) return { label: 'No upcoming tests', canStart: false };
-
-  const now = Date.now();
-  const opens = new Date(a.opensAt).getTime();
-  const closes = new Date(a.closesAt).getTime();
-
-  if (now < opens) return { label: 'Not open yet', canStart: false };
-  if (now > closes) return { label: 'Closed', canStart: false };
-  return { label: 'Open now', canStart: true };
-}
+import { statusFor } from '@/utils';
 
 function DashboardSkeleton() {
   return (
@@ -150,106 +79,11 @@ function DashboardSkeleton() {
   );
 }
 
-/* ---------- page ---------- */
-
 export default function StudentDashboardPage() {
   const router = useRouter();
   const pathname = usePathname();
 
-  const [nextStatus, setNextStatus] = useState<AssignmentStatus>(null);
-  const [latestAttempt, setLatestAttempt] = useState<AttemptRow | null>(null);
-  const [me, setMe] = useState<MeDTO | null>(null);
-  const [nextAssignment, setNextAssignment] = useState<NextAssignmentDTO>(null);
-  const [loading, setLoading] = useState(true);
-
-  /* ---------- initial load ---------- */
-  useEffect(() => {
-    let cancelled = false;
-
-    async function load() {
-      setLoading(true);
-
-      const [meRes, nextRes, attemptsRes] = await Promise.all([
-        fetch('/api/student/me'),
-        fetch('/api/student/next-assignment'),
-        fetch('/api/student/attempts?filter=ALL'),
-      ]);
-
-      if (!meRes.ok) {
-        if (!cancelled) setLoading(false);
-        return;
-      }
-
-      const meJson: unknown = await meRes.json().catch(() => null);
-      const nextJson: unknown = await nextRes.json().catch(() => null);
-      const attemptsJson: unknown = await attemptsRes.json().catch(() => null);
-
-      if (cancelled) return;
-
-      // me
-      if (meJson && typeof meJson === 'object') {
-        const maybeStudent = (meJson as { student?: unknown }).student ?? meJson;
-        setMe(isMeDTO(maybeStudent) ? maybeStudent : null);
-      } else {
-        setMe(null);
-      }
-
-      // next assignment
-      const candidate =
-        nextJson && typeof nextJson === 'object'
-          ? ((nextJson as { assignment?: unknown }).assignment ?? nextJson)
-          : null;
-
-      setNextAssignment(isNextAssignment(candidate) ? candidate : null);
-
-      // attempts
-      const rows =
-        attemptsJson && typeof attemptsJson === 'object'
-          ? (attemptsJson as { rows?: unknown[] }).rows
-          : null;
-
-      const parsedAttempts = Array.isArray(rows) ? rows.filter(isAttemptRow) : [];
-      setLatestAttempt(parsedAttempts.length ? parsedAttempts[0] : null);
-
-      setLoading(false);
-    }
-
-    void load();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  /* ---------- status load (if there is a next assignment) ---------- */
-  useEffect(() => {
-    let cancelled = false;
-
-    async function loadStatus() {
-      if (!nextAssignment) {
-        setNextStatus(null);
-        return;
-      }
-
-      const res = await fetch(`/api/student/assignments/${nextAssignment.id}`);
-      const json: unknown = await res.json().catch(() => null);
-
-      if (cancelled) return;
-
-      if (!res.ok || !json || typeof json !== 'object') {
-        setNextStatus(null);
-        return;
-      }
-
-      setNextStatus((json as { status?: AssignmentStatus }).status ?? null);
-    }
-
-    void loadStatus();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [nextAssignment]);
+  const { loading, me, nextAssignment, nextStatus, latestAttempt } = useStudentDashboard();
 
   const s = statusFor(nextAssignment);
 
@@ -290,7 +124,6 @@ export default function StudentDashboardPage() {
                   {latestAttempt ? (
                     <>
                       <div className="flex items-start justify-between gap-6">
-                        {/* Left: score + meta */}
                         <div className="space-y-2">
                           <div
                             className={[
@@ -303,7 +136,6 @@ export default function StudentDashboardPage() {
                             {latestAttempt.percent}%
                           </div>
 
-                          {/* Level worked on + mastery pill */}
                           <div className="flex flex-wrap items-center gap-2">
                             <div className="text-[15px] font-semibold text-[hsl(var(--fg))]">
                               Level worked on:{' '}
@@ -328,7 +160,6 @@ export default function StudentDashboardPage() {
                           </div>
                         </div>
 
-                        {/* Right: “cup” level meter */}
                         <div className="flex flex-col items-center gap-2">
                           <div className="text-[15px] font-semibold text-[hsl(var(--fg))]">
                             Level meter

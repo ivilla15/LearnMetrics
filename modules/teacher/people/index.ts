@@ -1,2 +1,2 @@
-export * from './ClassroomPeopleClient';
-export * from './RosterTable';
+export * from './PeopleClient';
+export * from './_components';

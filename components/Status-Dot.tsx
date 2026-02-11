@@ -1,4 +1,4 @@
-import { Tone } from './types';
+import { Tone } from '../types/tone';
 
 export function StatusDot({ tone }: { tone: Tone }) {
   const cls =

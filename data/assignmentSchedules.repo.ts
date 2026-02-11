@@ -31,7 +31,7 @@ export async function findAllActiveSchedulesWithTimezone() {
       isActive: true,
       days: true,
       numQuestions: true,
-      Classroom: { select: { timeZone: true } },
+      Classroom: { select: { id: true, teacherId: true, timeZone: true } },
     },
   });
 }
