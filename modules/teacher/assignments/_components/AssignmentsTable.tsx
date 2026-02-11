@@ -18,7 +18,7 @@ export function AssignmentsTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]">
-            <th className="py-3 pl-5 pr-3">Assignment</th>
+            <th className="py-3 pl-5 pr-3">Assignment Type</th>
             <th className="py-3 px-3">Opens</th>
             <th className="py-3 px-3">Closes</th>
             <th className="py-3 px-3 text-center">Attempted</th>
@@ -44,7 +44,7 @@ export function AssignmentsTable({
                 <td className="py-3 pl-5 pr-3">
                   <div className="flex flex-col gap-1">
                     <div className="text-[hsl(var(--fg))] font-medium">
-                      Assignment {a.assignmentId}
+                      Assignment {a.assignmentMode}
                     </div>
                     <div className="text-xs text-[hsl(var(--muted-fg))]">
                       {a.assignmentMode} · {a.kind} · {a.numQuestions} questions
