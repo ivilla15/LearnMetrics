@@ -1,8 +1,7 @@
-// core/classrooms/service.ts
 import * as ClassroomsRepo from '@/data';
 import * as StudentsRepo from '@/data';
 import { NotFoundError, ConflictError } from '@/core';
-import { RosterDTO } from '@/types';
+import { ProgressRosterDTO } from '@/types';
 
 export async function getTeacherClassroomOverview(params: {
   classroomId: number;
@@ -22,7 +21,7 @@ export async function getTeacherClassroomOverview(params: {
 export async function getRosterWithLastAttempt(params: {
   classroomId: number;
   teacherId: number;
-}): Promise<RosterDTO> {
+}): Promise<ProgressRosterDTO> {
   const { classroomId, teacherId } = params;
 
   const classroom = await ClassroomsRepo.findClassroomById(classroomId);
@@ -47,7 +46,7 @@ export async function getRosterWithLastAttempt(params: {
             score: a.score,
             total: a.total,
             percent: a.total > 0 ? Math.round((a.score / a.total) * 100) : 0,
-            completedAt: a.completedAt.toISOString(),
+            completedAt: a.completedAt,
             wasMastery: a.total > 0 && a.score === a.total,
           }
         : null,

@@ -22,13 +22,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 });
 
 type Props = {
-  searchParams: { session_id?: string };
+  searchParams: Promise<{ session_id?: string }>;
 };
 
 function getSubscriptionPeriodEndUnix(subscription?: Stripe.Subscription | null): number | null {
   if (!subscription) return null;
 
-  // Stripe types can lag behind API versions; safely read if present.
   const subRecord = subscription as unknown as { current_period_end?: number | null };
   const val = subRecord.current_period_end;
   return typeof val === 'number' ? val : null;
@@ -41,12 +40,12 @@ function getProductNameFromExpandedSession(session: Stripe.Checkout.Session): st
   if (!product) return null;
   if (typeof product === 'string') return null;
 
-  // Expanded product object
   return (product as Stripe.Product).name ?? null;
 }
 
 export default async function BillingSuccessPage({ searchParams }: Props) {
-  const sessionId = searchParams.session_id;
+  const sp = await searchParams;
+  const sessionId = sp.session_id;
 
   if (!sessionId) {
     return (

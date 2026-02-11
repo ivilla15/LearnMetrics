@@ -1,4 +1,3 @@
-// app/api/billing/manage/route.ts
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { requireTeacher } from '@/core';
@@ -8,7 +7,7 @@ import Stripe from 'stripe';
 
 export const runtime = 'nodejs';
 
-export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover',
 });
 
@@ -52,7 +51,6 @@ export async function POST() {
 
   const returnTo = `${origin}/teacher/settings`;
 
-  // If Stripe customer exists, portal works
   if (e.stripeCustomerId) {
     const session = await stripe.billingPortal.sessions.create({
       customer: e.stripeCustomerId,
@@ -62,11 +60,9 @@ export async function POST() {
     return NextResponse.json({ ok: true, url: session.url }, { status: 200 });
   }
 
-  // Otherwise, call the existing checkout endpoint server-side with json=1
   const checkoutApiUrl = `${origin}/api/billing/checkout?plan=pro&json=1`;
   const res = await fetch(checkoutApiUrl, {
     method: 'GET',
-    // forward cookies to maintain session auth if your checkout route relies on requireTeacher session cookie
     headers: { cookie: (await headers()).get('cookie') ?? '' },
   });
 
@@ -86,6 +82,5 @@ export async function POST() {
     );
   }
 
-  // Return the final Stripe session URL to the client
   return NextResponse.json({ ok: true, url: json.url }, { status: 200 });
 }

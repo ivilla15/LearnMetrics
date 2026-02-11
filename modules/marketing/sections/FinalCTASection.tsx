@@ -39,6 +39,7 @@ export function FinalCtaSection() {
         <FadeIn delay={0.2}>
           <Button
             size="lg"
+            href="#pricing"
             className="mt-10 bg-white text-black hover:bg-white/90 px-10 h-14 text-lg font-medium rounded-full"
           >
             Get Started Today

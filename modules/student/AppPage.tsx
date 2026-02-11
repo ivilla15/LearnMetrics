@@ -11,16 +11,13 @@ type AppPageProps = {
   subtitle?: string;
   children: React.ReactNode;
 
-  // ✅ allow full width
   width?: 'default' | 'wide' | 'full';
 
   actions?: React.ReactNode;
 
-  // optional: background tone controls
   headerTone?: 'default' | 'subtle';
   contentTone?: 'none' | 'default' | 'subtle';
 
-  // optional: spacing inside the content section
   contentClassName?: string;
 };
 

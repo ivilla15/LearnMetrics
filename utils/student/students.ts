@@ -130,3 +130,9 @@ export function parseBulkStudentsText(
     level: d.level,
   }));
 }
+
+export type PracticeQuestion = {
+  id: number;
+  factorA: number;
+  factorB: number;
+};

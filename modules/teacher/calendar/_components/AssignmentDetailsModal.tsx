@@ -3,13 +3,8 @@
 import * as React from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
 import { Modal, Button, HelpText, Pill } from '@/components';
-import type { CalendarItemRow, CalendarAssignmentDTO } from '@/types';
-import { isProjection, toIso } from '@/utils/calendar';
-
-function getAssignment(selected: CalendarItemRow | null): CalendarAssignmentDTO | null {
-  if (!selected) return null;
-  return isProjection(selected) ? null : selected;
-}
+import type { CalendarItemRow } from '@/types';
+import { getAssignment, toIso } from '@/utils';
 
 export function AssignmentDetailsModal(props: {
   open: boolean;

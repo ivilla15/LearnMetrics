@@ -2,10 +2,11 @@ import * as React from 'react';
 
 import { requireTeacher } from '@/core';
 
-import { ClassroomSubNav, StudentProgressClient } from '@/modules';
+import { ClassroomSubNav } from '@/modules';
 
 import { PageHeader, Section } from '@/components';
 import { getTeacherStudentProgress } from '@/core/teacher/Progress/studentService';
+import { StudentProgressClient } from '@/modules/teacher/student-progress';
 
 export default async function Page({
   params,

@@ -1,4 +1,4 @@
-import type { AttemptSummary, AttemptSummaryDTO } from './attempts';
+import type { AttemptSummary } from './attempts';
 
 export type StudentRosterRow = {
   id: number;
@@ -10,5 +10,5 @@ export type StudentRosterRow = {
 };
 
 export type StudentRosterRowDTO = Omit<StudentRosterRow, 'lastAttempt'> & {
-  lastAttempt: AttemptSummaryDTO | null;
+  lastAttempt: AttemptSummary | null;
 };

@@ -74,3 +74,11 @@ export type AttemptResultsRow = {
 export type AttemptExplorerFilter = 'ALL' | 'MASTERY' | 'NOT_MASTERY';
 
 export type AttemptExplorerMe = { id: number; name: string; username: string };
+
+export type AttemptSummary = {
+  id: number;
+  assignmentId: number;
+  score: number;
+  total: number;
+  completedAt: string; // ISO
+};

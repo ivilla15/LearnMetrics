@@ -84,3 +84,42 @@ export type AttemptDetailSelection = {
   studentName: string;
   studentUsername: string;
 };
+
+export type AssignmentPayload = {
+  id: number;
+  kind: string;
+  mode: string;
+  opensAt: string;
+  closesAt: string;
+  windowMinutes: number | null;
+  numQuestions: number;
+};
+
+export type StudentPayload = {
+  id: number;
+  name: string;
+  level: number;
+};
+
+export type AlreadySubmittedResult = {
+  score: number;
+  total: number;
+  percent: number;
+  completedAt: string;
+};
+
+export type QuestionPayload = {
+  id: number;
+  factorA: number;
+  factorB: number;
+};
+
+export type LoadResponse =
+  | { status: 'NOT_OPEN' | 'CLOSED'; assignment: AssignmentPayload }
+  | { status: 'ALREADY_SUBMITTED'; assignment: AssignmentPayload; result: AlreadySubmittedResult }
+  | {
+      status: 'READY';
+      student: StudentPayload;
+      assignment: AssignmentPayload;
+      questions: QuestionPayload[];
+    };

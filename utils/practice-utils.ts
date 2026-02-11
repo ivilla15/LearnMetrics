@@ -1,4 +1,4 @@
-import type { PracticeQuestion } from './types';
+import { PracticeQuestion } from './student';
 
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
