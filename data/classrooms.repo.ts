@@ -1,6 +1,6 @@
 // data/classrooms.repo.ts
 import { prisma } from '@/data/prisma';
-import type { AssignmentKind, AssignmentMode } from '@prisma/client';
+import type { Type, Mode } from '@prisma/client';
 
 export type TeacherClassroomCardRow = {
   id: number;
@@ -25,9 +25,9 @@ export type TeacherClassroomOverviewStats = {
   nextTest: null | {
     id: number;
     opensAt: string;
-    closesAt: string;
-    assignmentMode: AssignmentMode;
-    kind: AssignmentKind;
+    closesAt: string | null;
+    mode: Mode;
+    type: Type;
   };
 
   // Attempts
@@ -101,15 +101,15 @@ export async function getTeacherClassroomOverviewStats(
       }),
     ]);
 
-  // Prefer "currently open", else "next upcoming"
+  // "Current assignment": opensAt <= now AND (closesAt is null OR closesAt >= now)
   const currentAssignment = await prisma.assignment.findFirst({
     where: {
       classroomId,
       opensAt: { lte: now },
-      closesAt: { gte: now },
+      OR: [{ closesAt: null }, { closesAt: { gte: now } }],
     },
     orderBy: { opensAt: 'asc' },
-    select: { id: true, opensAt: true, closesAt: true, assignmentMode: true, kind: true },
+    select: { id: true, opensAt: true, closesAt: true, mode: true, type: true },
   });
 
   const nextUpcoming = currentAssignment
@@ -117,7 +117,7 @@ export async function getTeacherClassroomOverviewStats(
     : await prisma.assignment.findFirst({
         where: { classroomId, opensAt: { gte: now } },
         orderBy: { opensAt: 'asc' },
-        select: { id: true, opensAt: true, closesAt: true, assignmentMode: true, kind: true },
+        select: { id: true, opensAt: true, closesAt: true, mode: true, type: true },
       });
 
   const picked = currentAssignment ?? nextUpcoming;
@@ -142,9 +142,9 @@ export async function getTeacherClassroomOverviewStats(
       ? {
           id: picked.id,
           opensAt: picked.opensAt.toISOString(),
-          closesAt: picked.closesAt.toISOString(),
-          assignmentMode: picked.assignmentMode,
-          kind: picked.kind,
+          closesAt: picked.closesAt ? picked.closesAt.toISOString() : null,
+          mode: picked.mode,
+          type: picked.type,
         }
       : null,
 

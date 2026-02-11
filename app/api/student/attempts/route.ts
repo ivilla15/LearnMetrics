@@ -39,27 +39,29 @@ export async function GET(req: Request) {
         total: true,
         completedAt: true,
         levelAtTime: true,
-        Assignment: { select: { kind: true, assignmentMode: true } },
+        Assignment: { select: { type: true, mode: true } },
       },
     });
 
-    const mapped = rows.map((a) => {
-      const percent = a.total > 0 ? Math.round((a.score / a.total) * 100) : 0;
-      const wasMastery = a.total > 0 && a.score === a.total;
+    const mapped = rows
+      .filter((a) => a.completedAt) // only include completed attempts
+      .map((a) => {
+        const percent = a.total > 0 ? Math.round((a.score / a.total) * 100) : 0;
+        const wasMastery = a.total > 0 && a.score === a.total;
 
-      return {
-        attemptId: a.id,
-        assignmentId: a.assignmentId,
-        completedAt: a.completedAt.toISOString(),
-        assignmentKind: a.Assignment.kind,
-        assignmentMode: a.Assignment.assignmentMode,
-        levelAtTime: a.levelAtTime ?? student.level,
-        score: a.score,
-        total: a.total,
-        percent,
-        wasMastery,
-      };
-    });
+        return {
+          attemptId: a.id,
+          assignmentId: a.assignmentId,
+          completedAt: a.completedAt!.toISOString(),
+          assignmentType: a.Assignment!.type,
+          assignmentMode: a.Assignment!.mode,
+          levelAtTime: a.levelAtTime ?? student.level,
+          score: a.score,
+          total: a.total,
+          percent,
+          wasMastery,
+        };
+      });
 
     let filtered = mapped;
     if (filter === 'MASTERY') filtered = mapped.filter((r) => r.wasMastery);

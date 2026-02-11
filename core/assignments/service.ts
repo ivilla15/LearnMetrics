@@ -8,39 +8,50 @@ type Params = {
   opensAt: Date;
   closesAt: Date;
   windowMinutes: number | null;
-  assignmentMode: 'SCHEDULED' | 'MANUAL';
+
+  mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
+  type: 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT';
+
   numQuestions?: number;
-  kind?: 'SCHEDULED_TEST';
   questionSetId?: number | null;
   studentIds?: number[];
   skipReason?: string;
 
   scheduleId?: number | null;
   runDate?: Date;
+
+  parentAssignmentId?: number | null;
 };
 
 export type CoreAssignmentDTO = {
   id: number;
   classroomId: number;
-  kind: string;
+
+  type: 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT';
+  mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
+
   opensAt: string; // ISO
-  closesAt: string; // ISO
+  closesAt: string | null; // ISO (nullable)
   windowMinutes: number | null;
-  assignmentMode: 'SCHEDULED' | 'MANUAL';
   numQuestions: number;
   recipientCount: number;
+
+  scheduleId: number | null;
+  runDate: string | null; // ISO (nullable)
 };
 
 type CoreAssignmentRow = Prisma.AssignmentGetPayload<{
   select: {
     id: true;
     classroomId: true;
-    kind: true;
+    type: true;
+    mode: true;
     opensAt: true;
     closesAt: true;
     windowMinutes: true;
-    assignmentMode: true;
     numQuestions: true;
+    scheduleId: true;
+    runDate: true;
     _count: { select: { recipients: true } };
   };
 }>;
@@ -49,13 +60,15 @@ function toDto(a: CoreAssignmentRow): CoreAssignmentDTO {
   return {
     id: a.id,
     classroomId: a.classroomId,
-    kind: a.kind,
+    type: a.type,
+    mode: a.mode,
     opensAt: a.opensAt.toISOString(),
-    closesAt: a.closesAt.toISOString(),
+    closesAt: a.closesAt ? a.closesAt.toISOString() : null,
     windowMinutes: a.windowMinutes,
-    assignmentMode: a.assignmentMode,
     numQuestions: a.numQuestions,
     recipientCount: a._count.recipients,
+    scheduleId: a.scheduleId ?? null,
+    runDate: a.runDate ? a.runDate.toISOString() : null,
   };
 }
 
@@ -65,14 +78,16 @@ export async function createScheduledAssignment(params: Params): Promise<CoreAss
     opensAt,
     closesAt,
     windowMinutes,
-    assignmentMode,
+    mode,
+    type,
     numQuestions = 12,
-    kind = 'SCHEDULED_TEST',
     questionSetId = null,
     studentIds,
 
     scheduleId = null,
     runDate,
+
+    parentAssignmentId = null,
   } = params;
 
   if (!(opensAt instanceof Date) || Number.isNaN(opensAt.getTime())) {
@@ -121,12 +136,14 @@ export async function createScheduledAssignment(params: Params): Promise<CoreAss
   const selectAssignment = {
     id: true,
     classroomId: true,
-    kind: true,
+    type: true,
+    mode: true,
     opensAt: true,
     closesAt: true,
     windowMinutes: true,
-    assignmentMode: true,
     numQuestions: true,
+    scheduleId: true,
+    runDate: true,
     _count: { select: { recipients: true } },
   } satisfies Prisma.AssignmentSelect;
 
@@ -138,10 +155,11 @@ export async function createScheduledAssignment(params: Params): Promise<CoreAss
         opensAt,
         closesAt,
         windowMinutes: windowMinutes ?? 4,
-        assignmentMode,
+        mode,
+        type,
         numQuestions,
-        kind,
         questionSetId: questionSetId ?? undefined,
+        parentAssignmentId: parentAssignmentId ?? undefined,
         ...(normalizedStudentIds
           ? {
               recipients: {
@@ -194,47 +212,34 @@ export async function createScheduledAssignment(params: Params): Promise<CoreAss
       });
     }
 
-    let created: CoreAssignmentRow;
-
-    try {
-      created = await tx.assignment.create({
-        data: {
-          classroomId,
-          opensAt,
-          closesAt,
-          windowMinutes: windowMinutes ?? 4,
-          assignmentMode,
-          numQuestions,
-          kind,
-          questionSetId: questionSetId ?? undefined,
-          scheduleId,
-          runDate: runDate!,
-          ...(normalizedStudentIds
-            ? {
-                recipients: {
-                  createMany: {
-                    data: normalizedStudentIds.map((sid) => ({ studentId: sid })),
-                    skipDuplicates: true,
-                  },
+    // NOTE: we no longer rely on old unique constraint classroomId+kind+opensAt.
+    // The scheduleRun uniqueness is the real idempotency guard.
+    const created: CoreAssignmentRow = await tx.assignment.create({
+      data: {
+        classroomId,
+        opensAt,
+        closesAt,
+        windowMinutes: windowMinutes ?? 4,
+        mode,
+        type,
+        numQuestions,
+        questionSetId: questionSetId ?? undefined,
+        scheduleId,
+        runDate: runDate!,
+        parentAssignmentId: parentAssignmentId ?? undefined,
+        ...(normalizedStudentIds
+          ? {
+              recipients: {
+                createMany: {
+                  data: normalizedStudentIds.map((sid) => ({ studentId: sid })),
+                  skipDuplicates: true,
                 },
-              }
-            : {}),
-        },
-        select: selectAssignment,
-      });
-    } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
-        const existing = await tx.assignment.findFirst({
-          where: { scheduleId, opensAt },
-          select: selectAssignment,
-        });
-
-        if (!existing) throw err;
-        created = existing as CoreAssignmentRow;
-      } else {
-        throw err;
-      }
-    }
+              },
+            }
+          : {}),
+      },
+      select: selectAssignment,
+    });
 
     await tx.assignmentScheduleRun.update({
       where: { id: run.id },
@@ -260,12 +265,14 @@ export async function getLatestAssignmentForClassroom(
     select: {
       id: true,
       classroomId: true,
-      kind: true,
+      type: true,
+      mode: true,
       opensAt: true,
       closesAt: true,
       windowMinutes: true,
-      assignmentMode: true,
       numQuestions: true,
+      scheduleId: true,
+      runDate: true,
       _count: { select: { recipients: true } },
     },
   });

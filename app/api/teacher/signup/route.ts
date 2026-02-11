@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       data: {
         name: name.trim(),
         email: normalizedEmail,
-        password: passwordHash,
+        passwordHash,
         updatedAt: now,
         entitlement: {
           create: {

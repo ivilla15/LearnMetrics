@@ -58,7 +58,7 @@ export function DayTile({ date, tz, inMonth, isToday, items, onOpenDetails, onOp
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="font-medium text-[hsl(var(--fg))] truncate">
-                  {proj ? 'Upcoming test' : `#${item.assignmentId} ${item.assignmentMode}`}
+                  {proj ? 'Upcoming test' : `#${item.assignmentId} ${item.mode}`}
                 </span>
                 <span className="text-[10px] text-[hsl(var(--muted-fg))]">
                   {formatInTimeZone(toIso(item.opensAt), tz, 'h:mm a')}

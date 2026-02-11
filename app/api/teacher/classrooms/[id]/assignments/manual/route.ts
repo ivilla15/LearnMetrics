@@ -22,7 +22,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     // 2) Ownership
     await assertTeacherOwnsClassroom(auth.teacher.id, classroomId);
 
-    // 3) Body (shared helper)
+    // 3) Body
     const raw = await readJson(request);
 
     // 4) Validate MANUAL payload
@@ -34,6 +34,7 @@ export async function POST(request: Request, { params }: RouteContext) {
     if (!isValidDate(opensAt) || !isValidDate(closesAt)) {
       return errorResponse('Invalid opensAt/closesAt', 400);
     }
+
     if (closesAt <= opensAt) {
       return errorResponse('closesAt must be after opensAt', 400);
     }
@@ -45,8 +46,11 @@ export async function POST(request: Request, { params }: RouteContext) {
       closesAt,
       windowMinutes: parsed.windowMinutes ?? 4,
       numQuestions: parsed.numQuestions ?? 12,
-      assignmentMode: 'MANUAL',
-      kind: 'SCHEDULED_TEST',
+
+      // ✅ New schema fields
+      mode: 'MANUAL',
+      type: 'TEST',
+
       questionSetId: parsed.questionSetId ?? null,
       studentIds: parsed.studentIds, // REQUIRED
     });

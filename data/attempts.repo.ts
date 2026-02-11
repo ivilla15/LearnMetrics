@@ -9,12 +9,14 @@ type CreateAttemptArgs = {
 
 export async function createAttempt(args: CreateAttemptArgs) {
   const { studentId, assignmentId, score, total } = args;
+
   return prisma.attempt.create({
     data: {
       studentId,
       assignmentId,
       score,
       total,
+      // startedAt is defaulted in DB; completedAt should be set on submit elsewhere
     },
   });
 }
@@ -28,6 +30,7 @@ type AttemptItemInput = {
 
 export async function createAttemptItems(items: AttemptItemInput[]) {
   if (items.length === 0) return;
+
   await prisma.attemptItem.createMany({
     data: items,
   });
@@ -41,12 +44,14 @@ export async function findByStudentWithAssignment(studentId: number) {
         select: {
           id: true,
           classroomId: true,
-          kind: true,
+          type: true,
+          mode: true,
           opensAt: true,
           closesAt: true,
         },
       },
     },
-    orderBy: { completedAt: 'desc' },
+    // completedAt is nullable now, so order by startedAt to avoid null-order surprises
+    orderBy: { startedAt: 'desc' },
   });
 }

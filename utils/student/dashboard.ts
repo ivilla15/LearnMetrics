@@ -39,7 +39,7 @@ export function isAttemptRow(value: unknown): value is AttemptRow {
     typeof v.assignmentId === 'number' &&
     typeof v.completedAt === 'string' &&
     typeof v.assignmentKind === 'string' &&
-    typeof v.assignmentMode === 'string' &&
+    typeof v.mode === 'string' &&
     typeof v.levelAtTime === 'number' &&
     typeof v.score === 'number' &&
     typeof v.total === 'number' &&

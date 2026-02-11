@@ -2,25 +2,40 @@ import { prisma } from '@/data/prisma';
 import bcrypt from 'bcryptjs';
 
 async function main() {
-  const teachers = await prisma.teacher.findMany({ select: { id: true, password: true } });
-  const students = await prisma.student.findMany({ select: { id: true, password: true } });
+  const teachers = await prisma.teacher.findMany({
+    select: { id: true, passwordHash: true },
+  });
+
+  const students = await prisma.student.findMany({
+    select: { id: true, passwordHash: true },
+  });
 
   let tUpdated = 0;
   for (const t of teachers) {
-    // Skip already-hashed passwords
-    if (t.password.startsWith('$2a$') || t.password.startsWith('$2b$')) continue;
+    if (!t.passwordHash) continue;
 
-    const hashed = await bcrypt.hash(t.password, 10);
-    await prisma.teacher.update({ where: { id: t.id }, data: { password: hashed } });
+    // Skip already-hashed passwords
+    if (t.passwordHash.startsWith('$2a$') || t.passwordHash.startsWith('$2b$')) continue;
+
+    const hashed = await bcrypt.hash(t.passwordHash, 10);
+    await prisma.teacher.update({
+      where: { id: t.id },
+      data: { passwordHash: hashed },
+    });
     tUpdated++;
   }
 
   let sUpdated = 0;
   for (const s of students) {
-    if (s.password.startsWith('$2a$') || s.password.startsWith('$2b$')) continue;
+    if (!s.passwordHash) continue;
 
-    const hashed = await bcrypt.hash(s.password, 10);
-    await prisma.student.update({ where: { id: s.id }, data: { password: hashed } });
+    if (s.passwordHash.startsWith('$2a$') || s.passwordHash.startsWith('$2b$')) continue;
+
+    const hashed = await bcrypt.hash(s.passwordHash, 10);
+    await prisma.student.update({
+      where: { id: s.id },
+      data: { passwordHash: hashed },
+    });
     sUpdated++;
   }
 

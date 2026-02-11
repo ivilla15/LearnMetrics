@@ -73,7 +73,7 @@ export type StudentProgressRow = {
 export type RecentTest = {
   assignmentId: number;
   opensAt: string;
-  assignmentMode: 'SCHEDULED' | 'MANUAL';
+  mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
   numQuestions: number;
   attemptedCount: number;
   masteryRate: number;
@@ -210,7 +210,7 @@ export async function getTeacherClassroomProgress(params: {
     return {
       assignmentId: as.id,
       opensAt: as.opensAt.toISOString(),
-      assignmentMode: as.assignmentMode,
+      mode: as.mode,
       numQuestions: as.numQuestions,
       attemptedCount,
       masteryRate,
@@ -222,7 +222,8 @@ export async function getTeacherClassroomProgress(params: {
   // ---- Charts: daily ----
   const dailyMap = new Map<string, { attempts: number; mastered: number; sumPct: number }>();
   for (const a of attemptsInRange) {
-    const key = isoDay(a.completedAt);
+    // completedAt may be null in the type, but these rows are queried with completedAt range so it should be non-null at runtime
+    const key = isoDay(a.completedAt as Date);
     const prev = dailyMap.get(key) ?? { attempts: 0, mastered: 0, sumPct: 0 };
     prev.attempts += 1;
     const p = percent(a.score, a.total);
@@ -298,11 +299,11 @@ export async function getTeacherClassroomProgress(params: {
 
     // last attempt overall from recent list (desc)
     const last = rec[0] ?? null;
-    const lastAttemptAt = last ? last.completedAt.toISOString() : null;
+    const lastAttemptAt = last ? (last.completedAt ? last.completedAt.toISOString() : null) : null;
     const lastPercent = last ? percent(last.score, last.total) : null;
 
     const daysSinceLastAttempt = last
-      ? Math.floor((now - last.completedAt.getTime()) / (24 * 60 * 60 * 1000))
+      ? Math.floor((now - (last.completedAt ? last.completedAt.getTime() : now)) / (24 * 60 * 60 * 1000))
       : null;
 
     // streaks: traverse rec list from most recent backwards

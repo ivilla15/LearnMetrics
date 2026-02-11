@@ -31,12 +31,12 @@ export async function GET(_req: Request, { params }: RouteContext) {
       select: {
         id: true,
         classroomId: true,
-        kind: true,
+        type: true,
+        mode: true,
         opensAt: true,
         closesAt: true,
         windowMinutes: true,
         questionSetId: true,
-        assignmentMode: true,
         numQuestions: true,
         recipients: { select: { studentId: true } },
       },
@@ -56,10 +56,10 @@ export async function GET(_req: Request, { params }: RouteContext) {
 
     const assignmentPayload = {
       id: assignment.id,
-      kind: assignment.kind,
-      mode: assignment.assignmentMode,
+      type: assignment.type,
+      mode: assignment.mode,
       opensAt: assignment.opensAt.toISOString(),
-      closesAt: assignment.closesAt.toISOString(),
+      closesAt: assignment.closesAt ? assignment.closesAt.toISOString() : null,
       windowMinutes: assignment.windowMinutes,
       numQuestions: requested,
     };
@@ -81,7 +81,9 @@ export async function GET(_req: Request, { params }: RouteContext) {
               existingAttempt.total > 0
                 ? Math.round((existingAttempt.score / existingAttempt.total) * 100)
                 : 0,
-            completedAt: existingAttempt.completedAt.toISOString(),
+            completedAt: existingAttempt.completedAt
+              ? existingAttempt.completedAt.toISOString()
+              : null,
           },
         },
         { status: 200 },
@@ -97,7 +99,8 @@ export async function GET(_req: Request, { params }: RouteContext) {
       );
     }
 
-    if (now > assignment.closesAt) {
+    // If closesAt is null, treat as open-ended
+    if (assignment.closesAt && now > assignment.closesAt) {
       return NextResponse.json(
         { status: 'CLOSED', assignment: assignmentPayload },
         { status: 200 },
@@ -108,7 +111,6 @@ export async function GET(_req: Request, { params }: RouteContext) {
     let questions: { id: number; factorA: number; factorB: number; answer: number }[] = [];
 
     if (assignment.questionSetId) {
-      // If an explicit set is assigned, keep your old behavior
       questions = await prisma.question.findMany({
         where: { setId: assignment.questionSetId },
         select: { id: true, factorA: true, factorB: true, answer: true },
@@ -170,12 +172,12 @@ export async function POST(req: Request, { params }: RouteContext) {
       select: {
         id: true,
         classroomId: true,
-        kind: true,
+        type: true,
+        mode: true,
         opensAt: true,
         closesAt: true,
         windowMinutes: true,
         questionSetId: true,
-        assignmentMode: true,
         numQuestions: true,
         recipients: { select: { studentId: true } },
       },
@@ -192,7 +194,7 @@ export async function POST(req: Request, { params }: RouteContext) {
 
     const now = new Date();
     if (now < assignment.opensAt) return jsonError('Test not open yet', 409);
-    if (now > assignment.closesAt) return jsonError('Test window closed', 409);
+    if (assignment.closesAt && now > assignment.closesAt) return jsonError('Test window closed', 409);
 
     const existingAttempt = await prisma.attempt.findUnique({
       where: { studentId_assignmentId: { studentId: student.id, assignmentId: assignment.id } },
@@ -272,7 +274,8 @@ export async function POST(req: Request, { params }: RouteContext) {
           assignmentId: assignment.id,
           score,
           total,
-          levelAtTime: student.level, // ADD THIS
+          levelAtTime: student.level,
+          completedAt: new Date(), // now set on submit
         },
         select: { id: true, score: true, total: true, completedAt: true },
       });
@@ -304,7 +307,7 @@ export async function POST(req: Request, { params }: RouteContext) {
           total: created.total,
           percent: total > 0 ? Math.round((score / total) * 100) : 0,
           wasMastery,
-          completedAt: created.completedAt.toISOString(),
+          completedAt: created.completedAt ? created.completedAt.toISOString() : null,
         },
       },
       { status: 200 },

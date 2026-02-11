@@ -28,7 +28,7 @@ export function RecentAssignmentsCards({
             </div>
 
             <div className="mt-2 flex flex-wrap gap-2">
-              {Badge({ text: `${t.assignmentMode}`, tone: 'muted' })}
+              {Badge({ text: `${t.mode}`, tone: 'muted' })}
               {Badge({ text: `${t.kind}`, tone: 'muted' })}
               {Badge({ text: `${t.numQuestions}`, tone: 'muted' })}
             </div>

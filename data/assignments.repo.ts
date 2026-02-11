@@ -1,6 +1,6 @@
 // data/assignments.repo.ts
 import { prisma } from '@/data/prisma';
-import type { AssignmentKind } from '@prisma/client';
+import type { Type } from '@prisma/client';
 
 export async function findAssignmentById(assignmentId: number) {
   return prisma.assignment.findUnique({
@@ -10,13 +10,13 @@ export async function findAssignmentById(assignmentId: number) {
 
 export async function findByClassroomKindAndOpensAt(args: {
   classroomId: number;
-  kind: AssignmentKind;
+  kind: Type;
   opensAt: Date;
 }) {
   return prisma.assignment.findFirst({
     where: {
       classroomId: args.classroomId,
-      kind: args.kind,
+      type: args.kind,
       opensAt: args.opensAt,
     },
   });
@@ -24,8 +24,8 @@ export async function findByClassroomKindAndOpensAt(args: {
 
 export async function createAssignment(args: {
   classroomId: number;
-  kind: AssignmentKind;
-  assignmentMode: 'SCHEDULED' | 'MANUAL';
+  kind: Type;
+  mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
   opensAt: Date;
   closesAt: Date;
   windowMinutes: number;
@@ -36,8 +36,8 @@ export async function createAssignment(args: {
   return prisma.assignment.create({
     data: {
       classroomId: args.classroomId,
-      kind: args.kind,
-      assignmentMode: args.assignmentMode,
+      type: args.kind,
+      mode: args.mode,
       opensAt: args.opensAt,
       closesAt: args.closesAt,
       windowMinutes: args.windowMinutes,

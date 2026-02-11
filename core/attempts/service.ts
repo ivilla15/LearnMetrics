@@ -1,4 +1,5 @@
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import { prisma } from '@/data/prisma';
 
 import type { SubmitAttemptBody } from '@/validation/attempts.schema';
 
@@ -35,7 +36,8 @@ export async function submitAttempt(params: SubmitAttemptInput): Promise<Attempt
   if (now < assignment.opensAt) {
     throw new ConflictError('This assignment is not open yet');
   }
-  if (now > assignment.closesAt) {
+  // closesAt is nullable now; only compare if it's set
+  if (assignment.closesAt && now > assignment.closesAt) {
     throw new ConflictError('This assignment is already closed');
   }
 
@@ -91,6 +93,12 @@ export async function submitAttempt(params: SubmitAttemptInput): Promise<Attempt
       assignmentId,
       score,
       total,
+    });
+
+    // mark attempt completed immediately
+    await prisma.attempt.update({
+      where: { id: attempt.id },
+      data: { completedAt: new Date() },
     });
 
     await AttemptsRepo.createAttemptItems(

@@ -8,37 +8,55 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum AssignmentMode {
+enum Mode {
   SCHEDULED
+  MAKEUP
   MANUAL
 }
 
+enum Type {
+  TEST
+  PRACTICE
+  REMEDIATION
+  PLACEMENT
+}
+
 model Assignment {
-  id             Int            @id @default(autoincrement())
-  date           DateTime       @default(now())
-  classroomId    Int
-  questionSetId  Int?
-  kind           AssignmentKind @default(SCHEDULED_TEST)
-  opensAt        DateTime
-  closesAt       DateTime
-  windowMinutes  Int            @default(4)
-  assignmentMode AssignmentMode @default(SCHEDULED)
-  numQuestions   Int            @default(12)
+  id               Int                       @id @default(autoincrement())
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+  classroomId      Int
+  questionSetId    Int?
+  type             Type                      @default(TEST)
+  opensAt          DateTime
+  closesAt         DateTime?
+  windowMinutes    Int                       @default(4)
+  mode             Mode                      @default(SCHEDULED)
+  numQuestions     Int                       @default(12)
 
-  scheduleId Int?
-  Schedule   AssignmentSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
-  runDate    DateTime?
+  scheduleId       Int?
+  Schedule         AssignmentSchedule?       @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
+  runDate          DateTime?                 
 
-  Classroom    Classroom               @relation(fields: [classroomId], references: [id], onDelete: Cascade)
-  QuestionSet  QuestionSet?            @relation(fields: [questionSetId], references: [id])
-  Attempt      Attempt[]
-  recipients   AssignmentRecipient[]
-  ScheduleRuns AssignmentScheduleRun[]
+  parentAssignmentId Int?                    
+  ParentAssignment   Assignment?             @relation("AssignmentParent", fields: [parentAssignmentId], references: [id], onDelete: SetNull)
+  ChildMakeups       Assignment[]            @relation("AssignmentParent")
 
-  @@unique([classroomId, kind, opensAt])
+  Classroom         Classroom                @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  QuestionSet       QuestionSet?             @relation(fields: [questionSetId], references: [id])
+  Attempt           Attempt[]
+  recipients        AssignmentRecipient[]
+  ScheduleRuns      AssignmentScheduleRun[]
+
   @@index([classroomId])
   @@index([questionSetId])
   @@index([scheduleId])
+  @@index([closesAt])
+
+  @@index([classroomId, runDate])
+  @@index([classroomId, type])
+  @@index([classroomId, opensAt])
+  @@index([scheduleId, runDate])
 }
 
 model AssignmentSchedule {
@@ -75,6 +93,20 @@ model AssignmentScheduleRun {
 
   @@unique([scheduleId, runDate])
   @@index([scheduleId])
+  @@index([runDate])
+}
+
+model AssignmentRecipient {
+  assignmentId Int
+  studentId    Int
+  createdAt    DateTime @default(now())
+
+  Assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  Student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@id([assignmentId, studentId])
+  @@index([studentId])
+  @@index([assignmentId])
 }
 
 model Attempt {
@@ -82,7 +114,8 @@ model Attempt {
   studentId    Int
   assignmentId Int
   score        Int
-  completedAt  DateTime @default(now())
+  completedAt DateTime?
+  startedAt   DateTime @default(now())
   total        Int
   levelAtTime  Int?
 
@@ -92,6 +125,9 @@ model Attempt {
 
   @@unique([studentId, assignmentId])
   @@index([assignmentId])
+  @@index([studentId])
+  @@index([studentId, completedAt])
+  @@index([assignmentId, completedAt])
 }
 
 model AttemptItem {
@@ -105,6 +141,7 @@ model AttemptItem {
 
   @@unique([attemptId, questionId])
   @@index([questionId])
+  @@index([attemptId])
 }
 
 model Classroom {
@@ -144,7 +181,7 @@ model Student {
   id          Int      @id @default(autoincrement())
   name        String
   username    String   @unique
-  password    String
+  passwordHash    String
   level       Int      @default(1)
   classroomId Int
   createdAt   DateTime @default(now())
@@ -167,29 +204,13 @@ model Teacher {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
-  password  String
+  passwordHash  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   Classroom   Classroom[]
   sessions    TeacherSession[]
   entitlement TeacherEntitlement?
-}
-
-enum AssignmentKind {
-  SCHEDULED_TEST
-}
-
-model AssignmentRecipient {
-  assignmentId Int
-  studentId    Int
-  createdAt    DateTime @default(now())
-
-  Assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  Student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@id([assignmentId, studentId])
-  @@index([studentId])
 }
 
 model TeacherSession {
@@ -201,6 +222,7 @@ model TeacherSession {
   expiresAt DateTime
 
   @@index([teacherId])
+  @@index([expiresAt])
   @@map("TeacherSession")
 }
 
@@ -213,6 +235,7 @@ model StudentSession {
   expiresAt DateTime
 
   @@index([studentId])
+  @@index([expiresAt])
   @@map("StudentSession")
 }
 
@@ -237,7 +260,6 @@ model TeacherEntitlement {
   status EntitlementStatus @default(ACTIVE)
 
   trialEndsAt          DateTime?
-  // Stripe fields later (optional)
   stripeCustomerId     String?
   stripeSubscriptionId String?
 

@@ -45,7 +45,7 @@ export type FocusStudent = {
 export type LastTest = {
   assignmentId: number;
   opensAt: string;
-  assignmentMode: string;
+  mode: string;
   numQuestions: number;
   masteryRate: number;
   attemptedCount: number;

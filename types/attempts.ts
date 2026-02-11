@@ -22,7 +22,7 @@ export type AttemptRow = {
   assignmentId: number;
   completedAt: string;
   assignmentKind: string;
-  assignmentMode: string;
+  mode: string;
   levelAtTime: number;
   score: number;
   total: number;
@@ -40,7 +40,7 @@ export type AttemptDetail = {
   wasMastery: boolean;
   assignment?: {
     kind: string;
-    assignmentMode: string;
+    mode: string;
     opensAt: string;
     closesAt: string;
     windowMinutes: number | null;

@@ -25,11 +25,11 @@ export async function POST(req: Request) {
         id: true,
         name: true,
         email: true,
-        password: true,
+        passwordHash: true,
       },
     });
 
-    const ok = teacher ? await bcrypt.compare(password, teacher.password) : false;
+    const ok = teacher ? await bcrypt.compare(password, teacher.passwordHash) : false;
     if (!teacher || !ok) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }

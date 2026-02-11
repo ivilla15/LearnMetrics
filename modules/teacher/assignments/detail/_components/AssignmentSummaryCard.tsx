@@ -45,7 +45,7 @@ export function AssignmentSummaryCard(props: {
 
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2">
-          {Pill(assignment?.assignmentMode ?? '—', 'muted')}
+          {Pill(assignment?.mode ?? '—', 'muted')}
           {Pill(assignment?.kind ?? '—', 'muted')}
           {Pill(`${assignment?.numQuestions ?? 12} Q`, 'muted')}
         </div>

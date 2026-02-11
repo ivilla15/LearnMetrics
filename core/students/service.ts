@@ -15,14 +15,15 @@ export type AttemptHistoryItem = {
   attemptId: number;
   assignmentId: number;
   classroomId: number;
-  kind: string;
+  type: 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT';
+  mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
   score: number;
   total: number;
   percent: number;
   completedAt: string;
   wasMastery: boolean;
   opensAt: string;
-  closesAt: string;
+  closesAt: string | null;
 };
 
 export type StudentHistoryDTO = {
@@ -61,14 +62,16 @@ export async function getStudentHistory(studentId: number): Promise<StudentHisto
     attemptId: a.id,
     assignmentId: a.assignmentId,
     classroomId: a.Assignment.classroomId,
-    kind: a.Assignment.kind,
+    type: a.Assignment.type,
+    mode: a.Assignment.mode,
     score: a.score,
     total: a.total,
     percent: a.total > 0 ? Math.round((a.score / a.total) * 100) : 0,
-    completedAt: a.completedAt.toISOString(),
+    // completedAt is nullable now; this history endpoint should only include completed attempts.
+    completedAt: a.completedAt ? a.completedAt.toISOString() : a.startedAt.toISOString(),
     wasMastery: a.total > 0 && a.score === a.total,
     opensAt: a.Assignment.opensAt.toISOString(),
-    closesAt: a.Assignment.closesAt.toISOString(),
+    closesAt: a.Assignment.closesAt ? a.Assignment.closesAt.toISOString() : null,
   }));
 
   return {

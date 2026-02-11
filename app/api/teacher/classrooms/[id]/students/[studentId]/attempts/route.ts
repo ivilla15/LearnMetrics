@@ -49,7 +49,7 @@ export async function GET(req: Request, { params }: RouteCtx) {
         total: true,
         completedAt: true,
         levelAtTime: true,
-        Assignment: { select: { kind: true, assignmentMode: true } },
+        Assignment: { select: { type: true, mode: true } },
       },
     });
 
@@ -60,9 +60,9 @@ export async function GET(req: Request, { params }: RouteCtx) {
       return {
         attemptId: a.id,
         assignmentId: a.assignmentId,
-        completedAt: a.completedAt.toISOString(),
-        assignmentKind: a.Assignment.kind,
-        assignmentMode: a.Assignment.assignmentMode,
+        completedAt: a.completedAt ? a.completedAt.toISOString() : null,
+        type: a.Assignment.type, // NEW
+        mode: a.Assignment.mode, // NEW
         levelAtTime: a.levelAtTime ?? student.level,
         score: a.score,
         total: a.total,

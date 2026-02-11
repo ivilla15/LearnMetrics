@@ -45,12 +45,14 @@ export async function saveCalendarItemEdit(params: {
   if (isProjection(item)) {
     const proj = item as CalendarProjectionRow;
 
+    // When creating from a projection, the schedule generates a TEST by default for now.
+    // We send the new "type" and "mode" fields per the updated schema.
     const payload: Record<string, unknown> = {
       ...baseBody,
       scheduleId: proj.scheduleId,
       runDate: proj.runDate,
-      assignmentMode: 'SCHEDULED',
-      kind: 'SCHEDULED_TEST',
+      mode: 'SCHEDULED',
+      type: 'TEST',
     };
 
     res = await fetch(`/api/teacher/classrooms/${classroomId}/assignments`, {
@@ -83,13 +85,11 @@ export async function cancelCalendarItemOccurrence(params: {
 }) {
   const { classroomId, item } = params;
 
-  // Projections always have scheduleId+runDate
   if (isProjection(item)) {
     await cancelOccurrenceApi(classroomId, item.scheduleId, item.runDate);
     return;
   }
 
-  // Real assignment: only cancel if it came from a schedule
   const scheduleId = item.scheduleId ?? null;
   const runDate = item.runDate ?? null;
 

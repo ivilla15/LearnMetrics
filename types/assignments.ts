@@ -10,7 +10,7 @@ export type TeacherAssignmentStats = {
 export type TeacherAssignmentListItem = {
   assignmentId: number;
   kind: string;
-  assignmentMode: string;
+  mode: string;
   opensAt: string;
   closesAt: string;
   windowMinutes: number | null;
@@ -67,7 +67,7 @@ export type TeacherAssignmentAttemptsResponse = {
   assignment: {
     assignmentId: number;
     kind: string;
-    assignmentMode: string;
+    mode: string;
     opensAt: string;
     closesAt: string;
     windowMinutes: number | null;

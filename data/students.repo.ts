@@ -44,6 +44,7 @@ type LatestAttemptRow = Prisma.AttemptGetPayload<{
     score: true;
     total: true;
     completedAt: true;
+    startedAt: true;
   };
 }>;
 
@@ -56,25 +57,27 @@ type StudentWithLatestAttemptRow = Prisma.StudentGetPayload<{
     mustSetPassword: true;
     Attempt: {
       take: 1;
-      orderBy: { completedAt: 'desc' };
+      orderBy: [{ completedAt: 'desc' }, { startedAt: 'desc' }];
       select: {
         id: true;
         assignmentId: true;
         score: true;
         total: true;
         completedAt: true;
+        startedAt: true;
       };
     };
   };
 }>;
 
 function toAttemptSummary(a: LatestAttemptRow): AttemptSummary {
+  const ts = a.completedAt ?? a.startedAt;
   return {
     id: a.id,
     assignmentId: a.assignmentId,
     score: a.score,
     total: a.total,
-    completedAt: a.completedAt.toISOString(),
+    completedAt: ts.toISOString(),
   };
 }
 
@@ -90,7 +93,8 @@ export async function findStudentsWithLatestAttempt(
       level: true,
       mustSetPassword: true,
       Attempt: {
-        orderBy: { completedAt: 'desc' },
+        // completedAt can be null now; tie-break with startedAt so ordering is stable
+        orderBy: [{ completedAt: 'desc' }, { startedAt: 'desc' }],
         take: 1,
         select: {
           id: true,
@@ -98,6 +102,7 @@ export async function findStudentsWithLatestAttempt(
           score: true,
           total: true,
           completedAt: true,
+          startedAt: true,
         },
       },
     },
@@ -172,7 +177,7 @@ export async function createManyForClassroom(
           name,
           username: s.username,
           level: s.level,
-          password: placeholderPasswordHash,
+          passwordHash: placeholderPasswordHash,
           mustSetPassword: true,
           setupCodeHash,
           setupCodeExpiresAt: setupExpiresAt,

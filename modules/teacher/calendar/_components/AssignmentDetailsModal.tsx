@@ -38,6 +38,9 @@ export function AssignmentDetailsModal(props: {
       ? 'Upcoming scheduled test'
       : `Assignment ${selectedAssignment?.assignmentId ?? '—'}`;
 
+  const opensIso = item ? toIso(item.opensAt) : null;
+  const closesIso = item && item.closesAt ? toIso(item.closesAt) : null;
+
   return (
     <Modal
       open={open}
@@ -75,8 +78,8 @@ export function AssignmentDetailsModal(props: {
       ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            {Pill(item.assignmentMode, 'muted')}
-            {Pill(item.kind, 'muted')}
+            {Pill(item.mode, 'muted')}
+            {Pill(item.type, 'muted')}
             {Pill(`${item.numQuestions} Q`, 'muted')}
             {Pill(item.windowMinutes ? `${item.windowMinutes} min` : 'No limit', 'muted')}
           </div>
@@ -84,12 +87,12 @@ export function AssignmentDetailsModal(props: {
           <div className="text-sm text-[hsl(var(--muted-fg))]">
             Opens:{' '}
             <span className="text-[hsl(var(--fg))] font-medium">
-              {formatInTimeZone(toIso(item.opensAt), tz, 'MMM d, h:mm a')}
+              {opensIso ? formatInTimeZone(opensIso, tz, 'MMM d, h:mm a') : '—'}
             </span>
             {' · '}
             Closes:{' '}
             <span className="text-[hsl(var(--fg))] font-medium">
-              {formatInTimeZone(toIso(item.closesAt), tz, 'MMM d, h:mm a')}
+              {closesIso ? formatInTimeZone(closesIso, tz, 'MMM d, h:mm a') : '—'}
             </span>
           </div>
 

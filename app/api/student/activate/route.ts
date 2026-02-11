@@ -69,7 +69,7 @@ export async function POST(req: Request) {
     await prisma.student.update({
       where: { id: student.id },
       data: {
-        password: passwordHash,
+        passwordHash,
         setupCodeHash: null,
         setupCodeExpiresAt: null,
         mustSetPassword: false,

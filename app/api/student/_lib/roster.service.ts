@@ -44,13 +44,16 @@ export async function bulkCreateClassroomStudents(args: BulkCreateStudentArgs): 
       const setupCode = generateSetupCode();
       const setupCodeHash = hashSetupCode(setupCode);
 
-      const tempPassword = await bcrypt.hash(`${setupCode}:${cryptoRandomString()}`, saltRounds);
+      const tempPasswordHash = await bcrypt.hash(
+        `${setupCode}:${cryptoRandomString()}`,
+        saltRounds,
+      );
 
       return {
         firstName: s.firstName,
         lastName: s.lastName,
         username: s.username.trim(),
-        password: tempPassword,
+        passwordHash: tempPasswordHash,
         level: Math.max(1, Math.min(12, Math.trunc(s.level))),
         setupCode,
         setupCodeHash,
@@ -64,7 +67,7 @@ export async function bulkCreateClassroomStudents(args: BulkCreateStudentArgs): 
         classroomId,
         name: `${p.firstName} ${p.lastName}`.trim(),
         username: p.username,
-        password: p.password,
+        passwordHash: p.passwordHash,
         level: p.level,
         setupCodeHash: p.setupCodeHash,
         setupCodeExpiresAt: expiresAt,
@@ -93,15 +96,16 @@ export async function bulkCreateClassroomStudents(args: BulkCreateStudentArgs): 
     return roster.map((s) => {
       const a = s.Attempt.length ? s.Attempt[0] : null;
 
-      const lastAttempt: AttemptSummary | null = a
-        ? {
-            id: a.id,
-            assignmentId: a.assignmentId,
-            score: a.score,
-            total: a.total,
-            completedAt: a.completedAt.toISOString(),
-          }
-        : null;
+      const lastAttempt: AttemptSummary | null =
+        a && a.completedAt
+          ? {
+              id: a.id,
+              assignmentId: a.assignmentId,
+              score: a.score,
+              total: a.total,
+              completedAt: a.completedAt.toISOString(),
+            }
+          : null;
 
       return {
         id: s.id,

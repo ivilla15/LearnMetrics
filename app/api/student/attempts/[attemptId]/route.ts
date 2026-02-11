@@ -28,8 +28,8 @@ export async function GET(_req: Request, { params }: StudentAttemptRouteContext)
         levelAtTime: true,
         Assignment: {
           select: {
-            kind: true,
-            assignmentMode: true,
+            type: true,
+            mode: true,
             opensAt: true,
             closesAt: true,
             windowMinutes: true,
@@ -59,6 +59,9 @@ export async function GET(_req: Request, { params }: StudentAttemptRouteContext)
     // Ownership enforcement (critical)
     if (attempt.studentId !== student.id) return jsonError('Not allowed', 403);
 
+    // completedAt is nullable now; a non-completed attempt shouldn't be viewable as a result
+    if (!attempt.completedAt) return jsonError('Attempt not completed', 409);
+
     const percent = attempt.total > 0 ? Math.round((attempt.score / attempt.total) * 100) : 0;
     const wasMastery = attempt.total > 0 && attempt.score === attempt.total;
 
@@ -74,10 +77,10 @@ export async function GET(_req: Request, { params }: StudentAttemptRouteContext)
         percent,
         wasMastery,
         assignment: {
-          kind: attempt.Assignment.kind,
-          assignmentMode: attempt.Assignment.assignmentMode,
+          type: attempt.Assignment.type,
+          mode: attempt.Assignment.mode,
           opensAt: attempt.Assignment.opensAt.toISOString(),
-          closesAt: attempt.Assignment.closesAt.toISOString(),
+          closesAt: attempt.Assignment.closesAt ? attempt.Assignment.closesAt.toISOString() : null,
           windowMinutes: attempt.Assignment.windowMinutes,
         },
         items: attempt.AttemptItem.map((it) => ({

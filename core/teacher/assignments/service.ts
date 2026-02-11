@@ -5,10 +5,10 @@ import { parseCursor, clampTake, percent as pct } from '@/utils';
 
 export type TeacherAssignmentListRow = {
   assignmentId: number;
-  kind: string;
-  assignmentMode: string;
+  type: 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT';
+  mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
   opensAt: string;
-  closesAt: string;
+  closesAt: string | null;
   windowMinutes: number | null;
   numQuestions: number;
   attemptedCount: number;
@@ -32,7 +32,7 @@ export type TeacherAssignmentAttemptsRow = {
 
 export type TeacherAttemptDetailDTO = {
   attemptId: number;
-  completedAt: string;
+  completedAt: string | null;
   levelAtTime: number;
   score: number;
   total: number;
@@ -41,10 +41,10 @@ export type TeacherAttemptDetailDTO = {
   student: { id: number; name: string; username: string };
   assignment?: {
     id: number;
-    kind: string;
-    assignmentMode: string;
+    type: 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT';
+    mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
     opensAt: string;
-    closesAt: string;
+    closesAt: string | null;
     windowMinutes: number | null;
   };
   items: Array<{
@@ -74,20 +74,21 @@ export async function listTeacherAssignmentsForClassroom(params: {
 
   const where =
     scope === 'past'
-      ? { classroomId, closesAt: { lt: now } }
+      ? { classroomId, closesAt: { not: null, lt: now } }
       : scope === 'upcoming'
         ? { classroomId, opensAt: { gt: now } }
         : { classroomId };
 
   const rows = await prisma.assignment.findMany({
     where,
+    // Keep cursor pagination stable on id
     orderBy: { id: 'desc' },
     take: take + 1,
     ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
     select: {
       id: true,
-      kind: true,
-      assignmentMode: true,
+      type: true,
+      mode: true,
       opensAt: true,
       closesAt: true,
       windowMinutes: true,
@@ -112,10 +113,7 @@ export async function listTeacherAssignmentsForClassroom(params: {
     },
   });
 
-  const agg = new Map<
-    number,
-    { attemptedCount: number; masteryCount: number; sumPercent: number }
-  >();
+  const agg = new Map<number, { attemptedCount: number; masteryCount: number; sumPercent: number }>();
 
   for (const a of attempts) {
     const cur = agg.get(a.assignmentId) ?? { attemptedCount: 0, masteryCount: 0, sumPercent: 0 };
@@ -135,10 +133,10 @@ export async function listTeacherAssignmentsForClassroom(params: {
 
     return {
       assignmentId: a.id,
-      kind: a.kind,
-      assignmentMode: a.assignmentMode,
+      type: a.type,
+      mode: a.mode,
       opensAt: a.opensAt.toISOString(),
-      closesAt: a.closesAt.toISOString(),
+      closesAt: a.closesAt ? a.closesAt.toISOString() : null,
       windowMinutes: a.windowMinutes,
       numQuestions: a.numQuestions ?? 12,
       attemptedCount,
@@ -159,10 +157,10 @@ export async function listTeacherAssignmentAttempts(params: {
 }): Promise<{
   assignment: {
     assignmentId: number;
-    kind: string;
-    assignmentMode: string;
+    type: 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT';
+    mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
     opensAt: string;
-    closesAt: string;
+    closesAt: string | null;
     windowMinutes: number | null;
     numQuestions: number;
   };
@@ -182,8 +180,8 @@ export async function listTeacherAssignmentAttempts(params: {
     where: { id: assignmentId, classroomId },
     select: {
       id: true,
-      kind: true,
-      assignmentMode: true,
+      type: true,
+      mode: true,
       opensAt: true,
       closesAt: true,
       windowMinutes: true,
@@ -241,7 +239,7 @@ export async function listTeacherAssignmentAttempts(params: {
       studentId: s.id,
       studentName: s.name,
       studentUsername: s.username,
-      completedAt: a.completedAt.toISOString(),
+      completedAt: a.completedAt ? a.completedAt.toISOString() : null,
       levelAtTime: a.levelAtTime ?? s.level,
       score: a.score,
       total: a.total,
@@ -272,10 +270,10 @@ export async function listTeacherAssignmentAttempts(params: {
   return {
     assignment: {
       assignmentId: assignment.id,
-      kind: assignment.kind,
-      assignmentMode: assignment.assignmentMode,
+      type: assignment.type,
+      mode: assignment.mode,
       opensAt: assignment.opensAt.toISOString(),
-      closesAt: assignment.closesAt.toISOString(),
+      closesAt: assignment.closesAt ? assignment.closesAt.toISOString() : null,
       windowMinutes: assignment.windowMinutes,
       numQuestions: assignment.numQuestions ?? 12,
     },
@@ -306,8 +304,8 @@ export async function getTeacherAttemptDetail(params: {
         select: {
           id: true,
           classroomId: true,
-          kind: true,
-          assignmentMode: true,
+          type: true,
+          mode: true,
           opensAt: true,
           closesAt: true,
           windowMinutes: true,
@@ -340,7 +338,7 @@ export async function getTeacherAttemptDetail(params: {
 
   return {
     attemptId: attempt.id,
-    completedAt: attempt.completedAt.toISOString(),
+    completedAt: attempt.completedAt ? attempt.completedAt.toISOString() : null,
     levelAtTime: attempt.levelAtTime ?? attempt.Student.level,
     score: attempt.score,
     total: attempt.total,
@@ -353,10 +351,10 @@ export async function getTeacherAttemptDetail(params: {
     },
     assignment: {
       id: attempt.Assignment.id,
-      kind: attempt.Assignment.kind,
-      assignmentMode: attempt.Assignment.assignmentMode,
+      type: attempt.Assignment.type,
+      mode: attempt.Assignment.mode,
       opensAt: attempt.Assignment.opensAt.toISOString(),
-      closesAt: attempt.Assignment.closesAt.toISOString(),
+      closesAt: attempt.Assignment.closesAt ? attempt.Assignment.closesAt.toISOString() : null,
       windowMinutes: attempt.Assignment.windowMinutes,
     },
     items: attempt.AttemptItem.map((it) => ({

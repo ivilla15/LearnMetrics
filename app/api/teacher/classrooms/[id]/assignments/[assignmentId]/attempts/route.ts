@@ -38,11 +38,11 @@ export async function GET(
       select: {
         id: true,
         classroomId: true,
-        kind: true,
+        type: true,
+        mode: true,
         opensAt: true,
         closesAt: true,
         windowMinutes: true,
-        assignmentMode: true,
         numQuestions: true,
         recipients: { select: { studentId: true } },
       },
@@ -114,10 +114,10 @@ export async function GET(
       {
         assignment: {
           assignmentId: assignment.id,
-          kind: assignment.kind,
-          assignmentMode: assignment.assignmentMode,
+          type: assignment.type,
+          mode: assignment.mode,
           opensAt: assignment.opensAt.toISOString(),
-          closesAt: assignment.closesAt.toISOString(),
+          closesAt: assignment.closesAt ? assignment.closesAt.toISOString() : null,
           windowMinutes: assignment.windowMinutes,
           numQuestions: assignment.numQuestions ?? 12,
           isTargeted: targetedIds.length > 0,

@@ -1,4 +1,3 @@
-// types/calendar.ts
 export type CalendarAssignmentStats = {
   attemptedCount: number;
   totalStudents: number;
@@ -7,11 +6,12 @@ export type CalendarAssignmentStats = {
 };
 
 export type CalendarAssignmentDTO = {
-  kind: string; // e.g. "SCHEDULED_TEST"
+  kind: 'assignment';
   assignmentId: number;
-  assignmentMode: 'SCHEDULED' | 'MANUAL';
-  opensAt: string; // ISO
-  closesAt: string; // ISO
+  type: 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT';
+  mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
+  opensAt: string;
+  closesAt: string | null;
   windowMinutes: number | null;
   numQuestions: number;
   stats?: CalendarAssignmentStats;
@@ -22,12 +22,13 @@ export type CalendarAssignmentDTO = {
 export type CalendarProjectionRow = {
   kind: 'projection';
   scheduleId: number;
-  runDate: string; // ISO
-  opensAt: string; // ISO UTC
-  closesAt: string; // ISO UTC
+  runDate: string;
+  opensAt: string;
+  closesAt: string;
   windowMinutes: number | null;
   numQuestions: number;
-  assignmentMode: 'SCHEDULED';
+  mode: 'SCHEDULED';
+  type: 'TEST';
 };
 
 export type CalendarAssignmentsListResponse = {
@@ -37,5 +38,4 @@ export type CalendarAssignmentsListResponse = {
   nextCursor: string | null;
 };
 
-// renamed to avoid collisions with existing CalendarItem
 export type CalendarItemRow = CalendarAssignmentDTO | CalendarProjectionRow;

@@ -43,11 +43,9 @@ export function AssignmentsTable({
               >
                 <td className="py-3 pl-5 pr-3">
                   <div className="flex flex-col gap-1">
-                    <div className="text-[hsl(var(--fg))] font-medium">
-                      Assignment {a.assignmentMode}
-                    </div>
+                    <div className="text-[hsl(var(--fg))] font-medium">{a.mode} Assignment</div>
                     <div className="text-xs text-[hsl(var(--muted-fg))]">
-                      {a.assignmentMode} · {a.kind} · {a.numQuestions} questions
+                      {a.mode} · {a.kind} · {a.numQuestions} questions
                     </div>
                   </div>
                 </td>

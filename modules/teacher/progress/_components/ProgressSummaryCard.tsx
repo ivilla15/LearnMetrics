@@ -40,7 +40,7 @@ type Props = {
   last3Tests: Array<{
     assignmentId: number;
     opensAt: string | Date;
-    assignmentMode: string;
+    mode: string;
     numQuestions: number;
     masteryRate: number;
     attemptedCount: number;
@@ -243,8 +243,8 @@ export function ProgressSummaryCard(props: Props) {
                   </div>
 
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {Badge({ text: `${t.assignmentMode}`, tone: 'muted' })}
-                    {Badge({ text: `${t.numQuestions} Q`, tone: 'muted' })}
+                    {Badge({ text: `${t.mode}`, tone: 'muted' })}
+                    {Badge({ text: `${t.mode} Q`, tone: 'muted' })}
                   </div>
 
                   <div className="mt-3 grid grid-cols-3 gap-3">

@@ -11,7 +11,7 @@ export type ProgressStudentRow = {
 export type ProgressAttemptRow = {
   id: number;
   studentId: number;
-  completedAt: Date;
+  completedAt: Date | null;
   score: number;
   total: number;
   levelAtTime: number | null;
@@ -29,12 +29,12 @@ export type MissedFactRow = {
 export type ProgressAssignmentRow = {
   id: number;
   opensAt: Date;
-  closesAt: Date;
+  closesAt: Date | null;
   windowMinutes: number | null;
-  assignmentMode: 'SCHEDULED' | 'MANUAL';
+  mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
   numQuestions: number;
   questionSetId: number | null;
-  kind: string;
+  type: 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT';
 };
 
 export type AssignmentAttemptRow = {
@@ -63,8 +63,8 @@ export async function getRecentAssignmentsForClassroomInRange(params: {
       closesAt: true,
       windowMinutes: true,
       questionSetId: true,
-      kind: true,
-      assignmentMode: true,
+      type: true,
+      mode: true,
       numQuestions: true,
     },
     orderBy: { opensAt: 'desc' },
@@ -338,7 +338,7 @@ export async function getMissedFactStudentBreakdownInRange(params: {
   students.sort((a, b) => {
     if (b.incorrectCount !== a.incorrectCount) return b.incorrectCount - a.incorrectCount;
     const ar = a.totalCount ? a.incorrectCount / a.totalCount : 0;
-    const br = b.totalCount ? b.incorrectCount / b.totalCount : 0;
+    const br = b.totalCount ? b.incorrectCount / a.totalCount : 0;
     if (br !== ar) return br - ar;
     return b.totalCount - a.totalCount;
   });

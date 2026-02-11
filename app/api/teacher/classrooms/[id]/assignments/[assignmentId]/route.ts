@@ -25,8 +25,8 @@ export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteCo
       where: { id: aId, classroomId },
       select: {
         id: true,
-        kind: true,
-        assignmentMode: true,
+        type: true,
+        mode: true,
         opensAt: true,
         closesAt: true,
         windowMinutes: true,
@@ -49,12 +49,27 @@ export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteCo
     // Build Prisma update data
     const data: Prisma.AssignmentUpdateInput = {};
     if (input.opensAt) data.opensAt = new Date(input.opensAt);
-    if (input.closesAt) data.closesAt = new Date(input.closesAt);
+
+    // closesAt is nullable in schema, so support explicit null when provided
+    if (Object.prototype.hasOwnProperty.call(input, 'closesAt')) {
+      data.closesAt = input.closesAt ? new Date(input.closesAt) : null;
+    }
+
     if (input.windowMinutes !== undefined) data.windowMinutes = input.windowMinutes;
     if (input.numQuestions !== undefined) data.numQuestions = input.numQuestions;
 
-    // Optional: validate opensAt < closesAt when both provided (uncomment if desired)
-    if (data.opensAt && data.closesAt && (data.closesAt as Date) <= (data.opensAt as Date)) {
+    // Validate opensAt < closesAt when both are present as dates
+    const nextOpensAt =
+      data.opensAt instanceof Date ? data.opensAt : assignment.opensAt instanceof Date ? assignment.opensAt : null;
+
+    const nextClosesAt =
+      data.closesAt instanceof Date
+        ? data.closesAt
+        : data.closesAt === null
+          ? null
+          : assignment.closesAt ?? null;
+
+    if (nextOpensAt && nextClosesAt && nextClosesAt.getTime() <= nextOpensAt.getTime()) {
       return errorResponse('closesAt must be after opensAt', 400);
     }
 
@@ -63,13 +78,10 @@ export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteCo
       return errorResponse('No fields provided', 400);
     }
 
-    const nextOpensAt =
-      typeof data.opensAt === 'object' && data.opensAt instanceof Date ? data.opensAt : null;
+    const isChangingOpensAt =
+      data.opensAt instanceof Date ? assignment.opensAt.getTime() !== data.opensAt.getTime() : false;
 
-    const isChangingOpensAt = nextOpensAt
-      ? assignment.opensAt.getTime() !== nextOpensAt.getTime()
-      : false;
-
+    // If rescheduling a scheduled assignment occurrence, mark the original run as skipped
     if (isChangingOpensAt && assignment.scheduleId && assignment.runDate) {
       await prisma.assignmentScheduleRun.update({
         where: {
@@ -92,8 +104,8 @@ export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteCo
       data,
       select: {
         id: true,
-        kind: true,
-        assignmentMode: true,
+        type: true,
+        mode: true,
         opensAt: true,
         closesAt: true,
         windowMinutes: true,
@@ -105,10 +117,10 @@ export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteCo
       {
         assignment: {
           assignmentId: updated.id,
-          kind: updated.kind,
-          assignmentMode: updated.assignmentMode,
+          type: updated.type,
+          mode: updated.mode,
           opensAt: updated.opensAt.toISOString(),
-          closesAt: updated.closesAt.toISOString(),
+          closesAt: updated.closesAt ? updated.closesAt.toISOString() : null,
           windowMinutes: updated.windowMinutes,
           numQuestions: updated.numQuestions ?? 12,
         },
@@ -137,7 +149,6 @@ export async function DELETE(_req: Request, { params }: ClassroomAssignmentRoute
 
     const assignment = await prisma.assignment.findFirst({
       where: { id: aId, classroomId },
-      // removed opensAt here (not needed)
       select: { id: true, scheduleId: true, runDate: true },
     });
 
@@ -160,7 +171,6 @@ export async function DELETE(_req: Request, { params }: ClassroomAssignmentRoute
         update: {
           isSkipped: true,
           skippedAt: new Date(),
-          // you already store skipReason elsewhere, but if you have the field add it here:
           skipReason: 'Deleted by teacher',
           assignmentId: null,
         },

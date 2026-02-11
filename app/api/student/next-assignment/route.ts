@@ -22,11 +22,11 @@ export async function GET() {
       orderBy: { opensAt: 'asc' },
       select: {
         id: true,
-        kind: true,
+        type: true,
+        mode: true,
         opensAt: true,
         closesAt: true,
         windowMinutes: true,
-        assignmentMode: true,
         numQuestions: true,
       },
     });
@@ -35,12 +35,18 @@ export async function GET() {
       return NextResponse.json({ assignment: null }, { status: 200 });
     }
 
+    // closesAt is nullable in the schema, but this query requires closesAt > now,
+    // so it will be non-null here. Still, we’ll guard to keep TS happy and future-proof.
+    if (!assignment.closesAt) {
+      return NextResponse.json({ assignment: null }, { status: 200 });
+    }
+
     return NextResponse.json(
       {
         assignment: {
           id: assignment.id,
-          kind: assignment.kind,
-          mode: assignment.assignmentMode,
+          type: assignment.type, // 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT'
+          mode: assignment.mode, // 'SCHEDULED' | 'MAKEUP' | 'MANUAL'
           opensAt: assignment.opensAt.toISOString(),
           closesAt: assignment.closesAt.toISOString(),
           windowMinutes: assignment.windowMinutes,

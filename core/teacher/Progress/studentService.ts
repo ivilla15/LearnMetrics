@@ -1,6 +1,6 @@
 import * as StudentsRepo from '@/data';
 import * as ProgressRepo from '@/data';
-import { NotFoundError } from '@/core';
+import { NotFoundError } from '@/core/errors';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 import { percent, median } from '@/utils';
 import { trendFromLast3 } from './utils';
@@ -48,7 +48,7 @@ export async function getTeacherStudentProgress(params: {
     throw new NotFoundError('Student not found');
   }
 
-  const [attemptsInRange, recentAttempts, missedFacts, lastAssignments] = await Promise.all([
+  const [attemptsInRange, recentAttemptsRaw, missedFacts, lastAssignments] = await Promise.all([
     ProgressRepo.getAttemptsForStudentInRange({ classroomId, studentId, startAt, endAt }),
     ProgressRepo.getRecentAttemptsForStudent({ classroomId, studentId, since: recentCutoff }),
     ProgressRepo.getMissedFactsForStudentInRange({
@@ -66,29 +66,35 @@ export async function getTeacherStudentProgress(params: {
     }),
   ]);
 
+  // completedAt is nullable now; these queries should naturally exclude nulls,
+  // but TS types still allow null, so we filter defensively.
+  const attemptsInRangeCompleted = attemptsInRange.filter((a) => a.completedAt);
+  const recentAttempts = recentAttemptsRaw.filter((a) => a.completedAt);
+
   // ---------- Range stats ----------
-  const pctsRange = attemptsInRange.map((a) => percent(a.score, a.total));
+  const pctsRange = attemptsInRangeCompleted.map((a) => percent(a.score, a.total));
   const avgRange = pctsRange.length
     ? Math.round(pctsRange.reduce((a, b) => a + b, 0) / pctsRange.length)
     : 0;
   const medRange = pctsRange.length ? median(pctsRange) : 0;
 
-  const masteryRateRange = attemptsInRange.length
+  const masteryRateRange = attemptsInRangeCompleted.length
     ? Math.round(
-        (attemptsInRange.filter((a) => a.total > 0 && a.score === a.total).length /
-          attemptsInRange.length) *
+        (attemptsInRangeCompleted.filter((a) => a.total > 0 && a.score === a.total).length /
+          attemptsInRangeCompleted.length) *
           100,
       )
     : 0;
 
   // ---------- Recent stats ----------
   const last = recentAttempts[0] ?? null;
-  const lastAttemptAt = last ? last.completedAt.toISOString() : null;
+  const lastAttemptAt = last && last.completedAt ? last.completedAt.toISOString() : null;
   const lastPercent = last ? percent(last.score, last.total) : null;
 
-  const daysSinceLastAttempt = last
-    ? Math.floor((endAt.getTime() - last.completedAt.getTime()) / (24 * 60 * 60 * 1000))
-    : null;
+  const daysSinceLastAttempt =
+    last && last.completedAt
+      ? Math.floor((endAt.getTime() - last.completedAt.getTime()) / (24 * 60 * 60 * 1000))
+      : null;
 
   let masteryStreak = 0;
   let nonMasteryStreak = 0;
@@ -107,7 +113,7 @@ export async function getTeacherStudentProgress(params: {
   const last3 = recentAttempts.slice(0, 3).reverse();
   const trendLast3 = trendFromLast3(last3.map((a) => percent(a.score, a.total)));
 
-  const noAttemptsInRange = attemptsInRange.length === 0;
+  const noAttemptsInRange = attemptsInRangeCompleted.length === 0;
   const stale14Days = daysSinceLastAttempt !== null ? daysSinceLastAttempt >= 14 : true;
   const nonMasteryStreak2 = nonMasteryStreak >= 2;
   const needsSetup = studentRow.mustSetPassword;
@@ -116,7 +122,7 @@ export async function getTeacherStudentProgress(params: {
     noAttemptsInRange ||
     stale14Days ||
     nonMasteryStreak2 ||
-    (attemptsInRange.length > 0 && medRange < 70);
+    (attemptsInRangeCompleted.length > 0 && medRange < 70);
 
   // ---------- Missed last test ----------
   let missedLastTest = false;
@@ -136,7 +142,7 @@ export async function getTeacherStudentProgress(params: {
     level: studentRow.level,
     mustSetPassword: studentRow.mustSetPassword,
 
-    attemptsInRange: attemptsInRange.length,
+    attemptsInRange: attemptsInRangeCompleted.length,
     masteryRateInRange: masteryRateRange,
     avgPercentInRange: avgRange,
     medianPercentInRange: medRange,
@@ -165,7 +171,7 @@ export async function getTeacherStudentProgress(params: {
     const pct = percent(a.score, a.total);
     return {
       id: a.id,
-      completedAt: a.completedAt.toISOString(),
+      completedAt: a.completedAt!.toISOString(),
       score: a.score,
       total: a.total,
       percent: pct,

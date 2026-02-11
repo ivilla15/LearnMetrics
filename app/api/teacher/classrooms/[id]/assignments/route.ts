@@ -10,7 +10,7 @@ import { addDays } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 
 import { localDayToUtcDate, localDateTimeToUtcRange } from '@/utils';
-import { CalendarProjectionRow } from '@/types';
+import type { CalendarProjectionRow } from '@/types';
 
 function clampLimit(raw: string | null) {
   const n = Number(raw);
@@ -22,6 +22,10 @@ function parseStatus(raw: string | null): 'all' | 'open' | 'closed' | 'upcoming'
   const v = (raw ?? 'all').toLowerCase();
   if (v === 'open' || v === 'closed' || v === 'upcoming') return v;
   return 'all';
+}
+
+function isValidDate(d: Date) {
+  return !Number.isNaN(d.getTime());
 }
 
 export async function GET(req: Request, { params }: RouteContext) {
@@ -44,9 +48,11 @@ export async function GET(req: Request, { params }: RouteContext) {
     const where: Prisma.AssignmentWhereInput = { classroomId };
 
     if (status === 'open') {
+      // opensAt <= now AND (closesAt is null OR closesAt > now)
       where.opensAt = { lte: now };
-      where.closesAt = { gt: now };
+      where.OR = [{ closesAt: null }, { closesAt: { gt: now } }];
     } else if (status === 'closed') {
+      // closesAt <= now (null = not closed)
       where.closesAt = { lte: now };
     } else if (status === 'upcoming') {
       where.opensAt = { gt: now };
@@ -58,16 +64,16 @@ export async function GET(req: Request, { params }: RouteContext) {
       where,
       take,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      orderBy: { id: 'desc' },
+      // Use opensAt for ordering instead of id
+      orderBy: { opensAt: 'desc' },
       select: {
         id: true,
-        kind: true,
-        assignmentMode: true,
+        type: true,
+        mode: true,
         opensAt: true,
         closesAt: true,
         windowMinutes: true,
         numQuestions: true,
-
         scheduleId: true,
         runDate: true,
       },
@@ -125,10 +131,10 @@ export async function GET(req: Request, { params }: RouteContext) {
 
       return {
         assignmentId: a.id,
-        kind: a.kind,
-        assignmentMode: a.assignmentMode,
+        type: a.type,
+        mode: a.mode,
         opensAt: a.opensAt.toISOString(),
-        closesAt: a.closesAt.toISOString(),
+        closesAt: a.closesAt ? a.closesAt.toISOString() : null,
         windowMinutes: a.windowMinutes,
         numQuestions: a.numQuestions ?? 12,
         scheduleId: a.scheduleId,
@@ -230,7 +236,8 @@ export async function GET(req: Request, { params }: RouteContext) {
             closesAt: closesAtUTC.toISOString(),
             windowMinutes: sched.windowMinutes,
             numQuestions: sched.numQuestions ?? 12,
-            assignmentMode: 'SCHEDULED',
+            mode: 'SCHEDULED',
+            type: 'TEST',
           });
         }
       }
@@ -287,8 +294,8 @@ export async function POST(req: Request, { params }: RouteContext) {
     const opensAt = new Date(opensAtRaw);
     const closesAt = new Date(closesAtRaw);
 
-    if (Number.isNaN(opensAt.getTime())) return errorResponse('Invalid opensAt', 400);
-    if (Number.isNaN(closesAt.getTime())) return errorResponse('Invalid closesAt', 400);
+    if (!isValidDate(opensAt)) return errorResponse('Invalid opensAt', 400);
+    if (!isValidDate(closesAt)) return errorResponse('Invalid closesAt', 400);
 
     const windowMinutes =
       'windowMinutes' in body && typeof body.windowMinutes === 'number' ? body.windowMinutes : null;
@@ -296,13 +303,21 @@ export async function POST(req: Request, { params }: RouteContext) {
     const numQuestions =
       'numQuestions' in body && typeof body.numQuestions === 'number' ? body.numQuestions : 12;
 
-    const kind = 'SCHEDULED_TEST' as const;
+    const type =
+      'type' in body &&
+      (body.type === 'TEST' ||
+        body.type === 'PRACTICE' ||
+        body.type === 'REMEDIATION' ||
+        body.type === 'PLACEMENT')
+        ? (body.type as 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT')
+        : 'TEST';
 
-    const assignmentMode =
-      'assignmentMode' in body &&
-      (body.assignmentMode === 'SCHEDULED' || body.assignmentMode === 'MANUAL')
-        ? body.assignmentMode
-        : 'MANUAL';
+    const mode =
+      'mode' in body && (body.mode === 'SCHEDULED' || body.mode === 'MAKEUP' || body.mode === 'MANUAL')
+        ? (body.mode as 'SCHEDULED' | 'MAKEUP' | 'MANUAL')
+        : scheduleId !== null
+          ? 'SCHEDULED'
+          : 'MANUAL';
 
     const questionSetId =
       'questionSetId' in body && typeof body.questionSetId === 'number' ? body.questionSetId : null;
@@ -310,8 +325,9 @@ export async function POST(req: Request, { params }: RouteContext) {
     const studentIds =
       'studentIds' in body && Array.isArray(body.studentIds) ? body.studentIds : undefined;
 
+    // If schedule-driven, runDate is required and mode must be SCHEDULED
     if (scheduleId !== null) {
-      if (!runDate || Number.isNaN(runDate.getTime())) {
+      if (!runDate || !isValidDate(runDate)) {
         return errorResponse('runDate is required when scheduleId is provided', 400);
       }
 
@@ -323,8 +339,8 @@ export async function POST(req: Request, { params }: RouteContext) {
         closesAt,
         windowMinutes,
         numQuestions,
-        kind: 'SCHEDULED_TEST',
-        assignmentMode: 'SCHEDULED',
+        type,
+        mode: 'SCHEDULED',
         questionSetId,
         studentIds,
       });
@@ -339,8 +355,8 @@ export async function POST(req: Request, { params }: RouteContext) {
       closesAt,
       windowMinutes,
       numQuestions,
-      kind,
-      assignmentMode,
+      type,
+      mode,
       questionSetId,
       studentIds,
       scheduleId: null,

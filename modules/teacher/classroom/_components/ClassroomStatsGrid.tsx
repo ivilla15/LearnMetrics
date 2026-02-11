@@ -10,16 +10,22 @@ function percent(numerator: number, denominator: number) {
 }
 
 export function ClassroomStatsGrid({ stats }: { stats: TeacherClassroomOverviewStats }) {
+  const tz = stats.classroom.timeZone ?? 'UTC';
+
   const nextTestValue = stats.nextTest
-    ? formatInTimeZone(stats.nextTest.opensAt, stats.classroom.timeZone ?? 'UTC', 'MMM d, h:mm a')
+    ? formatInTimeZone(stats.nextTest.opensAt, tz, 'MMM d, h:mm a')
     : '—';
 
   const nextTestHelper = stats.nextTest ? (
     <span>
-      {stats.nextTest.assignmentMode === 'SCHEDULED' ? 'Scheduled' : 'Manual'}
+      {stats.nextTest.mode === 'SCHEDULED'
+        ? 'Scheduled'
+        : stats.nextTest.mode === 'MAKEUP'
+          ? 'Make up'
+          : 'Manual'}
       {' · '}
       Closes{' '}
-      {formatInTimeZone(stats.nextTest.closesAt, stats.classroom.timeZone ?? 'UTC', 'h:mm a')}
+      {stats.nextTest.closesAt ? formatInTimeZone(stats.nextTest.closesAt, tz, 'h:mm a') : '—'}
     </span>
   ) : (
     <span>No upcoming tests found.</span>

@@ -9,10 +9,7 @@ import { MonthGrid } from './_components';
 import { AssignmentDetailsModal } from './_components/AssignmentDetailsModal';
 import { EditAssignmentModal } from './_components/EditAssignmentModal';
 
-export function CalendarClient(props: {
-  classroomId: number;
-  initial: CalendarAssignmentsListResponse;
-}) {
+export function CalendarClient(props: { classroomId: number; initial: CalendarAssignmentsListResponse }) {
   const { classroomId, initial } = props;
 
   const toast = useToast();
@@ -30,9 +27,11 @@ export function CalendarClient(props: {
   const [editSaving, setEditSaving] = React.useState(false);
 
   const selectedIsProjection = !!selected && cal.isProjection(selected);
-  const selectedClosed = selected
-    ? new Date(cal.toIso(selected.closesAt)).getTime() <= Date.now()
-    : false;
+
+  const selectedClosed =
+    selected && selected.closesAt
+      ? new Date(cal.toIso(selected.closesAt)).getTime() <= Date.now()
+      : false;
 
   const openDetails = React.useCallback(
     (item: CalendarItemRow) => {

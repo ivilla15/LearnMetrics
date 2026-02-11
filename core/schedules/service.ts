@@ -201,7 +201,9 @@ export async function runActiveSchedulesForDate(
         closesAt: closesAtUTC,
         windowMinutes: sched.windowMinutes,
         numQuestions: sched.numQuestions,
-        assignmentMode: 'SCHEDULED',
+        // updated fields — mode + type
+        mode: 'SCHEDULED',
+        type: 'TEST',
       });
 
       results.push(dto);

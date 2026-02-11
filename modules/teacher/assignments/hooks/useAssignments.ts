@@ -28,8 +28,7 @@ export function useAssignments(initial: TeacherAssignmentsListResponse, classroo
     if (!q) return rows;
 
     return rows.filter((a) => {
-      const hay =
-        `${a.assignmentId} ${a.kind} ${a.assignmentMode} ${a.opensAt} ${a.closesAt}`.toLowerCase();
+      const hay = `${a.assignmentId} ${a.kind} ${a.mode} ${a.opensAt} ${a.closesAt}`.toLowerCase();
       return hay.includes(q);
     });
   }, [rows, search]);
