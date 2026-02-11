@@ -6,6 +6,10 @@ on:
 jobs:
   introspect:
     runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -15,5 +19,3 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - name: Introspect DB
         run: pnpm prisma db pull --schema=prisma/schema.prisma
-        env:
-          POSTGRES_URL_NON_POOLING: ${{ secrets.POSTGRES_URL_NON_POOLING }}
