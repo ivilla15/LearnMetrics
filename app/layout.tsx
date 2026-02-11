@@ -1,6 +1,7 @@
 import './global.css';
 import { ToastProvider } from '@/components/ToastProvider';
 import type { Metadata } from 'next';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
   title: {
@@ -19,6 +20,11 @@ export const metadata: Metadata = {
     icon: '/icon.svg',
     apple: '/apple-touch-icon.png',
   },
+
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#000000' },
+  ],
 
   openGraph: {
     type: 'website',
@@ -55,7 +61,8 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className="min-h-screen w-screen overflow-x-hidden bg-[hsl(var(--bg))]">
+      <body className="min-h-screen overflow-x-hidden bg-[hsl(var(--bg))]">
+        <Analytics />
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>
