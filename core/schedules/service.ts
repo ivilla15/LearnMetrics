@@ -1,22 +1,23 @@
-// core/schedules/service.ts
 import type { UpsertScheduleInput } from '@/validation/assignmentSchedules.schema';
 
-import { ConflictError, NotFoundError } from '@/core/errors';
-import { createScheduledAssignment } from '@/core/assignments/service';
+import {
+  ConflictError,
+  NotFoundError,
+  createScheduledAssignment,
+  requireTeacherActiveEntitlement,
+} from '@/core';
 
 import * as ClassroomsRepo from '@/data/classrooms.repo';
 import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
-
-import { prisma } from '@/data/prisma';
-import { requireTeacherActiveEntitlement } from '@/core/billing/entitlement';
+import { prisma } from '@/data';
 
 import {
   getNextScheduledDateForSchedule,
   localDateTimeToUtcRange,
   localDayToUtcDate,
   TZ,
-} from '@/utils/time';
-import { AssignmentDTO } from '@/types';
+} from '@/utils';
+import type { CoreAssignmentDTO } from '@/core';
 
 export type ScheduleDTO = {
   id: number;
@@ -165,9 +166,9 @@ export async function createAdditionalClassroomSchedule(params: {
 
 export async function runActiveSchedulesForDate(
   baseDate: Date = new Date(),
-): Promise<AssignmentDTO[]> {
+): Promise<CoreAssignmentDTO[]> {
   const schedules = await SchedulesRepo.findAllActiveSchedulesWithTimezone();
-  const results: AssignmentDTO[] = [];
+  const results: CoreAssignmentDTO[] = [];
 
   for (const sched of schedules) {
     try {

@@ -7,6 +7,7 @@ import { generateSetupCode, hashSetupCode } from '@/core';
 
 import type { StudentRosterRow } from '@/types/roster';
 import type { AttemptSummary } from '@/types/attempts';
+import type { Prisma } from '@prisma/client';
 
 /* -------------------------------------------------------------------------- */
 /* Basic queries                                                               */
@@ -36,12 +37,58 @@ export async function findStudentByIdInClassroom(classroomId: number, studentId:
 /* Roster with latest attempt                                                  */
 /* -------------------------------------------------------------------------- */
 
+type LatestAttemptRow = Prisma.AttemptGetPayload<{
+  select: {
+    id: true;
+    assignmentId: true;
+    score: true;
+    total: true;
+    completedAt: true;
+  };
+}>;
+
+type StudentWithLatestAttemptRow = Prisma.StudentGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    username: true;
+    level: true;
+    mustSetPassword: true;
+    Attempt: {
+      take: 1;
+      orderBy: { completedAt: 'desc' };
+      select: {
+        id: true;
+        assignmentId: true;
+        score: true;
+        total: true;
+        completedAt: true;
+      };
+    };
+  };
+}>;
+
+function toAttemptSummary(a: LatestAttemptRow): AttemptSummary {
+  return {
+    id: a.id,
+    assignmentId: a.assignmentId,
+    score: a.score,
+    total: a.total,
+    completedAt: a.completedAt.toISOString(),
+  };
+}
+
 export async function findStudentsWithLatestAttempt(
   classroomId: number,
 ): Promise<StudentRosterRow[]> {
-  const students = await prisma.student.findMany({
+  const students: StudentWithLatestAttemptRow[] = await prisma.student.findMany({
     where: { classroomId },
-    include: {
+    select: {
+      id: true,
+      name: true,
+      username: true,
+      level: true,
+      mustSetPassword: true,
       Attempt: {
         orderBy: { completedAt: 'desc' },
         take: 1,
@@ -63,7 +110,7 @@ export async function findStudentsWithLatestAttempt(
     username: s.username,
     level: s.level,
     mustSetPassword: s.mustSetPassword,
-    lastAttempt: s.Attempt.length ? (s.Attempt[0] as AttemptSummary) : null,
+    lastAttempt: s.Attempt.length ? toAttemptSummary(s.Attempt[0]) : null,
   }));
 }
 

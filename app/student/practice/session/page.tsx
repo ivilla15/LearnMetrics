@@ -19,9 +19,9 @@ import {
   makePracticeQuestions,
   gradePractice,
 } from '@/modules';
-import type { PracticeQuestion } from '@/modules';
+import type {} from '@/modules';
 import { cn } from '@/lib';
-import { getNumberParam } from '@/utils';
+import { getNumberParam, PracticeQuestion } from '@/utils';
 
 function PracticeSessionFallback() {
   return (

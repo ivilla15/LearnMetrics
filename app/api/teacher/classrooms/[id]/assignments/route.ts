@@ -10,7 +10,7 @@ import { addDays } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 
 import { localDayToUtcDate, localDateTimeToUtcRange } from '@/utils';
-import { ProjectionRow } from '@/types';
+import { CalendarProjectionRow } from '@/types';
 
 function clampLimit(raw: string | null) {
   const n = Number(raw);
@@ -142,7 +142,7 @@ export async function GET(req: Request, { params }: RouteContext) {
       };
     });
 
-    const projections: ProjectionRow[] = [];
+    const projections: CalendarProjectionRow[] = [];
 
     if (status === 'all') {
       const PROJECTION_DAYS = 60;
