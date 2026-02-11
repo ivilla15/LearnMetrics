@@ -38,7 +38,7 @@ model Assignment {
   @@unique([classroomId, kind, opensAt])
   @@index([classroomId])
   @@index([questionSetId])
-  @@index([scheduleId]) // optional but useful
+  @@index([scheduleId])
 }
 
 model AssignmentSchedule {
