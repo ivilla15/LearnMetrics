@@ -18,14 +18,40 @@ function clampLimit(raw: string | null) {
   return Math.min(Math.max(Math.floor(n), 5), 50);
 }
 
-function parseStatus(raw: string | null): 'all' | 'open' | 'closed' | 'upcoming' {
+function parseStatus(raw: string | null): 'all' | 'open' | 'finished' | 'upcoming' {
   const v = (raw ?? 'all').toLowerCase();
-  if (v === 'open' || v === 'closed' || v === 'upcoming') return v;
+
+  // backward compat: old URLs used "closed"
+  if (v === 'closed') return 'finished';
+
+  if (v === 'open' || v === 'finished' || v === 'upcoming') return v;
+  return 'all';
+}
+
+function parseMode(raw: string | null): 'all' | 'SCHEDULED' | 'MAKEUP' | 'MANUAL' {
+  const v = (raw ?? 'all').toUpperCase();
+  if (v === 'SCHEDULED' || v === 'MAKEUP' || v === 'MANUAL') return v;
+  return 'all';
+}
+
+function parseType(raw: string | null): 'all' | 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT' {
+  const v = (raw ?? 'all').toUpperCase();
+  if (v === 'TEST' || v === 'PRACTICE' || v === 'REMEDIATION' || v === 'PLACEMENT') return v;
   return 'all';
 }
 
 function isValidDate(d: Date) {
   return !Number.isNaN(d.getTime());
+}
+
+function deriveStatus(a: { opensAt: Date; closesAt: Date | null }) {
+  const now = Date.now();
+  const opens = a.opensAt.getTime();
+  const closes = a.closesAt ? a.closesAt.getTime() : null;
+
+  if (opens > now) return 'UPCOMING' as const;
+  if (closes !== null && closes <= now) return 'FINISHED' as const;
+  return 'OPEN' as const;
 }
 
 export async function GET(req: Request, { params }: RouteContext) {
@@ -43,17 +69,25 @@ export async function GET(req: Request, { params }: RouteContext) {
     const cursor = parseCursor(url.searchParams.get('cursor'));
     const limit = clampLimit(url.searchParams.get('limit'));
     const status = parseStatus(url.searchParams.get('status'));
+    const mode = parseMode(url.searchParams.get('mode'));
+    const type = parseType(url.searchParams.get('type'));
+
     const now = new Date();
 
     const where: Prisma.AssignmentWhereInput = { classroomId };
 
+    // mode/type filters
+    if (mode !== 'all') where.mode = mode;
+    if (type !== 'all') where.type = type;
+
+    // status filters
     if (status === 'open') {
       // opensAt <= now AND (closesAt is null OR closesAt > now)
       where.opensAt = { lte: now };
       where.OR = [{ closesAt: null }, { closesAt: { gt: now } }];
-    } else if (status === 'closed') {
-      // closesAt <= now (null = not closed)
-      where.closesAt = { lte: now };
+    } else if (status === 'finished') {
+      // closesAt <= now (must be non-null)
+      where.AND = [{ closesAt: { not: null } }, { closesAt: { lte: now } }];
     } else if (status === 'upcoming') {
       where.opensAt = { gt: now };
     }
@@ -64,7 +98,6 @@ export async function GET(req: Request, { params }: RouteContext) {
       where,
       take,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
-      // Use opensAt for ordering instead of id
       orderBy: { opensAt: 'desc' },
       select: {
         id: true,
@@ -126,6 +159,8 @@ export async function GET(req: Request, { params }: RouteContext) {
         total: 0,
       };
 
+      const derived = deriveStatus({ opensAt: a.opensAt, closesAt: a.closesAt });
+
       const avgPercent = s.total > 0 ? Math.round(s.sumPercent / s.total) : 0;
       const masteryRate = s.total > 0 ? Math.round((s.masteryCount / s.total) * 100) : 0;
 
@@ -133,17 +168,17 @@ export async function GET(req: Request, { params }: RouteContext) {
         assignmentId: a.id,
         type: a.type,
         mode: a.mode,
+        status: derived,
         opensAt: a.opensAt.toISOString(),
         closesAt: a.closesAt ? a.closesAt.toISOString() : null,
-        windowMinutes: a.windowMinutes,
         numQuestions: a.numQuestions ?? 12,
-        scheduleId: a.scheduleId,
+        scheduleId: a.scheduleId ?? null,
         runDate: a.runDate ? a.runDate.toISOString() : null,
         stats: {
           attemptedCount: s.attemptedCount,
           totalStudents,
-          masteryRate,
-          avgPercent,
+          masteryRate: derived === 'FINISHED' ? masteryRate : null,
+          avgPercent: derived === 'FINISHED' ? avgPercent : null,
         },
       };
     });
@@ -158,20 +193,18 @@ export async function GET(req: Request, { params }: RouteContext) {
           ? classroom.timeZone
           : 'America/Los_Angeles';
 
-      // 1) Active schedules for this classroom
       const schedules = await prisma.assignmentSchedule.findMany({
         where: { classroomId, isActive: true },
         select: {
           id: true,
           days: true,
-          opensAtLocalTime: true, // "HH:mm"
+          opensAtLocalTime: true,
           windowMinutes: true,
           numQuestions: true,
         },
         orderBy: { id: 'asc' },
       });
 
-      // 2) Real scheduled assignments in horizon -> keys to dedupe
       const existingRuns = await prisma.assignment.findMany({
         where: {
           classroomId,
@@ -188,7 +221,6 @@ export async function GET(req: Request, { params }: RouteContext) {
         }
       }
 
-      // 3) Skipped/tombstoned runs -> keys to exclude
       const scheduleIds = schedules.map((s) => s.id);
       const skipped = scheduleIds.length
         ? await prisma.assignmentScheduleRun.findMany({
@@ -203,7 +235,6 @@ export async function GET(req: Request, { params }: RouteContext) {
 
       const skippedKeys = new Set(skipped.map((r) => `${r.scheduleId}|${r.runDate.toISOString()}`));
 
-      // 4) Generate day-by-day candidates in the classroom TZ
       for (const sched of schedules) {
         const days = Array.isArray(sched.days) ? sched.days : [];
         if (days.length === 0) continue;
@@ -211,10 +242,10 @@ export async function GET(req: Request, { params }: RouteContext) {
         for (let i = 0; i < PROJECTION_DAYS; i++) {
           const candidateBase = addDays(now, i);
 
-          const dayName = formatInTimeZone(candidateBase, tz, 'EEEE'); // "Friday"
+          const dayName = formatInTimeZone(candidateBase, tz, 'EEEE');
           if (!days.includes(dayName)) continue;
 
-          const localDate = formatInTimeZone(candidateBase, tz, 'yyyy-MM-dd'); // "2026-01-23"
+          const localDate = formatInTimeZone(candidateBase, tz, 'yyyy-MM-dd');
           const runDate = localDayToUtcDate(localDate, tz);
 
           const key = `${sched.id}|${runDate.toISOString()}`;
@@ -325,7 +356,6 @@ export async function POST(req: Request, { params }: RouteContext) {
     const studentIds =
       'studentIds' in body && Array.isArray(body.studentIds) ? body.studentIds : undefined;
 
-    // If schedule-driven, runDate is required and mode must be SCHEDULED
     if (scheduleId !== null) {
       if (!runDate || !isValidDate(runDate)) {
         return errorResponse('runDate is required when scheduleId is provided', 400);
@@ -348,7 +378,6 @@ export async function POST(req: Request, { params }: RouteContext) {
       return jsonResponse({ assignment: dto }, 201);
     }
 
-    // ---- Manual create (non schedule-driven) ----
     const created = await createScheduledAssignment({
       classroomId,
       opensAt,

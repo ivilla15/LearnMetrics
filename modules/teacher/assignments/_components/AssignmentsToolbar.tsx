@@ -7,7 +7,7 @@ import type { AssignmentStatusFilter } from '@/types';
 const STATUS_OPTIONS: Array<[AssignmentStatusFilter, string]> = [
   ['all', 'All'],
   ['open', 'Open'],
-  ['closed', 'Closed'],
+  ['finished', 'Finished'],
   ['upcoming', 'Upcoming'],
 ];
 

@@ -2,6 +2,8 @@ import type {
   AssignmentStatusFilter,
   TeacherAssignmentsListResponse,
   AssignModalBootstrapResponse,
+  AssignmentModeFilter,
+  AssignmentTypeFilter,
 } from '@/types';
 import { getApiErrorMessage, ApiErrorShape } from '@/utils';
 
@@ -10,14 +12,23 @@ export async function fetchAssignments(params: {
   status: AssignmentStatusFilter;
   limit: number;
   cursor?: string | null;
+
+  mode?: AssignmentModeFilter;
+  type?: AssignmentTypeFilter;
 }): Promise<TeacherAssignmentsListResponse> {
   const url = new URL(
     `/api/teacher/classrooms/${params.classroomId}/assignments`,
     window.location.origin,
   );
+
   url.searchParams.set('status', params.status);
   url.searchParams.set('limit', String(params.limit));
+
   if (params.cursor) url.searchParams.set('cursor', params.cursor);
+
+  // only send when not "all"
+  if (params.mode && params.mode !== 'all') url.searchParams.set('mode', params.mode);
+  if (params.type && params.type !== 'all') url.searchParams.set('type', params.type);
 
   const res = await fetch(url.toString(), { cache: 'no-store', credentials: 'include' });
   const json = (await res.json().catch(() => null)) as TeacherAssignmentsListResponse | null;

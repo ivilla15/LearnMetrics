@@ -44,8 +44,10 @@ export function AssignmentsTableCard(props: {
       <CardHeader>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <CardTitle>All assignments</CardTitle>
-            <CardDescription>Browse every assignment in this classroom.</CardDescription>
+            <CardTitle>Assignments</CardTitle>
+            <CardDescription>
+              Browse assignments in this classroom. Defaults to finished tests.
+            </CardDescription>
           </div>
 
           <Button variant="primary" className="cursor-pointer" onClick={onOpenAssign}>

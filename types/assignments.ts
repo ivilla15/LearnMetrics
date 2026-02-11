@@ -1,4 +1,6 @@
-export type AssignmentStatusFilter = 'all' | 'open' | 'closed' | 'upcoming';
+export type AssignmentStatusFilter = 'all' | 'open' | 'finished' | 'upcoming';
+export type AssignmentModeFilter = 'all' | 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
+export type AssignmentTypeFilter = 'all' | 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT';
 
 export type TeacherAssignmentStats = {
   attemptedCount: number;
@@ -9,13 +11,20 @@ export type TeacherAssignmentStats = {
 
 export type TeacherAssignmentListItem = {
   assignmentId: number;
-  kind: string;
-  mode: string;
+  type: 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT';
+  mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
+  status: 'FINISHED' | 'OPEN' | 'UPCOMING';
   opensAt: string;
-  closesAt: string;
-  windowMinutes: number | null;
-  numQuestions: number;
-  stats: TeacherAssignmentStats;
+  closesAt: string | null;
+  numQuestions?: number;
+  stats: {
+    attemptedCount: number;
+    totalStudents: number;
+    masteryRate?: number | null;
+    avgPercent?: number | null;
+  };
+  scheduleId?: number | null;
+  runDate?: string | null;
 };
 
 export type TeacherAssignmentsListResponse = {
