@@ -23,7 +23,6 @@ export type TeacherAssignmentAttemptsRow = {
   studentName: string;
   studentUsername: string;
   completedAt: string | null;
-  levelAtTime: number | null;
   score: number | null;
   total: number | null;
   percent: number | null;
@@ -33,7 +32,6 @@ export type TeacherAssignmentAttemptsRow = {
 export type TeacherAttemptDetailDTO = {
   attemptId: number;
   completedAt: string | null;
-  levelAtTime: number;
   score: number;
   total: number;
   percent: number;
@@ -113,7 +111,10 @@ export async function listTeacherAssignmentsForClassroom(params: {
     },
   });
 
-  const agg = new Map<number, { attemptedCount: number; masteryCount: number; sumPercent: number }>();
+  const agg = new Map<
+    number,
+    { attemptedCount: number; masteryCount: number; sumPercent: number }
+  >();
 
   for (const a of attempts) {
     const cur = agg.get(a.assignmentId) ?? { attemptedCount: 0, masteryCount: 0, sumPercent: 0 };
@@ -193,7 +194,7 @@ export async function listTeacherAssignmentAttempts(params: {
   const students = await prisma.student.findMany({
     where: { classroomId },
     orderBy: [{ name: 'asc' }, { id: 'asc' }],
-    select: { id: true, name: true, username: true, level: true },
+    select: { id: true, name: true, username: true },
   });
 
   const attempts = await prisma.attempt.findMany({
@@ -207,7 +208,6 @@ export async function listTeacherAssignmentAttempts(params: {
       score: true,
       total: true,
       completedAt: true,
-      levelAtTime: true,
     },
   });
 
@@ -223,7 +223,6 @@ export async function listTeacherAssignmentAttempts(params: {
         studentName: s.name,
         studentUsername: s.username,
         completedAt: null,
-        levelAtTime: null,
         score: null,
         total: null,
         percent: null,
@@ -240,7 +239,6 @@ export async function listTeacherAssignmentAttempts(params: {
       studentName: s.name,
       studentUsername: s.username,
       completedAt: a.completedAt ? a.completedAt.toISOString() : null,
-      levelAtTime: a.levelAtTime ?? s.level,
       score: a.score,
       total: a.total,
       percent,
@@ -298,8 +296,7 @@ export async function getTeacherAttemptDetail(params: {
       score: true,
       total: true,
       completedAt: true,
-      levelAtTime: true,
-      Student: { select: { id: true, classroomId: true, name: true, username: true, level: true } },
+      Student: { select: { id: true, classroomId: true, name: true, username: true } },
       Assignment: {
         select: {
           id: true,
@@ -339,7 +336,6 @@ export async function getTeacherAttemptDetail(params: {
   return {
     attemptId: attempt.id,
     completedAt: attempt.completedAt ? attempt.completedAt.toISOString() : null,
-    levelAtTime: attempt.levelAtTime ?? attempt.Student.level,
     score: attempt.score,
     total: attempt.total,
     percent,

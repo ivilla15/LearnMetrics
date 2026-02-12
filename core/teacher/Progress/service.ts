@@ -3,6 +3,21 @@ import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 import { percent, median, isoDay } from '@/utils';
 import { trendFromLast3 } from './utils';
 
+type OperationCode = 'ADD' | 'SUB' | 'MUL' | 'DIV';
+
+type StudentProgressLite = {
+  operation: OperationCode;
+  level: number;
+};
+
+type StudentWithProgress = {
+  id: number;
+  name: string;
+  username: string;
+  mustSetPassword: boolean;
+  progress: StudentProgressLite[];
+};
+
 export type ProgressRange = {
   startAt: string;
   endAt: string;
@@ -41,6 +56,7 @@ export type StudentProgressRow = {
   name: string;
   username: string;
   level: number;
+
   mustSetPassword: boolean;
 
   // range stats
@@ -104,7 +120,6 @@ export type ClassroomProgressDTO = {
     stale14DaysCount: number;
     nonMasteryStreak2Count: number;
 
-    // NEW:
     missedLastTestCount: number;
   };
 
@@ -129,6 +144,12 @@ function bucketScore(p: number): string {
   return '100';
 }
 
+function getLevelForOp(progress: StudentProgressLite[] | undefined, op: OperationCode): number {
+  if (!progress) return 1;
+  const row = progress.find((r) => r.operation === op);
+  return row?.level ?? 1;
+}
+
 export async function getTeacherClassroomProgress(params: {
   teacherId: number;
   classroomId: number;
@@ -147,7 +168,7 @@ export async function getTeacherClassroomProgress(params: {
   // for streaks + last3: look back farther so it’s meaningful
   const recentCutoff = new Date(endAt.getTime() - 180 * 24 * 60 * 60 * 1000);
 
-  const [students, attemptsInRange, recentAttempts, missedFacts, lastAssignments] =
+  const [studentsRaw, attemptsInRange, recentAttempts, missedFacts, lastAssignments] =
     await Promise.all([
       ProgressRepo.getStudentsForClassroom(classroomId),
       ProgressRepo.getAttemptsForClassroomInRange({ classroomId, startAt, endAt }),
@@ -160,6 +181,9 @@ export async function getTeacherClassroomProgress(params: {
         take: 3,
       }),
     ]);
+
+  // We expect students to include progress rows (operation + level)
+  const students = studentsRaw as unknown as StudentWithProgress[];
 
   const assignmentIds = lastAssignments.map((a) => a.id);
 
@@ -222,7 +246,6 @@ export async function getTeacherClassroomProgress(params: {
   // ---- Charts: daily ----
   const dailyMap = new Map<string, { attempts: number; mastered: number; sumPct: number }>();
   for (const a of attemptsInRange) {
-    // completedAt may be null in the type, but these rows are queried with completedAt range so it should be non-null at runtime
     const key = isoDay(a.completedAt as Date);
     const prev = dailyMap.get(key) ?? { attempts: 0, mastered: 0, sumPct: 0 };
     prev.attempts += 1;
@@ -254,9 +277,12 @@ export async function getTeacherClassroomProgress(params: {
     count: bucketCounts.get(label) ?? 0,
   }));
 
-  // ---- Charts: level buckets (current levels) ----
+  // ---- Charts: level buckets (current MUL levels) ----
   const levelMap = new Map<number, number>();
-  for (const s of students) levelMap.set(s.level, (levelMap.get(s.level) ?? 0) + 1);
+  for (const s of students) {
+    const mulLevel = getLevelForOp(s.progress, 'MUL');
+    levelMap.set(mulLevel, (levelMap.get(mulLevel) ?? 0) + 1);
+  }
 
   const levelBuckets: LevelBucket[] = Array.from({ length: 12 }, (_, i) => i + 1).map((level) => ({
     level,
@@ -297,16 +323,16 @@ export async function getTeacherClassroomProgress(params: {
     );
     const masteryRateRange = range.length ? Math.round((masteredRange / range.length) * 100) : 0;
 
-    // last attempt overall from recent list (desc)
     const last = rec[0] ?? null;
     const lastAttemptAt = last ? (last.completedAt ? last.completedAt.toISOString() : null) : null;
     const lastPercent = last ? percent(last.score, last.total) : null;
 
     const daysSinceLastAttempt = last
-      ? Math.floor((now - (last.completedAt ? last.completedAt.getTime() : now)) / (24 * 60 * 60 * 1000))
+      ? Math.floor(
+          (now - (last.completedAt ? last.completedAt.getTime() : now)) / (24 * 60 * 60 * 1000),
+        )
       : null;
 
-    // streaks: traverse rec list from most recent backwards
     let masteryStreak = 0;
     let nonMasteryStreak = 0;
 
@@ -321,7 +347,6 @@ export async function getTeacherClassroomProgress(params: {
       }
     }
 
-    // trend last 3 (oldest->newest of the last 3 attempts)
     const last3 = rec.slice(0, 3).reverse();
     const last3pcts = last3.map((a) => percent(a.score, a.total));
     const trendLast3 = trendFromLast3(last3pcts);
@@ -343,7 +368,7 @@ export async function getTeacherClassroomProgress(params: {
       id: s.id,
       name: s.name,
       username: s.username,
-      level: s.level,
+      level: getLevelForOp(s.progress, 'MUL'),
       mustSetPassword: s.mustSetPassword,
 
       attemptsInRange: range.length,
@@ -371,7 +396,6 @@ export async function getTeacherClassroomProgress(params: {
     };
   });
 
-  // Summary stats
   const attemptsTotal = attemptsInRange.length;
   const masteryTotal = attemptsInRange.reduce(
     (acc, a) => acc + (a.total > 0 && a.score === a.total ? 1 : 0),
@@ -387,7 +411,8 @@ export async function getTeacherClassroomProgress(params: {
 
   const masteryRateAll = attemptsTotal > 0 ? Math.round((masteryTotal / attemptsTotal) * 100) : 0;
 
-  const highestLevel = students.length ? Math.max(...students.map((s) => s.level)) : null;
+  const highestLevel =
+    students.length > 0 ? Math.max(...students.map((s) => getLevelForOp(s.progress, 'MUL'))) : null;
 
   const lowestRecentPercent =
     rows.length && rows.some((r) => r.lastPercent !== null)
@@ -414,7 +439,6 @@ export async function getTeacherClassroomProgress(params: {
     errorRate: m.totalCount > 0 ? Math.round((m.incorrectCount / m.totalCount) * 100) : 0,
   }));
 
-  // Sort students default: at-risk first, then lowest median, then stale
   rows.sort((a, b) => {
     if (a.flags.atRisk !== b.flags.atRisk) return a.flags.atRisk ? -1 : 1;
     if (a.medianPercentInRange !== b.medianPercentInRange)

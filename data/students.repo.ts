@@ -26,7 +26,6 @@ export async function findStudentByIdInClassroom(classroomId: number, studentId:
       id: true,
       name: true,
       username: true,
-      level: true,
       mustSetPassword: true,
       classroomId: true,
     },
@@ -53,7 +52,6 @@ type StudentWithLatestAttemptRow = Prisma.StudentGetPayload<{
     id: true;
     name: true;
     username: true;
-    level: true;
     mustSetPassword: true;
     Attempt: {
       take: 1;
@@ -90,7 +88,6 @@ export async function findStudentsWithLatestAttempt(
       id: true,
       name: true,
       username: true,
-      level: true,
       mustSetPassword: true,
       Attempt: {
         // completedAt can be null now; tie-break with startedAt so ordering is stable
@@ -113,7 +110,6 @@ export async function findStudentsWithLatestAttempt(
     id: s.id,
     name: s.name,
     username: s.username,
-    level: s.level,
     mustSetPassword: s.mustSetPassword,
     lastAttempt: s.Attempt.length ? toAttemptSummary(s.Attempt[0]) : null,
   }));
@@ -127,14 +123,12 @@ export type CreateStudentData = {
   firstName: string;
   lastName: string;
   username: string;
-  level: number;
 };
 
 export type CreatedStudentWithSetupCode = {
   id: number;
   name: string;
   username: string;
-  level: number;
   setupCode: string;
   setupCodeExpiresAt: Date;
 };
@@ -176,7 +170,6 @@ export async function createManyForClassroom(
           classroomId,
           name,
           username: s.username,
-          level: s.level,
           passwordHash: placeholderPasswordHash,
           mustSetPassword: true,
           setupCodeHash,
@@ -186,7 +179,6 @@ export async function createManyForClassroom(
           id: true,
           name: true,
           username: true,
-          level: true,
           setupCodeExpiresAt: true,
         },
       });
@@ -195,7 +187,6 @@ export async function createManyForClassroom(
         id: row.id,
         name: row.name,
         username: row.username,
-        level: row.level,
         setupCode,
         setupCodeExpiresAt: row.setupCodeExpiresAt ?? setupExpiresAt,
       });
@@ -216,10 +207,7 @@ export async function createManyForClassroom(
 /* Mutations                                                                   */
 /* -------------------------------------------------------------------------- */
 
-export async function updateById(
-  id: number,
-  data: { name?: string; username?: string; level?: number },
-) {
+export async function updateById(id: number, data: { name?: string; username?: string }) {
   return prisma.student.update({
     where: { id },
     data,

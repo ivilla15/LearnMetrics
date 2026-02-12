@@ -49,13 +49,18 @@ export async function GET(req: Request) {
         const percent = a.total > 0 ? Math.round((a.score / a.total) * 100) : 0;
         const wasMastery = a.total > 0 && a.score === a.total;
 
+        // Defensive: Assignment should exist, but guard just in case.
+        const assignmentType = a.Assignment ? a.Assignment.type : null;
+        const assignmentMode = a.Assignment ? a.Assignment.mode : null;
+
         return {
           attemptId: a.id,
           assignmentId: a.assignmentId,
           completedAt: a.completedAt!.toISOString(),
-          assignmentType: a.Assignment!.type,
-          assignmentMode: a.Assignment!.mode,
-          levelAtTime: a.levelAtTime ?? student.level,
+          assignmentType,
+          assignmentMode,
+          // do NOT fall back to current student level; return null if missing
+          levelAtTime: a.levelAtTime ?? null,
           score: a.score,
           total: a.total,
           percent,

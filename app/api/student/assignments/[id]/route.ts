@@ -16,6 +16,15 @@ const SubmitBodySchema = z.object({
     .min(1),
 });
 
+async function getStudentMulLevel(studentId: number) {
+  const row = await prisma.studentProgress.findUnique({
+    where: { studentId_operation: { studentId, operation: 'MUL' } },
+    select: { level: true },
+  });
+  // If backfill/ensure helpers ran, this should exist. Default defensively.
+  return row?.level ?? 1;
+}
+
 export async function GET(_req: Request, { params }: RouteContext) {
   try {
     const auth = await requireStudent();
@@ -110,17 +119,19 @@ export async function GET(_req: Request, { params }: RouteContext) {
     // Load question pool (answers included server-side, stripped before sending)
     let questions: { id: number; factorA: number; factorB: number; answer: number }[] = [];
 
+    const mulLevel = await getStudentMulLevel(student.id);
+
     if (assignment.questionSetId) {
       questions = await prisma.question.findMany({
         where: { setId: assignment.questionSetId },
         select: { id: true, factorA: true, factorB: true, answer: true },
       });
     } else {
-      // Default student-level behavior: fixed multiplication table (level × 1..12)
-      const table = await getTableQuestionsForLevel(student.level);
+      // Default behavior: fixed multiplication table (level × 1..12)
+      const table = await getTableQuestionsForLevel(mulLevel);
 
       questions = table
-        .filter((q) => q.factorA === student.level && q.factorB >= 1 && q.factorB <= 12)
+        .filter((q) => q.factorA === mulLevel && q.factorB >= 1 && q.factorB <= 12)
         .sort((a, b) => a.factorB - b.factorB);
     }
 
@@ -142,7 +153,7 @@ export async function GET(_req: Request, { params }: RouteContext) {
     return NextResponse.json(
       {
         status: 'READY',
-        student: { id: student.id, name: student.name, level: student.level },
+        student: { id: student.id, name: student.name, level: mulLevel },
         assignment: assignmentPayload,
         questions: picked.map((q) => ({ id: q.id, factorA: q.factorA, factorB: q.factorB })),
       },
@@ -194,13 +205,16 @@ export async function POST(req: Request, { params }: RouteContext) {
 
     const now = new Date();
     if (now < assignment.opensAt) return jsonError('Test not open yet', 409);
-    if (assignment.closesAt && now > assignment.closesAt) return jsonError('Test window closed', 409);
+    if (assignment.closesAt && now > assignment.closesAt)
+      return jsonError('Test window closed', 409);
 
     const existingAttempt = await prisma.attempt.findUnique({
       where: { studentId_assignmentId: { studentId: student.id, assignmentId: assignment.id } },
       select: { id: true },
     });
     if (existingAttempt) return jsonError('You already submitted this test', 409);
+
+    const mulLevel = await getStudentMulLevel(student.id);
 
     // Load the SAME question pool as GET (with answers)
     let pool: { id: number; answer: number }[] = [];
@@ -211,10 +225,10 @@ export async function POST(req: Request, { params }: RouteContext) {
         select: { id: true, answer: true },
       });
     } else {
-      const table = await getTableQuestionsForLevel(student.level);
+      const table = await getTableQuestionsForLevel(mulLevel);
 
       const filtered = table
-        .filter((q) => q.factorA === student.level && q.factorB >= 1 && q.factorB <= 12)
+        .filter((q) => q.factorA === mulLevel && q.factorB >= 1 && q.factorB <= 12)
         .sort((a, b) => a.factorB - b.factorB);
 
       pool = filtered.map((q) => ({ id: q.id, answer: q.answer }));
@@ -222,6 +236,7 @@ export async function POST(req: Request, { params }: RouteContext) {
 
     const baseRequested = assignment.numQuestions ?? 12;
     const requested = assignment.questionSetId ? baseRequested : Math.min(baseRequested, 12);
+
     if (pool.length < requested) {
       return jsonError(
         `Not enough questions available to grade this test. Need ${requested}, have ${pool.length}.`,
@@ -274,8 +289,8 @@ export async function POST(req: Request, { params }: RouteContext) {
           assignmentId: assignment.id,
           score,
           total,
-          levelAtTime: student.level,
-          completedAt: new Date(), // now set on submit
+          levelAtTime: mulLevel,
+          completedAt: new Date(),
         },
         select: { id: true, score: true, total: true, completedAt: true },
       });
@@ -290,9 +305,13 @@ export async function POST(req: Request, { params }: RouteContext) {
       });
 
       if (wasMastery) {
-        await tx.student.update({
-          where: { id: student.id },
-          data: { level: Math.min(student.level + 1, 12) },
+        const nextLevel = Math.min(mulLevel + 1, 12);
+
+        // Prefer update (row should exist). Fall back to upsert defensively.
+        await tx.studentProgress.upsert({
+          where: { studentId_operation: { studentId: student.id, operation: 'MUL' } },
+          create: { studentId: student.id, operation: 'MUL', level: nextLevel },
+          update: { level: nextLevel },
         });
       }
 

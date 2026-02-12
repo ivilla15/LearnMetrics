@@ -54,7 +54,6 @@ export async function bulkCreateClassroomStudents(args: BulkCreateStudentArgs): 
         lastName: s.lastName,
         username: s.username.trim(),
         passwordHash: tempPasswordHash,
-        level: Math.max(1, Math.min(12, Math.trunc(s.level))),
         setupCode,
         setupCodeHash,
       };
@@ -68,7 +67,6 @@ export async function bulkCreateClassroomStudents(args: BulkCreateStudentArgs): 
         name: `${p.firstName} ${p.lastName}`.trim(),
         username: p.username,
         passwordHash: p.passwordHash,
-        level: p.level,
         setupCodeHash: p.setupCodeHash,
         setupCodeExpiresAt: expiresAt,
         mustSetPassword: true,
@@ -82,7 +80,6 @@ export async function bulkCreateClassroomStudents(args: BulkCreateStudentArgs): 
         id: true,
         name: true,
         username: true,
-        level: true,
         mustSetPassword: true,
         Attempt: {
           orderBy: { completedAt: 'desc' },
@@ -111,7 +108,6 @@ export async function bulkCreateClassroomStudents(args: BulkCreateStudentArgs): 
         id: s.id,
         name: s.name,
         username: s.username,
-        level: s.level,
         mustSetPassword: s.mustSetPassword,
         lastAttempt,
       };

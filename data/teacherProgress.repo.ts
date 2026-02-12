@@ -1,11 +1,18 @@
 import { prisma } from '@/data/prisma';
 
+type OperationCode = 'ADD' | 'SUB' | 'MUL' | 'DIV';
+
+export type StudentProgressLite = {
+  operation: OperationCode;
+  level: number;
+};
+
 export type ProgressStudentRow = {
   id: number;
   name: string;
   username: string;
-  level: number;
   mustSetPassword: boolean;
+  progress: StudentProgressLite[];
 };
 
 export type ProgressAttemptRow = {
@@ -14,7 +21,6 @@ export type ProgressAttemptRow = {
   completedAt: Date | null;
   score: number;
   total: number;
-  levelAtTime: number | null;
 };
 
 export type MissedFactRow = {
@@ -43,6 +49,10 @@ export type AssignmentAttemptRow = {
   score: number;
   total: number;
 };
+
+function isNotNull<T>(v: T | null): v is T {
+  return v !== null;
+}
 
 export async function getRecentAssignmentsForClassroomInRange(params: {
   classroomId: number;
@@ -100,11 +110,28 @@ export async function getStudentsForClassroom(classroomId: number): Promise<Prog
       id: true,
       name: true,
       username: true,
-      level: true,
       mustSetPassword: true,
+      progress: {
+        select: {
+          operation: true,
+          level: true,
+        },
+        orderBy: { operation: 'asc' },
+      },
     },
     orderBy: { name: 'asc' },
   });
+}
+
+export async function getProgressForStudent(studentId: number): Promise<StudentProgressLite[]> {
+  const rows = await prisma.studentProgress.findMany({
+    where: { studentId },
+    select: { operation: true, level: true },
+    orderBy: { operation: 'asc' },
+  });
+
+  // Prisma enum comes through as string literals compatible with OperationCode.
+  return rows.map((r) => ({ operation: r.operation as OperationCode, level: r.level }));
 }
 
 export async function getAttemptsForClassroomInRange(params: {
@@ -125,7 +152,6 @@ export async function getAttemptsForClassroomInRange(params: {
       completedAt: true,
       score: true,
       total: true,
-      levelAtTime: true,
     },
     orderBy: { completedAt: 'asc' },
   });
@@ -151,7 +177,6 @@ export async function getRecentAttemptsForClassroom(params: {
       completedAt: true,
       score: true,
       total: true,
-      levelAtTime: true,
     },
     orderBy: { completedAt: 'desc' },
   });
@@ -210,23 +235,24 @@ export async function getMissedFactsInRange(params: {
   const qById = new Map<number, (typeof questions)[number]>();
   for (const q of questions) qById.set(q.id, q);
 
-  const rows: MissedFactRow[] = incorrect
-    .map((r) => {
-      const q = qById.get(r.questionId);
-      if (!q) return null;
+  const maybeRows = incorrect.map((r) => {
+    const q = qById.get(r.questionId);
+    if (!q) return null;
 
-      const totalCount = totalByQ.get(r.questionId) ?? r._count._all;
+    const totalCount = totalByQ.get(r.questionId) ?? r._count._all;
 
-      return {
-        questionId: r.questionId,
-        factorA: q.factorA,
-        factorB: q.factorB,
-        answer: q.answer,
-        incorrectCount: r._count._all,
-        totalCount,
-      };
-    })
-    .filter(Boolean) as MissedFactRow[];
+    const row: MissedFactRow = {
+      questionId: r.questionId,
+      factorA: q.factorA,
+      factorB: q.factorB,
+      answer: q.answer,
+      incorrectCount: r._count._all,
+      totalCount,
+    };
+    return row;
+  });
+
+  const rows = maybeRows.filter(isNotNull);
 
   rows.sort((a, b) => {
     if (b.incorrectCount !== a.incorrectCount) return b.incorrectCount - a.incorrectCount;
@@ -314,31 +340,27 @@ export async function getMissedFactStudentBreakdownInRange(params: {
   const sById = new Map<number, (typeof studentRows)[number]>();
   for (const s of studentRows) sById.set(s.id, s);
 
-  const students = studentIds
-    .map((studentId) => {
-      const s = sById.get(studentId);
-      if (!s) return null;
-      const v = agg.get(studentId)!;
-      return {
-        studentId,
-        incorrectCount: v.incorrect,
-        totalCount: v.total,
-        name: s.name,
-        username: s.username,
-      };
-    })
-    .filter(Boolean) as Array<{
-    studentId: number;
-    incorrectCount: number;
-    totalCount: number;
-    name: string;
-    username: string;
-  }>;
+  const maybeStudents = studentIds.map((studentId) => {
+    const s = sById.get(studentId);
+    if (!s) return null;
+    const v = agg.get(studentId);
+    if (!v) return null;
+
+    return {
+      studentId,
+      incorrectCount: v.incorrect,
+      totalCount: v.total,
+      name: s.name,
+      username: s.username,
+    };
+  });
+
+  const students = maybeStudents.filter(isNotNull);
 
   students.sort((a, b) => {
     if (b.incorrectCount !== a.incorrectCount) return b.incorrectCount - a.incorrectCount;
     const ar = a.totalCount ? a.incorrectCount / a.totalCount : 0;
-    const br = b.totalCount ? b.incorrectCount / a.totalCount : 0;
+    const br = b.totalCount ? b.incorrectCount / b.totalCount : 0; // FIXED
     if (br !== ar) return br - ar;
     return b.totalCount - a.totalCount;
   });
@@ -370,7 +392,6 @@ export async function getAttemptsForStudentInRange(params: {
       completedAt: true,
       score: true,
       total: true,
-      levelAtTime: true,
     },
     orderBy: { completedAt: 'asc' },
   });
@@ -395,7 +416,6 @@ export async function getRecentAttemptsForStudent(params: {
       completedAt: true,
       score: true,
       total: true,
-      levelAtTime: true,
     },
     orderBy: { completedAt: 'desc' },
   });
@@ -451,23 +471,24 @@ export async function getMissedFactsForStudentInRange(params: {
   const qById = new Map<number, (typeof questions)[number]>();
   for (const q of questions) qById.set(q.id, q);
 
-  const rows: MissedFactRow[] = incorrect
-    .map((r) => {
-      const q = qById.get(r.questionId);
-      if (!q) return null;
+  const maybeRows = incorrect.map((r) => {
+    const q = qById.get(r.questionId);
+    if (!q) return null;
 
-      const totalCount = totalByQ.get(r.questionId) ?? r._count._all;
+    const totalCount = totalByQ.get(r.questionId) ?? r._count._all;
 
-      return {
-        questionId: r.questionId,
-        factorA: q.factorA,
-        factorB: q.factorB,
-        answer: q.answer,
-        incorrectCount: r._count._all,
-        totalCount,
-      };
-    })
-    .filter(Boolean) as MissedFactRow[];
+    const row: MissedFactRow = {
+      questionId: r.questionId,
+      factorA: q.factorA,
+      factorB: q.factorB,
+      answer: q.answer,
+      incorrectCount: r._count._all,
+      totalCount,
+    };
+    return row;
+  });
+
+  const rows = maybeRows.filter(isNotNull);
 
   rows.sort((a, b) => {
     if (b.incorrectCount !== a.incorrectCount) return b.incorrectCount - a.incorrectCount;

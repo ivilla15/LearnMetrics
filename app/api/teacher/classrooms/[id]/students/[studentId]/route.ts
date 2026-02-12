@@ -23,7 +23,7 @@ export async function GET(_req: Request, { params }: RouteCtx) {
 
     const student = await prisma.student.findFirst({
       where: { id: studentId, classroomId },
-      select: { id: true, name: true, username: true, level: true },
+      select: { id: true, name: true, username: true },
     });
     if (!student) return jsonError('Student not found', 404);
 

@@ -71,7 +71,9 @@ export async function GET(_req: Request, { params }: StudentAttemptRouteContext)
         studentId: attempt.studentId,
         assignmentId: attempt.assignmentId,
         completedAt: attempt.completedAt.toISOString(),
-        levelAtTime: attempt.levelAtTime ?? student.level,
+        // Do NOT fall back to current student progress for historical results.
+        // If older attempts didn't store it, return null and optionally backfill later.
+        levelAtTime: attempt.levelAtTime ?? null,
         score: attempt.score,
         total: attempt.total,
         percent,

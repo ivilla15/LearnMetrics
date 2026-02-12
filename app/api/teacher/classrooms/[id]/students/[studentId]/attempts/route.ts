@@ -30,7 +30,7 @@ export async function GET(req: Request, { params }: RouteCtx) {
     // Ensure student belongs to classroom (and grab level for fallback)
     const student = await prisma.student.findFirst({
       where: { id: sid, classroomId },
-      select: { id: true, level: true },
+      select: { id: true },
     });
     if (!student) return jsonError('Student not found', 404);
 
@@ -61,9 +61,8 @@ export async function GET(req: Request, { params }: RouteCtx) {
         attemptId: a.id,
         assignmentId: a.assignmentId,
         completedAt: a.completedAt ? a.completedAt.toISOString() : null,
-        type: a.Assignment.type, // NEW
-        mode: a.Assignment.mode, // NEW
-        levelAtTime: a.levelAtTime ?? student.level,
+        type: a.Assignment.type,
+        mode: a.Assignment.mode,
         score: a.score,
         total: a.total,
         percent,

@@ -31,7 +31,6 @@ export type StudentHistoryDTO = {
     id: number;
     name: string;
     username: string;
-    level: number;
   };
   attempts: AttemptHistoryItem[];
 };
@@ -47,7 +46,6 @@ export type StudentRosterRow = {
   id: number;
   name: string;
   username: string;
-  level: number;
   mustSetPassword?: boolean;
   lastAttempt: StudentRosterLastAttempt;
 };
@@ -79,7 +77,6 @@ export async function getStudentHistory(studentId: number): Promise<StudentHisto
       id: student.id,
       name: student.name,
       username: student.username,
-      level: student.level,
     },
     attempts: history,
   };
@@ -131,7 +128,6 @@ export type UpdateStudentArgs = {
   input: {
     name: string;
     username: string;
-    level: number;
   };
 };
 
@@ -148,7 +144,6 @@ export async function updateClassroomStudentById(
   await StudentsRepo.updateById(studentId, {
     name: input.name,
     username: input.username,
-    level: input.level,
   });
 
   const roster = await StudentsRepo.findStudentsWithLatestAttempt(classroomId);

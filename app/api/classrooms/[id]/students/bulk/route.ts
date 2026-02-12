@@ -11,7 +11,6 @@ const bulkStudentsSchema = z.object({
         firstName: z.string().min(1),
         lastName: z.string().min(1),
         username: z.string().min(1),
-        level: z.number().int().min(1).max(12),
       }),
     )
     .min(1)

@@ -3,6 +3,19 @@ import * as StudentsRepo from '@/data';
 import { NotFoundError, ConflictError } from '@/core';
 import { ProgressRosterDTO } from '@/types';
 
+type OperationCode = 'ADD' | 'SUB' | 'MUL' | 'DIV';
+
+type StudentProgressLite = {
+  operation: OperationCode;
+  level: number;
+};
+
+function getLevelForOp(progress: StudentProgressLite[] | undefined, op: OperationCode): number {
+  if (!progress) return 1;
+  const row = progress.find((r) => r.operation === op);
+  return row?.level ?? 1;
+}
+
 export async function getTeacherClassroomOverview(params: {
   classroomId: number;
   teacherId: number;
@@ -30,16 +43,23 @@ export async function getRosterWithLastAttempt(params: {
     throw new ConflictError('You are not allowed to view this classroom');
   }
 
+  // Expect each student to include optional `progress` array: { operation, level }[]
   const rows = await StudentsRepo.findStudentsWithLatestAttempt(classroomId);
 
   const students = rows.map((s) => {
     const a = s.lastAttempt;
+    // derive MUL level from progress rows if available; fallback to 1
+    const mulLevel = getLevelForOp(
+      (s as unknown as { progress?: StudentProgressLite[] }).progress,
+      'MUL',
+    );
+
     return {
       id: s.id,
       name: s.name,
       username: s.username,
-      level: s.level,
       mustSetPassword: s.mustSetPassword,
+      level: mulLevel,
       lastAttempt: a
         ? {
             assignmentId: a.assignmentId,

@@ -4,7 +4,6 @@ export type StudentRosterRow = {
   id: number;
   name: string;
   username: string;
-  level: number;
   mustSetPassword: boolean;
   lastAttempt: AttemptSummary | null;
 };

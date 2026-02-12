@@ -21,6 +21,18 @@ enum Type {
   PLACEMENT
 }
 
+enum Operation {
+  ADD
+  SUB
+  MUL
+  DIV
+}
+
+enum Modifier {
+  DECIMAL
+  FRACTION
+}
+
 model Assignment {
   id               Int                       @id @default(autoincrement())
   createdAt        DateTime                  @default(now())
@@ -153,6 +165,7 @@ model Classroom {
   timeZone           String               @default("America/Los_Angeles")
   Teacher            Teacher              @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   Student            Student[]
+  progressionPolicy ClassroomProgressionPolicy?
 
   @@index([teacherId])
 }
@@ -182,7 +195,6 @@ model Student {
   name        String
   username    String   @unique
   passwordHash    String
-  level       Int      @default(1)
   classroomId Int
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -192,6 +204,7 @@ model Student {
   mustSetPassword    Boolean   @default(true)
 
   assignments AssignmentRecipient[]
+  progress StudentProgress[]
 
   Attempt   Attempt[]
   Classroom Classroom        @relation(fields: [classroomId], references: [id], onDelete: Cascade)
@@ -268,4 +281,57 @@ model TeacherEntitlement {
 
   @@index([plan])
   @@index([status])
+}
+
+model ClassroomProgressionPolicy {
+  id                   Int      @id @default(autoincrement())
+  classroomId          Int      @unique
+  classroom            Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+
+  enabledOperations    Operation[]
+  maxNumber            Int      @default(12)
+  divisionIntegersOnly Boolean  @default(true)
+
+  modifierRules        ModifierRule[]
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  @@index([classroomId])
+}
+
+model StudentProgress {
+  id         Int       @id @default(autoincrement())
+  studentId  Int
+  student    Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  operation  Operation
+  level      Int       @default(1)
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([studentId, operation])
+  @@index([studentId])
+}
+
+model ModifierRule {
+  id        Int      @id @default(autoincrement())
+
+  policyId  Int
+  policy    ClassroomProgressionPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+
+  // null = applies to ALL enabled operations, otherwise only this operation
+  operation Operation?
+
+  modifier  Modifier
+  minLevel  Int      @default(1)
+  enabled   Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([policyId])
+  @@index([policyId, operation])
+  @@unique([policyId, operation, modifier])
 }

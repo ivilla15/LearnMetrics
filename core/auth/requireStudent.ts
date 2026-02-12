@@ -17,7 +17,6 @@ export async function requireStudent() {
           id: true,
           name: true,
           username: true,
-          level: true,
           classroomId: true,
         },
       },
