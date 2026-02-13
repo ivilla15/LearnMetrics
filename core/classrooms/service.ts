@@ -1,20 +1,7 @@
 import * as ClassroomsRepo from '@/data';
 import * as StudentsRepo from '@/data';
 import { NotFoundError, ConflictError } from '@/core';
-import { ProgressRosterDTO } from '@/types';
-
-type OperationCode = 'ADD' | 'SUB' | 'MUL' | 'DIV';
-
-type StudentProgressLite = {
-  operation: OperationCode;
-  level: number;
-};
-
-function getLevelForOp(progress: StudentProgressLite[] | undefined, op: OperationCode): number {
-  if (!progress) return 1;
-  const row = progress.find((r) => r.operation === op);
-  return row?.level ?? 1;
-}
+import { getLevelForOp, ProgressRosterDTO, StudentProgressLite } from '@/types';
 
 export async function getTeacherClassroomOverview(params: {
   classroomId: number;

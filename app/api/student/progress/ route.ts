@@ -9,13 +9,9 @@ import {
   upsertStudentProgressSchema,
 } from '@/validation';
 import { jsonResponse, errorResponse } from '@/utils';
-import { handleApiError, readJson } from '@/app';
+import { handleApiError, readJson, RouteContext } from '@/app';
 
-type StudentProgressRouteContext = {
-  params: Promise<{ id: string; studentId: string }>;
-};
-
-export async function GET(_request: Request, context: StudentProgressRouteContext) {
+export async function GET(_request: Request, context: RouteContext) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -36,7 +32,7 @@ export async function GET(_request: Request, context: StudentProgressRouteContex
   }
 }
 
-export async function PUT(request: Request, context: StudentProgressRouteContext) {
+export async function PUT(request: Request, context: RouteContext) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);

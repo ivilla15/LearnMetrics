@@ -2,13 +2,7 @@ import * as ProgressRepo from '@/data';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 import { percent, median, isoDay } from '@/utils';
 import { trendFromLast3 } from './utils';
-
-type OperationCode = 'ADD' | 'SUB' | 'MUL' | 'DIV';
-
-type StudentProgressLite = {
-  operation: OperationCode;
-  level: number;
-};
+import { getLevelForOp, StudentProgressLite } from '@/types';
 
 type StudentWithProgress = {
   id: number;
@@ -144,11 +138,7 @@ function bucketScore(p: number): string {
   return '100';
 }
 
-function getLevelForOp(progress: StudentProgressLite[] | undefined, op: OperationCode): number {
-  if (!progress) return 1;
-  const row = progress.find((r) => r.operation === op);
-  return row?.level ?? 1;
-}
+
 
 export async function getTeacherClassroomProgress(params: {
   teacherId: number;

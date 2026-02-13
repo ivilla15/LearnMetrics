@@ -6,3 +6,4 @@ export * from './assignments';
 export * from './billing';
 export * from './progress';
 export * from './calendar';
+export * from './progression';

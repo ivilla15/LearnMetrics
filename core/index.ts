@@ -8,3 +8,4 @@ export * from './teacher';
 export * from './billing';
 export * from './classrooms';
 export * from './assignments';
+export * from './progression';

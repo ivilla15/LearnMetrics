@@ -6,6 +6,7 @@ import { percent, median } from '@/utils';
 import { trendFromLast3 } from './utils';
 
 import type { MissedFact, ProgressRange, StudentProgressRow } from './service';
+import { getLevelForOp } from '@/types';
 
 export type StudentAttemptItem = {
   id: number;
@@ -24,19 +25,6 @@ export type TeacherStudentProgressDTO = {
   insights: { topMissedFacts: MissedFact[] };
   recent: { attempts: StudentAttemptItem[] };
 };
-
-type OperationCode = 'ADD' | 'SUB' | 'MUL' | 'DIV';
-
-type StudentProgressLite = {
-  operation: OperationCode;
-  level: number;
-};
-
-function getLevelForOp(progress: StudentProgressLite[] | undefined, op: OperationCode): number {
-  if (!progress) return 1;
-  const row = progress.find((r) => r.operation === op);
-  return row?.level ?? 1;
-}
 
 export async function getTeacherStudentProgress(params: {
   teacherId: number;

@@ -1,11 +1,5 @@
 import { prisma } from '@/data/prisma';
-
-type OperationCode = 'ADD' | 'SUB' | 'MUL' | 'DIV';
-
-export type StudentProgressLite = {
-  operation: OperationCode;
-  level: number;
-};
+import { StudentProgressLite, OperationCode } from '@/types';
 
 export type ProgressStudentRow = {
   id: number;
