@@ -2,6 +2,7 @@ import {
   requireTeacher,
   getTeacherStudentProgressRows,
   setTeacherStudentProgressRows,
+  getOrCreateClassroomPolicy,
 } from '@/core';
 import {
   classroomIdParamSchema,
@@ -24,13 +25,29 @@ export async function GET(_request: Request, context: StudentProgressRouteContex
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
     const { studentId: sid } = studentIdParamSchema.parse({ studentId });
 
+    const policy = await getOrCreateClassroomPolicy({
+      teacherId: auth.teacher.id,
+      classroomId,
+    });
+
     const progress = await getTeacherStudentProgressRows({
       teacherId: auth.teacher.id,
       classroomId,
       studentId: sid,
     });
 
-    return jsonResponse({ studentId: sid, progress }, 200);
+    return jsonResponse(
+      {
+        studentId: sid,
+        policy: {
+          enabledOperations: policy.enabledOperations,
+          maxNumber: policy.maxNumber,
+          divisionIntegersOnly: policy.divisionIntegersOnly,
+        },
+        progress,
+      },
+      200,
+    );
   } catch (err: unknown) {
     return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }
@@ -48,6 +65,11 @@ export async function PUT(request: Request, context: StudentProgressRouteContext
     const body = await readJson(request);
     const input = upsertStudentProgressSchema.parse(body);
 
+    const policy = await getOrCreateClassroomPolicy({
+      teacherId: auth.teacher.id,
+      classroomId,
+    });
+
     const progress = await setTeacherStudentProgressRows({
       teacherId: auth.teacher.id,
       classroomId,
@@ -55,7 +77,18 @@ export async function PUT(request: Request, context: StudentProgressRouteContext
       levels: input.levels,
     });
 
-    return jsonResponse({ studentId: sid, progress }, 200);
+    return jsonResponse(
+      {
+        studentId: sid,
+        policy: {
+          enabledOperations: policy.enabledOperations,
+          maxNumber: policy.maxNumber,
+          divisionIntegersOnly: policy.divisionIntegersOnly,
+        },
+        progress,
+      },
+      200,
+    );
   } catch (err: unknown) {
     return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }

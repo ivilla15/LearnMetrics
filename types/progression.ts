@@ -1,6 +1,16 @@
 import z from 'zod';
 
 export const operationSchema = z.enum(['ADD', 'SUB', 'MUL', 'DIV']);
+export type OperationCode = 'ADD' | 'SUB' | 'MUL' | 'DIV';
+export const ALL_OPS: OperationCode[] = ['ADD', 'SUB', 'MUL', 'DIV'];
+export type BulkStudentInput = {
+  firstName: string;
+  lastName: string;
+  username: string;
+  level: number;
+  startingOperation?: 'ADD' | 'SUB' | 'MUL' | 'DIV';
+  startingLevel?: number;
+};
 
 export type StudentProgressLite = {
   operation: OperationCode;
@@ -23,10 +33,6 @@ export function getLevelForOp(
   const row = progress.find((r) => r.operation === op);
   return row?.level ?? 1;
 }
-
-export type OperationCode = 'ADD' | 'SUB' | 'MUL' | 'DIV';
-
-export const ALL_OPS: OperationCode[] = ['ADD', 'SUB', 'MUL', 'DIV'];
 
 export type ProgressionPolicyDTO = {
   classroomId: number;

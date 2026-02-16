@@ -2,6 +2,22 @@ import { prisma } from '@/data/prisma';
 import { NotFoundError, ConflictError } from '@/core';
 import { ALL_OPS, type OperationCode, type StudentProgressLite } from '@/types';
 
+async function getPolicyForClassroom(classroomId: number) {
+  const policy = await prisma.classroomProgressionPolicy.findUnique({
+    where: { classroomId },
+    select: { enabledOperations: true, maxNumber: true },
+  });
+
+  const enabledOperations = (policy?.enabledOperations ?? ['MUL']).filter(
+    (op): op is OperationCode => op === 'ADD' || op === 'SUB' || op === 'MUL' || op === 'DIV',
+  );
+
+  return {
+    enabledOperations,
+    maxNumber: policy?.maxNumber ?? 12,
+  };
+}
+
 async function assertTeacherOwnsStudent(params: {
   teacherId: number;
   classroomId: number;
@@ -35,13 +51,10 @@ export async function ensureStudentProgress(studentId: number): Promise<StudentP
   const missing = ALL_OPS.filter((op) => !have.has(op));
 
   if (missing.length > 0) {
-    await prisma.$transaction(
-      missing.map((op) =>
-        prisma.studentProgress.create({
-          data: { studentId, operation: op, level: 1 },
-        }),
-      ),
-    );
+    await prisma.studentProgress.createMany({
+      data: missing.map((op) => ({ studentId, operation: op, level: 1 })),
+      skipDuplicates: true,
+    });
   }
 
   return prisma.studentProgress.findMany({
@@ -57,7 +70,11 @@ export async function getTeacherStudentProgressRows(params: {
   studentId: number;
 }): Promise<StudentProgressLite[]> {
   await assertTeacherOwnsStudent(params);
-  return ensureStudentProgress(params.studentId);
+
+  const policy = await getPolicyForClassroom(params.classroomId);
+  const rows = await ensureStudentProgress(params.studentId);
+
+  return rows.filter((r) => policy.enabledOperations.includes(r.operation));
 }
 
 export async function setTeacherStudentProgressRows(params: {
@@ -69,22 +86,44 @@ export async function setTeacherStudentProgressRows(params: {
   await assertTeacherOwnsStudent(params);
   await ensureStudentProgress(params.studentId);
 
-  await prisma.$transaction(
-    params.levels.map((row) =>
-      prisma.studentProgress.update({
-        where: { studentId_operation: { studentId: params.studentId, operation: row.operation } },
-        data: { level: row.level },
-      }),
-    ),
-  );
+  const policy = await getPolicyForClassroom(params.classroomId);
 
-  return prisma.studentProgress.findMany({
+  const updates = params.levels
+    .filter((row) => policy.enabledOperations.includes(row.operation))
+    .map((row) => ({
+      operation: row.operation,
+      level: Math.max(1, Math.min(policy.maxNumber, row.level)),
+    }));
+
+  if (updates.length > 0) {
+    await prisma.$transaction(
+      updates.map((row) =>
+        prisma.studentProgress.update({
+          where: { studentId_operation: { studentId: params.studentId, operation: row.operation } },
+          data: { level: row.level },
+        }),
+      ),
+    );
+  }
+
+  const rows = await prisma.studentProgress.findMany({
     where: { studentId: params.studentId },
     select: { operation: true, level: true },
     orderBy: { operation: 'asc' },
   });
+
+  return rows.filter((r) => policy.enabledOperations.includes(r.operation));
 }
 
 export async function getStudentProgressRows(studentId: number): Promise<StudentProgressLite[]> {
-  return ensureStudentProgress(studentId);
+  const student = await prisma.student.findUnique({
+    where: { id: studentId },
+    select: { classroomId: true },
+  });
+  if (!student) throw new NotFoundError('Student not found');
+
+  const policy = await getPolicyForClassroom(student.classroomId);
+  const rows = await ensureStudentProgress(studentId);
+
+  return rows.filter((r) => policy.enabledOperations.includes(r.operation));
 }

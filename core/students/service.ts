@@ -3,9 +3,11 @@ import * as StudentsRepo from '@/data/students.repo';
 import * as AttemptsRepo from '@/data/attempts.repo';
 import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
 import * as AssignmentsRepo from '@/data/assignments.repo';
+import { prisma } from '@/data/prisma';
 import { NotFoundError } from '@/core/errors';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
-import { BulkCreateStudentArgs } from '@/types';
+import { BulkCreateStudentArgs, OperationCode, ALL_OPS } from '@/types';
+import type { StudentRosterRow } from '@/types/roster';
 
 // -----------------------------
 // Student history (student + teacher progress pages)
@@ -33,21 +35,6 @@ export type StudentHistoryDTO = {
     username: string;
   };
   attempts: AttemptHistoryItem[];
-};
-
-export type StudentRosterLastAttempt = {
-  attemptId: number;
-  completedAt: string;
-  percent: number;
-  wasMastery: boolean;
-} | null;
-
-export type StudentRosterRow = {
-  id: number;
-  name: string;
-  username: string;
-  mustSetPassword?: boolean;
-  lastAttempt: StudentRosterLastAttempt;
 };
 
 export async function getStudentHistory(studentId: number): Promise<StudentHistoryDTO> {
@@ -98,6 +85,38 @@ export type BulkCreateStudentsResult = {
   setupCodes: SetupCodeCard[];
 };
 
+async function initializeStudentProgress(params: {
+  classroomId: number;
+  studentId: number;
+  startingOperation?: OperationCode;
+  startingLevel?: number;
+}) {
+  const policy = await prisma.classroomProgressionPolicy.findUnique({
+    where: { classroomId: params.classroomId },
+    select: { maxNumber: true },
+  });
+
+  const maxLevel = policy?.maxNumber ?? 12;
+  const startLevel = params.startingLevel ?? 1;
+
+  const startIndex =
+    params.startingOperation !== undefined ? ALL_OPS.indexOf(params.startingOperation) : -1;
+
+  const rows = ALL_OPS.map((op, index) => {
+    let level = 1;
+
+    if (params.startingOperation) {
+      if (index < startIndex) level = maxLevel;
+      else if (index === startIndex) level = startLevel;
+      else level = 1;
+    }
+
+    return { studentId: params.studentId, operation: op, level };
+  });
+
+  await prisma.studentProgress.createMany({ data: rows });
+}
+
 export async function bulkCreateClassroomStudents(
   args: BulkCreateStudentArgs,
 ): Promise<BulkCreateStudentsResult> {
@@ -105,7 +124,38 @@ export async function bulkCreateClassroomStudents(
 
   await assertTeacherOwnsClassroom(teacherId, classroomId);
 
-  const { created, roster } = await StudentsRepo.createManyForClassroom(classroomId, students);
+  // If your StudentsRepo still expects an old shape (e.g. includes `level`), adjust there.
+  // Here we forward the fields it needs and keep start fields for our own init logic.
+  const createInputs = students.map((s) => ({
+    firstName: s.firstName,
+    lastName: s.lastName,
+    username: s.username,
+    level: s.level,
+  }));
+
+  const { created, roster } = await StudentsRepo.createManyForClassroom(classroomId, createInputs);
+
+  // Match created students to inputs by username (safer than index)
+  const inputByUsername = new Map<
+    string,
+    { startingOperation?: OperationCode; startingLevel?: number }
+  >();
+  for (const s of students) {
+    inputByUsername.set(s.username, {
+      startingOperation: s.startingOperation,
+      startingLevel: s.startingLevel,
+    });
+  }
+
+  for (const c of created) {
+    const meta = inputByUsername.get(c.username);
+    await initializeStudentProgress({
+      classroomId,
+      studentId: c.id,
+      startingOperation: meta?.startingOperation,
+      startingLevel: meta?.startingLevel,
+    });
+  }
 
   const setupCodes: SetupCodeCard[] = created.map((c) => ({
     name: c.name,
@@ -150,7 +200,7 @@ export async function updateClassroomStudentById(
   const updated = roster.find((s) => s.id === studentId);
   if (!updated) throw new NotFoundError('Student not found after update');
 
-  return updated as unknown as StudentRosterRow;
+  return updated;
 }
 
 export type DeleteStudentArgs = {

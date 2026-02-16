@@ -53,6 +53,12 @@ type StudentWithLatestAttemptRow = Prisma.StudentGetPayload<{
     name: true;
     username: true;
     mustSetPassword: true;
+    progress: {
+      select: {
+        operation: true;
+        level: true;
+      };
+    };
     Attempt: {
       take: 1;
       orderBy: [{ completedAt: 'desc' }, { startedAt: 'desc' }];
@@ -89,8 +95,13 @@ export async function findStudentsWithLatestAttempt(
       name: true,
       username: true,
       mustSetPassword: true,
+      progress: {
+        select: {
+          operation: true,
+          level: true,
+        },
+      },
       Attempt: {
-        // completedAt can be null now; tie-break with startedAt so ordering is stable
         orderBy: [{ completedAt: 'desc' }, { startedAt: 'desc' }],
         take: 1,
         select: {
@@ -106,13 +117,19 @@ export async function findStudentsWithLatestAttempt(
     orderBy: { name: 'asc' },
   });
 
-  return students.map((s) => ({
-    id: s.id,
-    name: s.name,
-    username: s.username,
-    mustSetPassword: s.mustSetPassword,
-    lastAttempt: s.Attempt.length ? toAttemptSummary(s.Attempt[0]) : null,
-  }));
+  return students.map((s) => {
+    const add = s.progress.find((p) => p.operation === 'ADD');
+    const level = add?.level ?? 1;
+
+    return {
+      id: s.id,
+      name: s.name,
+      username: s.username,
+      mustSetPassword: s.mustSetPassword,
+      level,
+      lastAttempt: s.Attempt.length ? toAttemptSummary(s.Attempt[0]) : null,
+    };
+  });
 }
 
 /* -------------------------------------------------------------------------- */

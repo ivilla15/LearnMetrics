@@ -1,3 +1,5 @@
+import { OperationCode } from './progression';
+
 export type BulkCreateStudentArgs = {
   teacherId: number;
   classroomId: number;
@@ -6,6 +8,8 @@ export type BulkCreateStudentArgs = {
     lastName: string;
     username: string;
     level: number;
+    startingOperation?: OperationCode;
+    startingLevel?: number;
   }[];
 };
 

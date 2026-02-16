@@ -147,6 +147,7 @@ export type ProgressRosterDTO = {
 
 export type BulkAddResponse = {
   setupCodes: SetupCodeRow[];
+  students?: RosterStudentRow[];
 };
 
 export type EditingState = {
