@@ -1,28 +1,46 @@
-import z from 'zod';
+import { z } from 'zod';
+import { Modifier } from '@prisma/client';
 
 export const operationSchema = z.enum(['ADD', 'SUB', 'MUL', 'DIV']);
-export type OperationCode = 'ADD' | 'SUB' | 'MUL' | 'DIV';
+export type OperationCode = z.infer<typeof operationSchema>;
 export const ALL_OPS: OperationCode[] = ['ADD', 'SUB', 'MUL', 'DIV'];
-export type BulkStudentInput = {
-  firstName: string;
-  lastName: string;
-  username: string;
-  level: number;
-  startingOperation?: 'ADD' | 'SUB' | 'MUL' | 'DIV';
-  startingLevel?: number;
-};
+
+export const modifierSchema = z.nativeEnum(Modifier);
+export type ModifierCode = z.infer<typeof modifierSchema>;
 
 export type StudentProgressLite = {
   operation: OperationCode;
   level: number;
 };
 
+export type ModifierRule = {
+  modifier: ModifierCode;
+  operations: OperationCode[];
+  minLevel: number;
+  propagate: boolean;
+  enabled: boolean;
+};
+
 export type ProgressionPolicyInput = {
   enabledOperations: OperationCode[];
+  operationOrder: OperationCode[];
   maxNumber: number;
-  allowDecimals: boolean;
-  allowFractions: boolean;
-  divisionIntegersOnly: boolean;
+  modifierRules: ModifierRule[];
+};
+
+export type ProgressionPolicyDTO = ProgressionPolicyInput & {
+  classroomId: number;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+export type BulkStudentInput = {
+  firstName: string;
+  lastName: string;
+  username: string;
+  level: number;
+  startingOperation?: OperationCode;
+  startingLevel?: number;
 };
 
 export function getLevelForOp(
@@ -33,17 +51,3 @@ export function getLevelForOp(
   const row = progress.find((r) => r.operation === op);
   return row?.level ?? 1;
 }
-
-export type ProgressionPolicyDTO = {
-  classroomId: number;
-  enabledOperations: OperationCode[];
-  maxNumber: number;
-  divisionIntegersOnly: boolean;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type StudentProgressRowDTO = {
-  operation: OperationCode;
-  level: number;
-};

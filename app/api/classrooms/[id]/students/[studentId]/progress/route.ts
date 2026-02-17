@@ -5,10 +5,9 @@ import {
   upsertStudentProgressSchema,
 } from '@/validation';
 import { jsonResponse, errorResponse } from '@/utils';
-import { handleApiError, readJson, RouteContext } from '@/app';
+import { handleApiError, readJson } from '@/app';
 import { prisma } from '@/data/prisma';
 import { OperationCode, ALL_OPS } from '@/types';
-
 
 async function ensureStudentProgress(studentId: number) {
   const existing = await prisma.studentProgress.findMany({
@@ -42,7 +41,11 @@ async function ensureStudentProgress(studentId: number) {
   });
 }
 
-export async function GET(_request: Request, context: RouteContext) {
+type StudentProgressRouteContext = {
+  params: Promise<{ id: string; studentId: string }>;
+};
+
+export async function GET(_request: Request, context: StudentProgressRouteContext) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -75,7 +78,7 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 }
 
-export async function PUT(request: Request, context: RouteContext) {
+export async function PUT(request: Request, context: StudentProgressRouteContext) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);

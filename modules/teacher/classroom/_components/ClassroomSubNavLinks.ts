@@ -27,6 +27,10 @@ export const ClassroomSubNavItems: ClassroomSubNavItem[] = [
     href: (id) => `/teacher/classrooms/${id}/progress`,
   },
   {
+    label: 'Progression',
+    href: (id) => `/teacher/classrooms/${id}/progression`,
+  },
+  {
     label: 'Schedules',
     href: (id) => `/teacher/classrooms/${id}/schedules`,
   },

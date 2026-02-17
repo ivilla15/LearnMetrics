@@ -5,3 +5,4 @@ export * from './classroom';
 export * from './people';
 export * from './progress';
 export * from './calendar';
+export * from './progression';

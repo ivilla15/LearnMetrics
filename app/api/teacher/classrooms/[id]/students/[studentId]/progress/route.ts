@@ -40,9 +40,11 @@ export async function GET(_request: Request, context: StudentProgressRouteContex
       {
         studentId: sid,
         policy: {
+          classroomId: policy.classroomId,
           enabledOperations: policy.enabledOperations,
+          operationOrder: policy.operationOrder ?? policy.enabledOperations,
           maxNumber: policy.maxNumber,
-          divisionIntegersOnly: policy.divisionIntegersOnly,
+          modifierRules: policy.modifierRules ?? [],
         },
         progress,
       },
@@ -81,9 +83,11 @@ export async function PUT(request: Request, context: StudentProgressRouteContext
       {
         studentId: sid,
         policy: {
+          classroomId: policy.classroomId,
           enabledOperations: policy.enabledOperations,
+          operationOrder: policy.operationOrder ?? policy.enabledOperations,
           maxNumber: policy.maxNumber,
-          divisionIntegersOnly: policy.divisionIntegersOnly,
+          modifierRules: policy.modifierRules ?? [],
         },
         progress,
       },

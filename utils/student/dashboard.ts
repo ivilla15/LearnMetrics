@@ -1,5 +1,3 @@
-// src/utils/studentDashboard.ts
-
 import type { AttemptRow, MeDTO, NextAssignmentDTO } from '@/types';
 
 export function isMeDTO(value: unknown): value is MeDTO {

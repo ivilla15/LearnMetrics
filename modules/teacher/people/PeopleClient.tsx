@@ -6,18 +6,14 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/components';
 import { RosterTableCard } from '@/modules/teacher/people';
 
-import type { BulkAddResponse, RosterStudentRow } from '@/types';
+import type { BulkAddResponse, RosterStudentRow, BulkStudentInput } from '@/types';
 import { SetupCodeRow } from '@/types/classroom';
-import { NewStudentInput } from '@/utils';
+import { getApiErrorMessage } from '@/utils';
 
 type Props = {
   classroomId: number;
   initialStudents: RosterStudentRow[];
 };
-
-function getErrorMessage(err: unknown, fallback: string) {
-  return err instanceof Error ? err.message : fallback;
-}
 
 export function PeopleClient({ classroomId, initialStudents }: Props) {
   const toast = useToast();
@@ -50,7 +46,7 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
     }
   }
 
-  async function bulkAddStudents(newStudents: NewStudentInput[]): Promise<BulkAddResponse> {
+  async function bulkAddStudents(newStudents: BulkStudentInput[]): Promise<BulkAddResponse> {
     const res = await fetch(`/api/classrooms/${classroomId}/students/bulk`, {
       method: 'POST',
       credentials: 'include',
@@ -116,7 +112,7 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
       await refreshRoster();
       toast('Student updated', 'success');
     } catch (err) {
-      toast(getErrorMessage(err, 'Failed to update student'), 'error');
+      toast(getApiErrorMessage(err, 'Failed to update student'), 'error');
     } finally {
       setBusy(false);
     }
@@ -142,7 +138,7 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
       await refreshRoster();
       toast('Student removed', 'success');
     } catch (err) {
-      toast(getErrorMessage(err, 'Failed to remove student'), 'error');
+      toast(getApiErrorMessage(err, 'Failed to remove student'), 'error');
     } finally {
       setBusy(false);
     }
@@ -204,7 +200,7 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
 
       return row.setupCode;
     } catch (err) {
-      toast(getErrorMessage(err, 'Failed to reset access'), 'error');
+      toast(getApiErrorMessage(err, 'Failed to reset access'), 'error');
       throw err;
     } finally {
       setBusy(false);

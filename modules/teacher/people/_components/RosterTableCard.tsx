@@ -2,7 +2,8 @@
 
 import * as React from 'react';
 
-import { parseBulkStudentsText, type NewStudentInput } from '@/utils/student/students';
+import { parseBulkStudentsText } from '@/utils/student/students';
+import type { BulkStudentInput } from '@/types';
 import { Card, CardContent, useToast } from '@/components';
 
 import type { EditingState, RosterStudentRow } from '@/types';
@@ -12,17 +13,14 @@ import { BulkAddPanel } from './BulkAddPanel';
 import { RosterTable } from './RosterTable';
 import { ConfirmModals } from './ConfirmModals';
 import { SetupCodeRow } from '@/types/classroom';
-
-function getErrorMessage(err: unknown, fallback: string) {
-  return err instanceof Error ? err.message : fallback;
-}
+import { getApiErrorMessage } from '@/utils';
 
 export function RosterTableCard(props: {
   classroomId: number;
   students: RosterStudentRow[];
   busy?: boolean;
 
-  onBulkAdd: (students: NewStudentInput[]) => Promise<{ setupCodes: SetupCodeRow[] }>;
+  onBulkAdd: (students: BulkStudentInput[]) => Promise<{ setupCodes: SetupCodeRow[] }>;
   onUpdateStudent: (
     id: number,
     update: { name: string; username: string; level: number },
@@ -154,7 +152,7 @@ export function RosterTableCard(props: {
         toast('Students added, but no setup codes returned.', 'error');
       }
     } catch (err) {
-      const msg = getErrorMessage(err, 'Could not add students.');
+      const msg = getApiErrorMessage(err, 'Could not add students.');
       setBulkError(msg);
       toast(msg, 'error');
     }
@@ -171,7 +169,7 @@ export function RosterTableCard(props: {
       toast('Student updated', 'success');
       setEditing(null);
     } catch (err) {
-      toast(getErrorMessage(err, 'Failed to update student'), 'error');
+      toast(getApiErrorMessage(err, 'Failed to update student'), 'error');
     }
   };
 
@@ -188,7 +186,7 @@ export function RosterTableCard(props: {
       });
       toast('Student removed', 'success');
     } catch (err) {
-      toast(getErrorMessage(err, 'Failed to remove student'), 'error');
+      toast(getApiErrorMessage(err, 'Failed to remove student'), 'error');
     } finally {
       setConfirmRemoveId(null);
     }
@@ -214,7 +212,7 @@ export function RosterTableCard(props: {
       clearSelection();
       setConfirmBulkRemoveOpen(false);
     } catch (err) {
-      toast(getErrorMessage(err, 'Some students could not be removed.'), 'error');
+      toast(getApiErrorMessage(err, 'Some students could not be removed.'), 'error');
     } finally {
       setBulkDeleteBusy(false);
     }
@@ -230,7 +228,7 @@ export function RosterTableCard(props: {
       toast('Setup code generated. Redirecting to print cards…', 'success');
       onPrintCards();
     } catch (err) {
-      toast(getErrorMessage(err, 'Failed to reset access'), 'error');
+      toast(getApiErrorMessage(err, 'Failed to reset access'), 'error');
     } finally {
       setConfirmResetStudent(null);
     }

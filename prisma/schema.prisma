@@ -284,18 +284,18 @@ model TeacherEntitlement {
 }
 
 model ClassroomProgressionPolicy {
-  id                   Int      @id @default(autoincrement())
-  classroomId          Int      @unique
-  classroom            Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
+  id                Int      @id @default(autoincrement())
+  classroomId       Int      @unique
+  classroom         Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
 
-  enabledOperations    Operation[]
-  maxNumber            Int      @default(12)
-  divisionIntegersOnly Boolean  @default(true)
+  enabledOperations Operation[]
+  operationOrder    Operation[]
+  maxNumber         Int      @default(12)
 
-  modifierRules        ModifierRule[]
+  modifierRules     ModifierRule[]
 
-  createdAt            DateTime @default(now())
-  updatedAt            DateTime @updatedAt
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   @@index([classroomId])
 }
@@ -315,23 +315,20 @@ model StudentProgress {
   @@index([studentId])
 }
 
+
 model ModifierRule {
-  id        Int      @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
+  policyId   Int
+  policy     ClassroomProgressionPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
 
-  policyId  Int
-  policy    ClassroomProgressionPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  modifier   Modifier
+  operations Operation[]   // operations this rule applies to, e.g. [MUL] or [ADD, SUB]
+  minLevel   Int           // unlock threshold for the operation(s)
+  propagate  Boolean @default(false) // when true, auto-apply to later ops at same minLevel (see below)
+  enabled    Boolean @default(true)
 
-  // null = applies to ALL enabled operations, otherwise only this operation
-  operation Operation?
-
-  modifier  Modifier
-  minLevel  Int      @default(1)
-  enabled   Boolean  @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([policyId])
-  @@index([policyId, operation])
-  @@unique([policyId, operation, modifier])
 }

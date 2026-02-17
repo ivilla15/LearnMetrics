@@ -1,7 +1,9 @@
 import * as ClassroomsRepo from '@/data';
 import * as StudentsRepo from '@/data';
 import { NotFoundError, ConflictError } from '@/core';
-import { getLevelForOp, ProgressRosterDTO, StudentProgressLite } from '@/types';
+import { ProgressRosterDTO } from '@/types';
+import { type StudentProgressLite } from '@/types/progression';
+import { getLevelForOp } from '@/types';
 
 export async function getTeacherClassroomOverview(params: {
   classroomId: number;
