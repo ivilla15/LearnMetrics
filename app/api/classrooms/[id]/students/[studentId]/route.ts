@@ -1,4 +1,10 @@
-import { requireTeacher, updateClassroomStudentById, deleteClassroomStudentById } from '@/core';
+import {
+  requireTeacher,
+  updateClassroomStudentById,
+  deleteClassroomStudentById,
+  getOrCreateClassroomPolicy,
+  setTeacherStudentProgressRows,
+} from '@/core';
 import { classroomIdParamSchema } from '@/validation';
 import { jsonResponse, errorResponse } from '@/utils';
 import { handleApiError, ClassroomStudentRouteContext, readJson } from '@/app';
@@ -7,7 +13,7 @@ import { z } from 'zod';
 const updateStudentSchema = z.object({
   name: z.string().min(1),
   username: z.string().min(1),
-  level: z.number().int().min(1).max(12),
+  level: z.number().int().min(1).max(100),
 });
 
 async function getTeacherClassroomAndStudentId(params: ClassroomStudentRouteContext['params']) {
@@ -33,12 +39,28 @@ export async function PATCH(request: Request, { params }: ClassroomStudentRouteC
     const body = await readJson(request);
     const input = updateStudentSchema.parse(body);
 
+    const policy = await getOrCreateClassroomPolicy({
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
+    });
+
+    const primaryOp = policy.operationOrder[0] ?? policy.enabledOperations[0];
+
     const student = await updateClassroomStudentById({
       teacherId: ctx.teacher.id,
       classroomId: ctx.classroomId,
       studentId: ctx.studentIdNum,
-      input,
+      input: { name: input.name, username: input.username },
     });
+
+    if (primaryOp) {
+      await setTeacherStudentProgressRows({
+        teacherId: ctx.teacher.id,
+        classroomId: ctx.classroomId,
+        studentId: ctx.studentIdNum,
+        levels: [{ operation: primaryOp, level: input.level }],
+      });
+    }
 
     return jsonResponse({ student }, 200);
   } catch (err: unknown) {
