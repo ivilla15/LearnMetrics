@@ -8,15 +8,15 @@ import { generateSetupCode, hashSetupCode } from '@/core';
 import type { StudentRosterRow } from '@/types/roster';
 import type { AttemptSummary } from '@/types/attempts';
 import type { Prisma } from '@prisma/client';
+import type { OperationCode } from '@/types/progression';
+import { expiresAtFromNow } from '@/utils';
 
 /* -------------------------------------------------------------------------- */
 /* Basic queries                                                               */
 /* -------------------------------------------------------------------------- */
 
 export async function findStudentById(studentId: number) {
-  return prisma.student.findUnique({
-    where: { id: studentId },
-  });
+  return prisma.student.findUnique({ where: { id: studentId } });
 }
 
 export async function findStudentByIdInClassroom(classroomId: number, studentId: number) {
@@ -53,12 +53,7 @@ type StudentWithLatestAttemptRow = Prisma.StudentGetPayload<{
     name: true;
     username: true;
     mustSetPassword: true;
-    progress: {
-      select: {
-        operation: true;
-        level: true;
-      };
-    };
+    progress: { select: { operation: true; level: true } };
     Attempt: {
       take: 1;
       orderBy: [{ completedAt: 'desc' }, { startedAt: 'desc' }];
@@ -87,6 +82,7 @@ function toAttemptSummary(a: LatestAttemptRow): AttemptSummary {
 
 export async function findStudentsWithLatestAttempt(
   classroomId: number,
+  primaryOperation: OperationCode,
 ): Promise<StudentRosterRow[]> {
   const students: StudentWithLatestAttemptRow[] = await prisma.student.findMany({
     where: { classroomId },
@@ -95,12 +91,7 @@ export async function findStudentsWithLatestAttempt(
       name: true,
       username: true,
       mustSetPassword: true,
-      progress: {
-        select: {
-          operation: true,
-          level: true,
-        },
-      },
+      progress: { select: { operation: true, level: true } },
       Attempt: {
         orderBy: [{ completedAt: 'desc' }, { startedAt: 'desc' }],
         take: 1,
@@ -118,8 +109,8 @@ export async function findStudentsWithLatestAttempt(
   });
 
   return students.map((s) => {
-    const add = s.progress.find((p) => p.operation === 'ADD');
-    const level = add?.level ?? 1;
+    const row = s.progress.find((p) => p.operation === primaryOperation);
+    const level = row?.level ?? 1;
 
     return {
       id: s.id,
@@ -150,10 +141,6 @@ export type CreatedStudentWithSetupCode = {
   setupCodeExpiresAt: Date;
 };
 
-function expiresAtFromNowDays(days: number) {
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-}
-
 export async function createManyForClassroom(
   classroomId: number,
   students: CreateStudentData[],
@@ -162,14 +149,11 @@ export async function createManyForClassroom(
   roster: StudentRosterRow[];
 }> {
   if (!students.length) {
-    return {
-      created: [],
-      roster: await findStudentsWithLatestAttempt(classroomId),
-    };
+    return { created: [], roster: [] };
   }
 
   const created: CreatedStudentWithSetupCode[] = [];
-  const setupExpiresAt = expiresAtFromNowDays(7);
+  const setupExpiresAt = expiresAtFromNow(7);
 
   for (const s of students) {
     const name = `${s.firstName} ${s.lastName}`.trim();
@@ -192,12 +176,7 @@ export async function createManyForClassroom(
           setupCodeHash,
           setupCodeExpiresAt: setupExpiresAt,
         },
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          setupCodeExpiresAt: true,
-        },
+        select: { id: true, name: true, username: true, setupCodeExpiresAt: true },
       });
 
       created.push({
@@ -208,37 +187,22 @@ export async function createManyForClassroom(
         setupCodeExpiresAt: row.setupCodeExpiresAt ?? setupExpiresAt,
       });
     } catch (err) {
-      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
-        // duplicate username → skip
-        continue;
-      }
+      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') continue;
       throw err;
     }
   }
 
-  const roster = await findStudentsWithLatestAttempt(classroomId);
-  return { created, roster };
+  return { created, roster: [] };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Mutations                                                                   */
-/* -------------------------------------------------------------------------- */
-
 export async function updateById(id: number, data: { name?: string; username?: string }) {
-  return prisma.student.update({
-    where: { id },
-    data,
-  });
+  return prisma.student.update({ where: { id }, data });
 }
 
 export async function deleteById(id: number) {
-  return prisma.student.delete({
-    where: { id },
-  });
+  return prisma.student.delete({ where: { id } });
 }
 
 export async function deleteStudentsByClassroomId(classroomId: number) {
-  return prisma.student.deleteMany({
-    where: { classroomId },
-  });
+  return prisma.student.deleteMany({ where: { classroomId } });
 }

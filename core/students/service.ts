@@ -2,11 +2,13 @@ import * as StudentsRepo from '@/data/students.repo';
 import * as AttemptsRepo from '@/data/attempts.repo';
 import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
 import * as AssignmentsRepo from '@/data/assignments.repo';
-import { prisma } from '@/data/prisma';
 import { NotFoundError } from '@/core/errors';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
-import { BulkCreateStudentArgs, OperationCode, ALL_OPS } from '@/types';
+import type { BulkCreateStudentArgs } from '@/types';
+import type { OperationCode } from '@/types/progression';
 import type { StudentRosterRow } from '@/types/roster';
+import { initializeStudentProgressForNewStudent } from '@/core/progression/initStudentProgress.service';
+import { getClassroomRosterWithLatestAttempt } from './roster.service';
 
 // -----------------------------
 // Student history (student + teacher progress pages)
@@ -51,7 +53,6 @@ export async function getStudentHistory(studentId: number): Promise<StudentHisto
     score: a.score,
     total: a.total,
     percent: a.total > 0 ? Math.round((a.score / a.total) * 100) : 0,
-    // completedAt is nullable now; this history endpoint should only include completed attempts.
     completedAt: a.completedAt ? a.completedAt.toISOString() : a.startedAt.toISOString(),
     wasMastery: a.total > 0 && a.score === a.total,
     opensAt: a.Assignment.opensAt.toISOString(),
@@ -59,17 +60,13 @@ export async function getStudentHistory(studentId: number): Promise<StudentHisto
   }));
 
   return {
-    student: {
-      id: student.id,
-      name: student.name,
-      username: student.username,
-    },
+    student: { id: student.id, name: student.name, username: student.username },
     attempts: history,
   };
 }
 
 // -----------------------------
-// Roster + setup codes (teacher dashboard)
+// Roster + setup codes
 // -----------------------------
 
 export type SetupCodeCard = {
@@ -84,38 +81,6 @@ export type BulkCreateStudentsResult = {
   setupCodes: SetupCodeCard[];
 };
 
-async function initializeStudentProgress(params: {
-  classroomId: number;
-  studentId: number;
-  startingOperation?: OperationCode;
-  startingLevel?: number;
-}) {
-  const policy = await prisma.classroomProgressionPolicy.findUnique({
-    where: { classroomId: params.classroomId },
-    select: { maxNumber: true },
-  });
-
-  const maxLevel = policy?.maxNumber ?? 12;
-  const startLevel = params.startingLevel ?? 1;
-
-  const startIndex =
-    params.startingOperation !== undefined ? ALL_OPS.indexOf(params.startingOperation) : -1;
-
-  const rows = ALL_OPS.map((op, index) => {
-    let level = 1;
-
-    if (params.startingOperation) {
-      if (index < startIndex) level = maxLevel;
-      else if (index === startIndex) level = startLevel;
-      else level = 1;
-    }
-
-    return { studentId: params.studentId, operation: op, level };
-  });
-
-  await prisma.studentProgress.createMany({ data: rows });
-}
-
 export async function bulkCreateClassroomStudents(
   args: BulkCreateStudentArgs,
 ): Promise<BulkCreateStudentsResult> {
@@ -123,32 +88,32 @@ export async function bulkCreateClassroomStudents(
 
   await assertTeacherOwnsClassroom(teacherId, classroomId);
 
-  // If your StudentsRepo still expects an old shape (e.g. includes `level`), adjust there.
-  // Here we forward the fields it needs and keep start fields for our own init logic.
+  // Student table creation inputs (NO level here)
   const createInputs = students.map((s) => ({
     firstName: s.firstName,
     lastName: s.lastName,
     username: s.username,
-    level: s.level,
   }));
 
   const { created, roster } = await StudentsRepo.createManyForClassroom(classroomId, createInputs);
 
-  // Match created students to inputs by username (safer than index)
+  // Build map by username for starting progression seed
   const inputByUsername = new Map<
     string,
     { startingOperation?: OperationCode; startingLevel?: number }
   >();
+
   for (const s of students) {
     inputByUsername.set(s.username, {
       startingOperation: s.startingOperation,
       startingLevel: s.startingLevel,
     });
   }
-
+  // Initialize StudentProgress for each created student (policy-aware + reusable)
   for (const c of created) {
     const meta = inputByUsername.get(c.username);
-    await initializeStudentProgress({
+
+    await initializeStudentProgressForNewStudent({
       classroomId,
       studentId: c.id,
       startingOperation: meta?.startingOperation,
@@ -174,10 +139,7 @@ export type UpdateStudentArgs = {
   teacherId: number;
   classroomId: number;
   studentId: number;
-  input: {
-    name: string;
-    username: string;
-  };
+  input: { name: string; username: string };
 };
 
 export async function updateClassroomStudentById(
@@ -190,23 +152,16 @@ export async function updateClassroomStudentById(
   const existing = await StudentsRepo.findStudentByIdInClassroom(classroomId, studentId);
   if (!existing) throw new NotFoundError('Student not found');
 
-  await StudentsRepo.updateById(studentId, {
-    name: input.name,
-    username: input.username,
-  });
+  await StudentsRepo.updateById(studentId, { name: input.name, username: input.username });
 
-  const roster = await StudentsRepo.findStudentsWithLatestAttempt(classroomId);
+  const roster = await getClassroomRosterWithLatestAttempt(classroomId);
   const updated = roster.find((s) => s.id === studentId);
   if (!updated) throw new NotFoundError('Student not found after update');
 
   return updated;
 }
 
-export type DeleteStudentArgs = {
-  teacherId: number;
-  classroomId: number;
-  studentId: number;
-};
+export type DeleteStudentArgs = { teacherId: number; classroomId: number; studentId: number };
 
 export async function deleteClassroomStudentById(args: DeleteStudentArgs): Promise<void> {
   const { teacherId, classroomId, studentId } = args;
@@ -237,11 +192,6 @@ export async function deleteAllClassroomStudents(args: DeleteAllStudentsArgs): P
 
   await StudentsRepo.deleteStudentsByClassroomId(classroomId);
 
-  if (deleteAssignments) {
-    await AssignmentsRepo.deleteAssignmentsByClassroomId(classroomId);
-  }
-
-  if (deleteSchedules) {
-    await SchedulesRepo.deleteSchedulesByClassroomId(classroomId);
-  }
+  if (deleteAssignments) await AssignmentsRepo.deleteAssignmentsByClassroomId(classroomId);
+  if (deleteSchedules) await SchedulesRepo.deleteSchedulesByClassroomId(classroomId);
 }

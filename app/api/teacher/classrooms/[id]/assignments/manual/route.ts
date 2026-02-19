@@ -1,9 +1,7 @@
-// app/api/classrooms/[id]/assignments/manual/route.ts
 import { requireTeacher, createScheduledAssignment } from '@/core';
 import { classroomIdParamSchema, createManualAssignmentRequestSchema } from '@/validation';
 import { jsonResponse, errorResponse } from '@/utils';
 import { handleApiError, readJson, type RouteContext } from '@/app';
-import { assertTeacherOwnsClassroom } from '@/core/classrooms';
 
 function isValidDate(d: Date) {
   return d instanceof Date && !Number.isNaN(d.getTime());
@@ -11,21 +9,13 @@ function isValidDate(d: Date) {
 
 export async function POST(request: Request, { params }: RouteContext) {
   try {
-    // 0) Auth
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
 
-    // 1) Params
     const { id } = await params;
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
 
-    // 2) Ownership
-    await assertTeacherOwnsClassroom(auth.teacher.id, classroomId);
-
-    // 3) Body
     const raw = await readJson(request);
-
-    // 4) Validate MANUAL payload
     const parsed = createManualAssignmentRequestSchema.parse(raw);
 
     const opensAt = new Date(parsed.opensAt);
@@ -39,20 +29,17 @@ export async function POST(request: Request, { params }: RouteContext) {
       return errorResponse('closesAt must be after opensAt', 400);
     }
 
-    // 5) Create MANUAL assignment (targeted to selected students)
     const dto = await createScheduledAssignment({
+      teacherId: auth.teacher.id,
       classroomId,
       opensAt,
       closesAt,
       windowMinutes: parsed.windowMinutes ?? 4,
       numQuestions: parsed.numQuestions ?? 12,
-
-      // ✅ New schema fields
       mode: 'MANUAL',
       type: 'TEST',
-
       questionSetId: parsed.questionSetId ?? null,
-      studentIds: parsed.studentIds, // REQUIRED
+      studentIds: parsed.studentIds,
     });
 
     return jsonResponse({ assignment: dto }, 201);

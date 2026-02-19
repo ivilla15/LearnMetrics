@@ -1,34 +1,9 @@
 import { prisma } from '@/data/prisma';
-import { NotFoundError, ConflictError } from '@/core';
-import type { OperationCode, ProgressionPolicyInput, ModifierRule } from '@/types/progression';
+import { assertTeacherOwnsClassroom } from '@/core';
+import type { ModifierRule, OperationCode, ProgressionPolicyInput } from '@/types/progression';
+import { clamp, uniqOps } from '@/utils';
 
-async function assertTeacherOwnsClassroom(teacherId: number, classroomId: number) {
-  const classroom = await prisma.classroom.findUnique({
-    where: { id: classroomId },
-    select: { id: true, teacherId: true },
-  });
-  if (!classroom) throw new NotFoundError('Classroom not found');
-  if (classroom.teacherId !== teacherId) throw new ConflictError('Not allowed');
-  return classroom;
-}
-
-function uniqOps(ops: OperationCode[]): OperationCode[] {
-  const out: OperationCode[] = [];
-  const seen = new Set<OperationCode>();
-  for (const op of ops) {
-    if (!seen.has(op)) {
-      seen.add(op);
-      out.push(op);
-    }
-  }
-  return out;
-}
-
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
-
-function sanitizeModifierRules(params: {
+export function sanitizeModifierRules(params: {
   enabledOperations: OperationCode[];
   maxNumber: number;
   rules: ModifierRule[];

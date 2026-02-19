@@ -78,13 +78,17 @@ export async function GET(_req: Request, { params }: StudentAttemptRouteContext)
         total: attempt.total,
         percent,
         wasMastery,
-        assignment: {
-          type: attempt.Assignment.type,
-          mode: attempt.Assignment.mode,
-          opensAt: attempt.Assignment.opensAt.toISOString(),
-          closesAt: attempt.Assignment.closesAt ? attempt.Assignment.closesAt.toISOString() : null,
-          windowMinutes: attempt.Assignment.windowMinutes,
-        },
+        assignment: attempt.Assignment
+          ? {
+              type: attempt.Assignment.type,
+              mode: attempt.Assignment.mode,
+              opensAt: attempt.Assignment.opensAt.toISOString(),
+              closesAt: attempt.Assignment.closesAt
+                ? attempt.Assignment.closesAt.toISOString()
+                : null,
+              windowMinutes: attempt.Assignment.windowMinutes,
+            }
+          : null,
         items: attempt.AttemptItem.map((it) => ({
           id: it.id,
           prompt: `${it.Question.factorA} × ${it.Question.factorB}`,

@@ -1,9 +1,9 @@
 import { cookies } from 'next/headers';
-import { prisma } from '@/data';
+import { prisma } from '@/data/prisma';
 
 export async function requireStudent() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('student_session')?.value;
+  const cookieStore = cookies();
+  const token = (await cookieStore).get('student_session')?.value;
 
   if (!token) {
     return { ok: false as const, status: 401, error: 'Not signed in' };
@@ -28,7 +28,7 @@ export async function requireStudent() {
   }
 
   if (session.expiresAt.getTime() <= Date.now()) {
-    await prisma.studentSession.delete({ where: { token } }).catch(() => {});
+    await prisma.studentSession.delete({ where: { token } }).catch(() => null);
     return { ok: false as const, status: 401, error: 'Session expired' };
   }
 

@@ -51,3 +51,9 @@ export function getLevelForOp(
   const row = progress.find((r) => r.operation === op);
   return row?.level ?? 1;
 }
+
+export type PolicyOps = {
+  enabledOperations: OperationCode[];
+  operationOrder: OperationCode[];
+  primaryOperation: OperationCode;
+};

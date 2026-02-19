@@ -1,9 +1,12 @@
+// core/assignments/createScheduledAssignment.ts
 import { prisma } from '@/data';
 import { NotFoundError, ConflictError } from '@/core';
 import { Prisma } from '@prisma/client';
 import { requireTeacherActiveEntitlement } from '@/core/billing/entitlement';
+import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 
 type Params = {
+  teacherId: number;
   classroomId: number;
   opensAt: Date;
   closesAt: Date;
@@ -65,8 +68,9 @@ function toDto(a: CoreAssignmentRow): CoreAssignmentDTO {
     opensAt: a.opensAt.toISOString(),
     closesAt: a.closesAt ? a.closesAt.toISOString() : null,
     windowMinutes: a.windowMinutes,
-    numQuestions: a.numQuestions,
-    recipientCount: a._count.recipients,
+    // default numQuestions to 12 if DB value is null/undefined
+    numQuestions: a.numQuestions ?? 12,
+    recipientCount: a._count.recipients ?? 0,
     scheduleId: a.scheduleId ?? null,
     runDate: a.runDate ? a.runDate.toISOString() : null,
   };
@@ -74,6 +78,7 @@ function toDto(a: CoreAssignmentRow): CoreAssignmentDTO {
 
 export async function createScheduledAssignment(params: Params): Promise<CoreAssignmentDTO> {
   const {
+    teacherId,
     classroomId,
     opensAt,
     closesAt,
@@ -110,6 +115,10 @@ export async function createScheduledAssignment(params: Params): Promise<CoreAss
   });
   if (!classroom) throw new NotFoundError('Classroom not found');
 
+  // ownership check: the caller's teacherId must match the classroom teacherId
+  await assertTeacherOwnsClassroom(teacherId, classroomId);
+
+  // entitlement: confirm the teacher (owner of the classroom) has active entitlement
   const entGate = await requireTeacherActiveEntitlement(classroom.teacherId);
   if (!entGate.ok) {
     throw new ConflictError(entGate.error);
@@ -192,9 +201,7 @@ export async function createScheduledAssignment(params: Params): Promise<CoreAss
     });
 
     if (run.isSkipped) {
-      console.info(
-        `Schedule ${scheduleId} run ${runDate!.toISOString()} is marked skipped, not creating assignment`,
-      );
+      // don't create assignment if run explicitly skipped
       throw new ConflictError('Schedule run was skipped');
     }
 
@@ -212,8 +219,6 @@ export async function createScheduledAssignment(params: Params): Promise<CoreAss
       });
     }
 
-    // NOTE: we no longer rely on old unique constraint classroomId+kind+opensAt.
-    // The scheduleRun uniqueness is the real idempotency guard.
     const created: CoreAssignmentRow = await tx.assignment.create({
       data: {
         classroomId,

@@ -59,15 +59,14 @@ export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteCo
     if (input.numQuestions !== undefined) data.numQuestions = input.numQuestions;
 
     // Validate opensAt < closesAt when both are present as dates
-    const nextOpensAt =
-      data.opensAt instanceof Date ? data.opensAt : assignment.opensAt instanceof Date ? assignment.opensAt : null;
+    const nextOpensAt = data.opensAt instanceof Date ? data.opensAt : assignment.opensAt;
 
     const nextClosesAt =
       data.closesAt instanceof Date
         ? data.closesAt
         : data.closesAt === null
           ? null
-          : assignment.closesAt ?? null;
+          : (assignment.closesAt ?? null);
 
     if (nextOpensAt && nextClosesAt && nextClosesAt.getTime() <= nextOpensAt.getTime()) {
       return errorResponse('closesAt must be after opensAt', 400);
@@ -79,7 +78,9 @@ export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteCo
     }
 
     const isChangingOpensAt =
-      data.opensAt instanceof Date ? assignment.opensAt.getTime() !== data.opensAt.getTime() : false;
+      data.opensAt instanceof Date
+        ? assignment.opensAt.getTime() !== data.opensAt.getTime()
+        : false;
 
     // If rescheduling a scheduled assignment occurrence, mark the original run as skipped
     if (isChangingOpensAt && assignment.scheduleId && assignment.runDate) {

@@ -16,8 +16,15 @@ export async function GET() {
       where: {
         classroomId: student.classroomId,
         opensAt: { lte: now },
-        closesAt: { gt: now },
-        OR: [{ recipients: { none: {} } }, { recipients: { some: { studentId: student.id } } }],
+
+        OR: [{ closesAt: null }, { closesAt: { gt: now } }],
+
+        AND: [
+          {
+            OR: [{ recipients: { none: {} } }, { recipients: { some: { studentId: student.id } } }],
+          },
+          { Attempt: { none: { studentId: student.id } } },
+        ],
       },
       orderBy: { opensAt: 'asc' },
       select: {
@@ -35,20 +42,14 @@ export async function GET() {
       return NextResponse.json({ assignment: null }, { status: 200 });
     }
 
-    // closesAt is nullable in the schema, but this query requires closesAt > now,
-    // so it will be non-null here. Still, we’ll guard to keep TS happy and future-proof.
-    if (!assignment.closesAt) {
-      return NextResponse.json({ assignment: null }, { status: 200 });
-    }
-
     return NextResponse.json(
       {
         assignment: {
           id: assignment.id,
-          type: assignment.type, // 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT'
-          mode: assignment.mode, // 'SCHEDULED' | 'MAKEUP' | 'MANUAL'
+          type: assignment.type,
+          mode: assignment.mode,
           opensAt: assignment.opensAt.toISOString(),
-          closesAt: assignment.closesAt.toISOString(),
+          closesAt: assignment.closesAt ? assignment.closesAt.toISOString() : null,
           windowMinutes: assignment.windowMinutes,
           numQuestions: assignment.numQuestions ?? 12,
         },

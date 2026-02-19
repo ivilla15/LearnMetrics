@@ -75,8 +75,7 @@ export async function GET(req: Request) {
     const page = filtered.slice(0, limit);
     const hasMore = filtered.length > limit;
 
-    // Cursor based on the LAST raw row we scanned (good enough for MVP)
-    const nextCursor = hasMore && rows.length > 0 ? String(rows[rows.length - 1].id) : null;
+    const nextCursor = hasMore && page.length > 0 ? String(page[page.length - 1].attemptId) : null;
 
     return NextResponse.json({ rows: page, nextCursor }, { status: 200 });
   } catch (err: unknown) {

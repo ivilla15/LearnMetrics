@@ -1,4 +1,3 @@
-// app/api/student/me/route.ts
 import { NextResponse } from 'next/server';
 
 import { requireStudent } from '@/core';

@@ -9,13 +9,12 @@ import {
 
 import * as ClassroomsRepo from '@/data/classrooms.repo';
 import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
-import { prisma } from '@/data';
+import { prisma } from '@/data/prisma';
 
 import {
   getNextScheduledDateForSchedule,
   localDateTimeToUtcRange,
   localDayToUtcDate,
-  TZ,
 } from '@/utils';
 import type { CoreAssignmentDTO } from '@/core';
 
@@ -177,11 +176,18 @@ export async function runActiveSchedulesForDate(
 
       const days = Array.isArray(sched.days) ? sched.days : [];
       if (days.length === 0) {
-        console.warn(`Skipping schedule ${sched.id} (no days configured)`);
         continue;
       }
 
-      const tz = sched.Classroom?.timeZone ?? TZ;
+      const tz =
+        typeof sched.Classroom?.timeZone === 'string' ? sched.Classroom.timeZone.trim() : '';
+      if (!tz) {
+        await prisma.assignmentSchedule.update({
+          where: { id: sched.id },
+          data: { isActive: false },
+        });
+        continue;
+      }
 
       const scheduledLocalDate = getNextScheduledDateForSchedule(baseDate, days, tz);
       const runDate = localDayToUtcDate(scheduledLocalDate, tz);
@@ -194,6 +200,7 @@ export async function runActiveSchedulesForDate(
       });
 
       const dto = await createScheduledAssignment({
+        teacherId: gate.teacherId,
         classroomId: sched.classroomId,
         scheduleId: sched.id,
         runDate,
@@ -201,7 +208,6 @@ export async function runActiveSchedulesForDate(
         closesAt: closesAtUTC,
         windowMinutes: sched.windowMinutes,
         numQuestions: sched.numQuestions,
-        // updated fields — mode + type
         mode: 'SCHEDULED',
         type: 'TEST',
       });
@@ -276,7 +282,10 @@ async function gateScheduleByEntitlement(sched: {
   const teacherId = sched.Classroom?.teacherId;
 
   if (!teacherId) {
-    console.warn(`Skipping schedule ${sched.id} (missing teacherId)`);
+    await prisma.assignmentSchedule.update({
+      where: { id: sched.id },
+      data: { isActive: false },
+    });
     return { ok: false as const };
   }
 
@@ -288,7 +297,6 @@ async function gateScheduleByEntitlement(sched: {
       data: { isActive: false },
     });
 
-    console.warn(`Deactivated schedule ${sched.id} (teacher ${teacherId} not entitled)`);
     return { ok: false as const };
   }
 

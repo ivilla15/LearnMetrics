@@ -53,22 +53,24 @@ export async function GET(req: Request, { params }: RouteCtx) {
       },
     });
 
-    const mapped = rows.map((a) => {
-      const percent = a.total > 0 ? Math.round((a.score / a.total) * 100) : 0;
-      const wasMastery = a.total > 0 && a.score === a.total;
+    const mapped = rows
+      .filter((a) => a.completedAt)
+      .map((a) => {
+        const percent = a.total > 0 ? Math.round((a.score / a.total) * 100) : 0;
+        const wasMastery = a.total > 0 && a.score === a.total;
 
-      return {
-        attemptId: a.id,
-        assignmentId: a.assignmentId,
-        completedAt: a.completedAt ? a.completedAt.toISOString() : null,
-        type: a.Assignment.type,
-        mode: a.Assignment.mode,
-        score: a.score,
-        total: a.total,
-        percent,
-        wasMastery,
-      };
-    });
+        return {
+          attemptId: a.id,
+          assignmentId: a.assignmentId,
+          completedAt: a.completedAt ? a.completedAt.toISOString() : null,
+          type: a.Assignment.type,
+          mode: a.Assignment.mode,
+          score: a.score,
+          total: a.total,
+          percent,
+          wasMastery,
+        };
+      });
 
     const filtered =
       filter === 'MASTERY'

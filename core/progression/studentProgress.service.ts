@@ -1,22 +1,7 @@
 import { prisma } from '@/data/prisma';
 import { NotFoundError, ConflictError } from '@/core';
-import { ALL_OPS, type OperationCode, type StudentProgressLite } from '@/types';
-
-async function getPolicyForClassroom(classroomId: number) {
-  const policy = await prisma.classroomProgressionPolicy.findUnique({
-    where: { classroomId },
-    select: { enabledOperations: true, maxNumber: true },
-  });
-
-  const enabledOperations = (policy?.enabledOperations ?? ['MUL']).filter(
-    (op): op is OperationCode => op === 'ADD' || op === 'SUB' || op === 'MUL' || op === 'DIV',
-  );
-
-  return {
-    enabledOperations,
-    maxNumber: policy?.maxNumber ?? 12,
-  };
-}
+import { ALL_OPS, type OperationCode, type StudentProgressLite } from '@/types/progression';
+import { getProgressionSnapshot } from './policySnapshot.service';
 
 async function assertTeacherOwnsStudent(params: {
   teacherId: number;
@@ -71,10 +56,10 @@ export async function getTeacherStudentProgressRows(params: {
 }): Promise<StudentProgressLite[]> {
   await assertTeacherOwnsStudent(params);
 
-  const policy = await getPolicyForClassroom(params.classroomId);
+  const snapshot = await getProgressionSnapshot(params.classroomId);
   const rows = await ensureStudentProgress(params.studentId);
 
-  return rows.filter((r) => policy.enabledOperations.includes(r.operation));
+  return rows.filter((r) => snapshot.enabledOperations.includes(r.operation));
 }
 
 export async function setTeacherStudentProgressRows(params: {
@@ -86,13 +71,13 @@ export async function setTeacherStudentProgressRows(params: {
   await assertTeacherOwnsStudent(params);
   await ensureStudentProgress(params.studentId);
 
-  const policy = await getPolicyForClassroom(params.classroomId);
+  const snapshot = await getProgressionSnapshot(params.classroomId);
 
   const updates = params.levels
-    .filter((row) => policy.enabledOperations.includes(row.operation))
+    .filter((row) => snapshot.enabledOperations.includes(row.operation))
     .map((row) => ({
       operation: row.operation,
-      level: Math.max(1, Math.min(policy.maxNumber, row.level)),
+      level: Math.max(1, Math.min(snapshot.maxNumber, row.level)),
     }));
 
   if (updates.length > 0) {
@@ -112,7 +97,7 @@ export async function setTeacherStudentProgressRows(params: {
     orderBy: { operation: 'asc' },
   });
 
-  return rows.filter((r) => policy.enabledOperations.includes(r.operation));
+  return rows.filter((r) => snapshot.enabledOperations.includes(r.operation));
 }
 
 export async function getStudentProgressRows(studentId: number): Promise<StudentProgressLite[]> {
@@ -122,8 +107,8 @@ export async function getStudentProgressRows(studentId: number): Promise<Student
   });
   if (!student) throw new NotFoundError('Student not found');
 
-  const policy = await getPolicyForClassroom(student.classroomId);
+  const snapshot = await getProgressionSnapshot(student.classroomId);
   const rows = await ensureStudentProgress(studentId);
 
-  return rows.filter((r) => policy.enabledOperations.includes(r.operation));
+  return rows.filter((r) => snapshot.enabledOperations.includes(r.operation));
 }

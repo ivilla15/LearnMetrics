@@ -1,6 +1,6 @@
 // core/teacher/assignments/service.ts
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
-import { prisma } from '@/data';
+import { prisma } from '@/data/prisma';
 import { parseCursor, clampTake, percent as pct } from '@/utils';
 
 export type TeacherAssignmentListRow = {

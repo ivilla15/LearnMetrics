@@ -2,7 +2,7 @@ import {
   requireTeacher,
   getTeacherStudentProgressRows,
   setTeacherStudentProgressRows,
-  getOrCreateClassroomPolicy,
+  getProgressionSnapshot,
 } from '@/core';
 import {
   classroomIdParamSchema,
@@ -25,10 +25,7 @@ export async function GET(_request: Request, context: StudentProgressRouteContex
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
     const { studentId: sid } = studentIdParamSchema.parse({ studentId });
 
-    const policy = await getOrCreateClassroomPolicy({
-      teacherId: auth.teacher.id,
-      classroomId,
-    });
+    const policy = await getProgressionSnapshot(classroomId);
 
     const progress = await getTeacherStudentProgressRows({
       teacherId: auth.teacher.id,
@@ -36,20 +33,7 @@ export async function GET(_request: Request, context: StudentProgressRouteContex
       studentId: sid,
     });
 
-    return jsonResponse(
-      {
-        studentId: sid,
-        policy: {
-          classroomId: policy.classroomId,
-          enabledOperations: policy.enabledOperations,
-          operationOrder: policy.operationOrder ?? policy.enabledOperations,
-          maxNumber: policy.maxNumber,
-          modifierRules: policy.modifierRules ?? [],
-        },
-        progress,
-      },
-      200,
-    );
+    return jsonResponse({ studentId: sid, policy, progress }, 200);
   } catch (err: unknown) {
     return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }
@@ -67,10 +51,7 @@ export async function PUT(request: Request, context: StudentProgressRouteContext
     const body = await readJson(request);
     const input = upsertStudentProgressSchema.parse(body);
 
-    const policy = await getOrCreateClassroomPolicy({
-      teacherId: auth.teacher.id,
-      classroomId,
-    });
+    const policy = await getProgressionSnapshot(classroomId);
 
     const progress = await setTeacherStudentProgressRows({
       teacherId: auth.teacher.id,
@@ -79,20 +60,7 @@ export async function PUT(request: Request, context: StudentProgressRouteContext
       levels: input.levels,
     });
 
-    return jsonResponse(
-      {
-        studentId: sid,
-        policy: {
-          classroomId: policy.classroomId,
-          enabledOperations: policy.enabledOperations,
-          operationOrder: policy.operationOrder ?? policy.enabledOperations,
-          maxNumber: policy.maxNumber,
-          modifierRules: policy.modifierRules ?? [],
-        },
-        progress,
-      },
-      200,
-    );
+    return jsonResponse({ studentId: sid, policy, progress }, 200);
   } catch (err: unknown) {
     return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }

@@ -21,7 +21,6 @@ function clampLimit(raw: string | null) {
 function parseStatus(raw: string | null): 'all' | 'open' | 'finished' | 'upcoming' {
   const v = (raw ?? 'all').toLowerCase();
 
-  // backward compat: old URLs used "closed"
   if (v === 'closed') return 'finished';
 
   if (v === 'open' || v === 'finished' || v === 'upcoming') return v;
@@ -76,17 +75,13 @@ export async function GET(req: Request, { params }: RouteContext) {
 
     const where: Prisma.AssignmentWhereInput = { classroomId };
 
-    // mode/type filters
     if (mode !== 'all') where.mode = mode;
     if (type !== 'all') where.type = type;
 
-    // status filters
     if (status === 'open') {
-      // opensAt <= now AND (closesAt is null OR closesAt > now)
       where.opensAt = { lte: now };
       where.OR = [{ closesAt: null }, { closesAt: { gt: now } }];
     } else if (status === 'finished') {
-      // closesAt <= now (must be non-null)
       where.AND = [{ closesAt: { not: null } }, { closesAt: { lte: now } }];
     } else if (status === 'upcoming') {
       where.opensAt = { gt: now };
@@ -188,10 +183,16 @@ export async function GET(req: Request, { params }: RouteContext) {
     if (status === 'all') {
       const PROJECTION_DAYS = 60;
       const horizon = addDays(now, PROJECTION_DAYS);
+
       const tz =
-        classroom.timeZone && classroom.timeZone.trim().length > 0
-          ? classroom.timeZone
-          : 'America/Los_Angeles';
+        classroom.timeZone && classroom.timeZone.trim().length > 0 ? classroom.timeZone : null;
+
+      if (!tz) {
+        return errorResponse(
+          'Classroom time zone is not set. Please set a time zone to view schedule projections.',
+          409,
+        );
+      }
 
       const schedules = await prisma.assignmentSchedule.findMany({
         where: { classroomId, isActive: true },
@@ -344,7 +345,8 @@ export async function POST(req: Request, { params }: RouteContext) {
         : 'TEST';
 
     const mode =
-      'mode' in body && (body.mode === 'SCHEDULED' || body.mode === 'MAKEUP' || body.mode === 'MANUAL')
+      'mode' in body &&
+      (body.mode === 'SCHEDULED' || body.mode === 'MAKEUP' || body.mode === 'MANUAL')
         ? (body.mode as 'SCHEDULED' | 'MAKEUP' | 'MANUAL')
         : scheduleId !== null
           ? 'SCHEDULED'
@@ -362,6 +364,7 @@ export async function POST(req: Request, { params }: RouteContext) {
       }
 
       const dto = await createScheduledAssignment({
+        teacherId: auth.teacher.id,
         classroomId,
         scheduleId,
         runDate,
@@ -379,6 +382,7 @@ export async function POST(req: Request, { params }: RouteContext) {
     }
 
     const created = await createScheduledAssignment({
+      teacherId: auth.teacher.id,
       classroomId,
       opensAt,
       closesAt,
