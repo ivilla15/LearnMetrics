@@ -96,10 +96,10 @@ export type AttemptDetailSelection = {
 
 export type AssignmentPayload = {
   id: number;
-  kind: string;
-  mode: string;
+  type: 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT';
+  mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
   opensAt: string;
-  closesAt: string;
+  closesAt: string | null;
   windowMinutes: number | null;
   numQuestions: number;
 };
@@ -107,7 +107,8 @@ export type AssignmentPayload = {
 export type StudentPayload = {
   id: number;
   name: string;
-  level: number;
+  operation: string;
+  level: number | null;
 };
 
 export type AlreadySubmittedResult = {

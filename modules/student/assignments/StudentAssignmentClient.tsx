@@ -33,6 +33,7 @@ export default function StudentAssignmentClient({
 
   const assignment = getAssignment(data);
   const readyQuestions = data?.status === 'READY' ? data.questions : null;
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   function jumpTo(qId: number) {
     const el = inputRefs.current[qId];
@@ -50,17 +51,28 @@ export default function StudentAssignmentClient({
       setLoading(true);
 
       try {
-        const res = await fetch(`/api/student/assignments/${assignmentId}`);
-        const json = (await res.json().catch(() => null)) as LoadResponse | null;
+        const res = await fetch(`/api/student/assignments/${assignmentId}`, {
+          credentials: 'include',
+        });
+
+        const json: unknown = await res.json().catch(() => null);
 
         if (cancelled) return;
 
-        if (!res.ok || !json) {
-          toast('Could not load test', 'error');
+        if (!res.ok) {
+          const msg =
+            json && typeof json === 'object' && 'error' in json && typeof json.error === 'string'
+              ? json.error
+              : 'Could not load test';
+
+          setData(null);
+          setLoadError(msg);
+          toast(msg, 'error');
           return;
         }
 
-        setData(json);
+        setLoadError(null);
+        setData(json as LoadResponse);
       } catch {
         if (!cancelled) toast('Could not load test', 'error');
       } finally {
@@ -193,8 +205,16 @@ export default function StudentAssignmentClient({
       <AppPage title="Test">
         <Section>
           <Card className="shadow-sm">
-            <CardContent className="py-8 text-sm text-[hsl(var(--muted-fg))]">
-              Unable to load.
+            <CardContent className="py-8 space-y-3">
+              <div className="text-sm text-[hsl(var(--muted-fg))]">
+                {loadError ?? 'Unable to load.'}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => router.push('/student/dashboard')}>
+                  Back to dashboard
+                </Button>
+                <Button onClick={() => router.refresh()}>Try again</Button>
+              </div>
             </CardContent>
           </Card>
         </Section>
