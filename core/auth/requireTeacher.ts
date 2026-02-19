@@ -1,5 +1,5 @@
 import { cookies } from 'next/headers';
-import { prisma } from '@/data';
+import { prisma } from '@/data/prisma';
 
 export async function requireTeacher() {
   const cookieStore = await cookies();

@@ -1,4 +1,4 @@
-import { prisma } from '@/data';
+import { prisma } from '@/data/prisma';
 
 export async function ensureQuestionsForLevel(level: number, count: number) {
   const set = await prisma.questionSet.upsert({

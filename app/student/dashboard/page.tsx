@@ -97,7 +97,13 @@ export default function StudentDashboardPage() {
     <AppShell navItems={studentNavItems} currentPath={pathname}>
       <PageHeader
         title={loading ? 'Dashboard' : `Welcome, ${me?.name ?? ''}`}
-        subtitle={loading ? 'Loading your dashboard…' : me ? `Level ${me.level}` : undefined}
+        subtitle={
+          loading
+            ? 'Loading your dashboard…'
+            : latestAttempt
+              ? `Level ${latestAttempt.levelAtTime}`
+              : undefined
+        }
       />
 
       {loading ? (

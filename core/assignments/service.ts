@@ -1,5 +1,4 @@
-// core/assignments/createScheduledAssignment.ts
-import { prisma } from '@/data';
+import { prisma } from '@/data/prisma';
 import { NotFoundError, ConflictError } from '@/core';
 import { Prisma } from '@prisma/client';
 import { requireTeacherActiveEntitlement } from '@/core/billing/entitlement';
