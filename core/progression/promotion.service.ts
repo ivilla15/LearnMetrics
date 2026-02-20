@@ -1,6 +1,6 @@
 import { prisma } from '@/data/prisma';
 import { NotFoundError } from '@/core/errors';
-import type { OperationCode } from '@/types/progression';
+import type { OperationCode } from '@/types/api/progression';
 import { getProgressionSnapshot } from './policySnapshot.service';
 import { ensureStudentProgress } from './studentProgress.service';
 

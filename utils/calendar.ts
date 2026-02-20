@@ -1,5 +1,8 @@
 import { formatInTimeZone } from 'date-fns-tz';
-import type { CalendarAssignmentDTO, CalendarItemRow, CalendarProjectionRow } from '@/types';
+
+type HasOpensAt = { opensAt: string | Date };
+type HasScheduleRunKey = { scheduleId?: number | null; runDate?: string | null };
+type ProjectionKey = { kind: 'projection'; scheduleId: number; runDate: string };
 
 export function startOfMonth(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), 1);
@@ -63,14 +66,14 @@ export function dayKeyInTimeZone(isoUtc: string, tz: string): string {
   return formatInTimeZone(isoUtc, tz, 'yyyy-MM-dd');
 }
 
-export function isProjection(it: CalendarItemRow): it is CalendarProjectionRow {
+export function isProjection<T extends { kind: string }>(it: T): it is T & { kind: 'projection' } {
   return it.kind === 'projection';
 }
 
-export function dedupeAndMergeItems(params: {
-  rows: CalendarAssignmentDTO[];
-  projections: CalendarProjectionRow[];
-}): CalendarItemRow[] {
+export function dedupeAndMergeItems<
+  TAssignment extends HasScheduleRunKey,
+  TProjection extends ProjectionKey,
+>(params: { rows: TAssignment[]; projections: TProjection[] }): Array<TAssignment | TProjection> {
   const { rows, projections } = params;
 
   const realKeys = new Set<string>();
@@ -85,9 +88,9 @@ export function dedupeAndMergeItems(params: {
   return [...rows, ...filteredProjections];
 }
 
-export function groupItemsByDay(params: { items: CalendarItemRow[]; tz: string }) {
+export function groupItemsByDay<T extends HasOpensAt>(params: { items: T[]; tz: string }) {
   const { items, tz } = params;
-  const map = new Map<string, CalendarItemRow[]>();
+  const map = new Map<string, T[]>();
 
   for (const it of items) {
     const key = dayKeyInTimeZone(toIso(it.opensAt), tz);
@@ -104,11 +107,4 @@ export function groupItemsByDay(params: { items: CalendarItemRow[]; tz: string }
   }
 
   return map;
-}
-
-export function parseNumberOrUndefined(raw: string): number | undefined {
-  const v = raw.trim();
-  if (v.length === 0) return undefined;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : undefined;
 }

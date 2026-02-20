@@ -1,4 +1,4 @@
-import type { OperationCode } from '@/types/progression';
+import type { OperationCode } from '@/types/api/progression';
 
 export type LevelWrite = { operation: OperationCode; level: number };
 

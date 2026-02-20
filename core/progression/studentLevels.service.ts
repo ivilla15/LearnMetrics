@@ -1,5 +1,5 @@
 import { prisma } from '@/data/prisma';
-import type { OperationCode } from '@/types/progression';
+import type { OperationCode } from '@/types/api/progression';
 
 export async function getStudentLevelForOperation(params: {
   studentId: number;

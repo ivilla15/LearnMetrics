@@ -1,5 +1,8 @@
 export * from './handle-error';
 export * from './read-json';
 export * from './route-types';
-export * from './student-session-cookies';
-export * from './teacher-session-cookies';
+
+export * from './cookies/student-session';
+export * from './cookies/teacher-session';
+
+export * from './params/teacher';

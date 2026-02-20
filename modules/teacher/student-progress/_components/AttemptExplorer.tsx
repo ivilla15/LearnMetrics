@@ -16,7 +16,7 @@ import { AttemptDetailModal } from './AttemptDetailModal';
 import { AttemptResultsTable } from './AttemptResultsTable';
 import { AttemptExplorerSkeleton } from './AttemptExplorerSkeleton';
 
-import type { AttemptResultsRow, AttemptExplorerFilter } from '@/types/attempts';
+import type { AttemptResultsRow, AttemptExplorerFilter } from '@/types/api/attempts';
 import { useAttemptExplorer } from '../hooks';
 
 export function AttemptExplorer({

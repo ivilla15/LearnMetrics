@@ -1,6 +1,6 @@
 import { prisma } from '@/data/prisma';
 import { NotFoundError, ConflictError } from '@/core';
-import { ALL_OPS, type OperationCode, type StudentProgressLite } from '@/types/progression';
+import { ALL_OPS, type OperationCode, type StudentProgressLite } from '@/types/api/progression';
 import { getProgressionSnapshot } from './policySnapshot.service';
 
 async function assertTeacherOwnsStudent(params: {

@@ -1,6 +1,6 @@
 import { prisma } from '@/data/prisma';
 import { assertTeacherOwnsClassroom } from '@/core';
-import type { ModifierRule, OperationCode, ProgressionPolicyInput } from '@/types/progression';
+import type { ModifierRule, OperationCode, ProgressionPolicyInput } from '@/types/api/progression';
 import { clamp, uniqOps } from '@/utils';
 
 export function sanitizeModifierRules(params: {

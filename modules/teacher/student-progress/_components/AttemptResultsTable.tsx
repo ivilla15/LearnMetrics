@@ -19,7 +19,7 @@ import type {
   AttemptResultsFilterOption,
   AttemptResultsFilterKey,
   AttemptResultsRow,
-} from '@/types/attempts';
+} from '@/types/api/attempts';
 
 function safeLower(s: string | undefined | null) {
   return (s ?? '').trim().toLowerCase();

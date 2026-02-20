@@ -5,10 +5,10 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import { prisma } from '@/data/prisma';
 import { generateSetupCode, hashSetupCode } from '@/core';
 
-import type { StudentRosterRow } from '@/types/roster';
-import type { AttemptSummary } from '@/types/attempts';
+import type { StudentRosterRow } from '@/types/api/roster';
+import type { AttemptSummary } from '@/types/api/attempts';
 import type { Prisma } from '@prisma/client';
-import type { OperationCode } from '@/types/progression';
+import type { OperationCode } from '@/types/api/progression';
 import { expiresAtFromNow } from '@/utils';
 
 /* -------------------------------------------------------------------------- */

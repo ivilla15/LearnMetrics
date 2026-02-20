@@ -1,7 +1,7 @@
 import { prisma } from '@/data/prisma';
 import { NotFoundError } from '@/core/errors';
-import { ALL_OPS } from '@/types/progression';
-import type { OperationCode } from '@/types/progression';
+import { ALL_OPS } from '@/types/api/progression';
+import type { OperationCode } from '@/types/api/progression';
 import { getPolicyOps } from './ops.service';
 import { distributeLevelAcrossOperations } from './leveling.service';
 import { clampInt } from '@/utils';

@@ -5,8 +5,8 @@ import * as AssignmentsRepo from '@/data/assignments.repo';
 import { NotFoundError } from '@/core/errors';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 import type { BulkCreateStudentArgs } from '@/types';
-import type { OperationCode } from '@/types/progression';
-import type { StudentRosterRow } from '@/types/roster';
+import type { OperationCode } from '@/types/api/progression';
+import type { StudentRosterRow } from '@/types/api/roster';
 import { initializeStudentProgressForNewStudent } from '@/core/progression/initStudentProgress.service';
 import { getClassroomRosterWithLatestAttempt } from './roster.service';
 

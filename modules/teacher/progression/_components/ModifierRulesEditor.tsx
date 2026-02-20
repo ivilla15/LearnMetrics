@@ -7,7 +7,7 @@ import {
   type ModifierCode,
   type ModifierRule,
   type OperationCode,
-} from '@/types/progression';
+} from '@/types/api/progression';
 import { clamp } from '@/utils';
 
 const MODIFIERS: ModifierCode[] = [modifierSchema.enum.DECIMAL, modifierSchema.enum.FRACTION];

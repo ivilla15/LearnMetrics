@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 import { Card, CardContent, CardHeader, Button, useToast, HelpText } from '@/components';
-import type { ProgressionPolicyDTO, ProgressionPolicyInput } from '@/types/progression';
+import type { ProgressionPolicyDTO, ProgressionPolicyInput } from '@/types/api/progression';
 
 import { fetchProgressionPolicy, saveProgressionPolicy } from './actions';
 import {

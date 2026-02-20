@@ -1,4 +1,4 @@
-import type { ProgressionPolicyDTO, ProgressionPolicyInput } from '@/types/progression';
+import type { ProgressionPolicyDTO, ProgressionPolicyInput } from '@/types/api/progression';
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;

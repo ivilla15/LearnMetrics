@@ -1,4 +1,4 @@
-import type { OperationCode, ProgressionPolicyDTO, PolicyOps } from '@/types/progression';
+import type { OperationCode, ProgressionPolicyDTO, PolicyOps } from '@/types/api/progression';
 
 function isOperationCode(v: unknown): v is OperationCode {
   return v === 'MUL' || v === 'ADD' || v === 'SUB' || v === 'DIV';

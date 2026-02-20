@@ -6,7 +6,7 @@ import type {
   AttemptExplorerFilter,
   AttemptExplorerMe,
   AttemptRow,
-} from '@/types/attempts';
+} from '@/types/api/attempts';
 import { parseMeFromApiResponse } from '@/utils/attempts';
 import { getApiErrorMessage } from '@/utils/http';
 

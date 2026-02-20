@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Modal, Button } from '@/components';
 import { cn } from '@/lib';
-import type { AttemptDetailForModal } from '@/types/attempts';
+import type { AttemptDetailForModal } from '@/types/api/attempts';
 
 export function AttemptDetailModal({
   open,

@@ -1,6 +1,6 @@
 import * as StudentsRepo from '@/data/students.repo';
 import { prisma } from '@/data/prisma';
-import type { OperationCode } from '@/types/progression';
+import type { OperationCode } from '@/types/api/progression';
 import { getPolicyOps } from '@/core/progression/ops.service';
 import { Operation } from '@prisma/client';
 

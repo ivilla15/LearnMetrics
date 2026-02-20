@@ -9,7 +9,7 @@ import {
 } from '@/core/auth/setupCodes';
 
 import type { BulkCreateStudentArgs, StudentRosterRow } from '@/types';
-import type { AttemptSummary } from '@/types/attempts';
+import type { AttemptSummary } from '@/types/api/attempts';
 import { requireWithinTrialLimits } from '@/core/billing/entitlement';
 
 async function requireTeacherOwnsClassroom(teacherId: number, classroomId: number) {

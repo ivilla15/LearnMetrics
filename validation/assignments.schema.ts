@@ -1,54 +1,182 @@
 import { z } from 'zod';
+import {
+  ASSIGNMENT_TARGET_KINDS,
+  ASSIGNMENT_TYPES,
+  ASSIGNMENT_MODES,
+  OPERATION_CODES,
+} from '@/types/enums';
 
-export const createScheduleRequestSchema = z.object({
-  classroomId: z.coerce.number().int().positive(),
+const assignmentTargetKindSchema = z.enum(ASSIGNMENT_TARGET_KINDS);
+const assignmentTypeSchema = z.enum(ASSIGNMENT_TYPES);
+const assignmentModeSchema = z.enum(ASSIGNMENT_MODES);
+const operationSchema = z.enum(OPERATION_CODES);
 
-  questionSetId: z.coerce.number().int().positive().optional(),
+const idSchema = z.coerce.number().int().positive();
+const isoDaySchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
+const hhmmSchema = z.string().regex(/^\d{2}:\d{2}$/);
 
-  scheduleDate: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-  opensAtLocalTime: z
-    .string()
-    .regex(/^\d{2}:\d{2}$/)
-    .optional(),
+const MAX_LIMIT = 100;
 
-  windowMinutes: z.coerce.number().int().positive().max(60).optional(),
-  numQuestions: z.coerce.number().int().min(1).max(12).default(12),
+export const createScheduleRequestSchema = z
+  .object({
+    classroomId: idSchema,
 
-  studentIds: z.array(z.number().int().positive()).min(1).optional(),
-});
+    scheduleDate: isoDaySchema.optional(),
+    opensAtLocalTime: hhmmSchema.optional(),
+
+    windowMinutes: z.coerce.number().int().min(1).max(600).optional(),
+
+    targetKind: assignmentTargetKindSchema.default('ASSESSMENT'),
+
+    // assessment fields
+    type: assignmentTypeSchema.optional(),
+    numQuestions: z.coerce.number().int().min(1).max(MAX_LIMIT).optional(),
+    operation: operationSchema.optional(),
+
+    // targeted recipients
+    studentIds: z.array(idSchema).min(1).optional(),
+
+    // practice-time fields
+    durationMinutes: z.coerce.number().int().min(1).max(600).optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.targetKind === 'ASSESSMENT') {
+      if (!v.type) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'type is required for ASSESSMENT',
+          path: ['type'],
+        });
+      }
+      if (typeof v.numQuestions !== 'number') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'numQuestions is required for ASSESSMENT',
+          path: ['numQuestions'],
+        });
+      }
+    }
+
+    if (v.targetKind === 'PRACTICE_TIME') {
+      if (typeof v.durationMinutes !== 'number') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'durationMinutes is required for PRACTICE_TIME',
+          path: ['durationMinutes'],
+        });
+      }
+    }
+  });
 
 export type CreateScheduleRequest = z.infer<typeof createScheduleRequestSchema>;
 
-export const createManualAssignmentRequestSchema = z.object({
-  questionSetId: z.coerce.number().int().positive().optional(),
+export const createManualAssignmentRequestSchema = z
+  .object({
+    targetKind: assignmentTargetKindSchema.default('ASSESSMENT'),
 
-  opensAt: z.string().min(1),
-  closesAt: z.string().min(1),
+    type: assignmentTypeSchema.optional(),
+    mode: assignmentModeSchema.default('MANUAL'),
+    operation: operationSchema.optional(),
 
-  windowMinutes: z.coerce.number().int().positive().max(60).optional(),
-  numQuestions: z.coerce.number().int().min(1).max(12).default(12),
+    opensAt: z.string().datetime(),
+    closesAt: z.string().datetime().nullable(),
 
-  studentIds: z.array(z.number().int().positive()).min(1),
-});
+    windowMinutes: z.coerce.number().int().min(1).max(600).optional(),
+    numQuestions: z.coerce.number().int().min(1).max(MAX_LIMIT).optional(),
+
+    studentIds: z.array(idSchema).min(1),
+    durationMinutes: z.coerce.number().int().min(1).max(600).optional(),
+  })
+  .superRefine((v, ctx) => {
+    if (v.targetKind === 'ASSESSMENT') {
+      if (!v.type) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'type is required for ASSESSMENT',
+          path: ['type'],
+        });
+      }
+      if (typeof v.numQuestions !== 'number') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'numQuestions is required for ASSESSMENT',
+          path: ['numQuestions'],
+        });
+      }
+      if (v.durationMinutes !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'durationMinutes is only valid for PRACTICE_TIME',
+          path: ['durationMinutes'],
+        });
+      }
+    }
+
+    if (v.targetKind === 'PRACTICE_TIME') {
+      if (typeof v.durationMinutes !== 'number') {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'durationMinutes is required for PRACTICE_TIME',
+          path: ['durationMinutes'],
+        });
+      }
+      if (v.type !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'type is not valid for PRACTICE_TIME',
+          path: ['type'],
+        });
+      }
+      if (v.operation !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'operation is not valid for PRACTICE_TIME',
+          path: ['operation'],
+        });
+      }
+      if (v.numQuestions !== undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'numQuestions is not valid for PRACTICE_TIME',
+          path: ['numQuestions'],
+        });
+      }
+    }
+
+    if (v.closesAt) {
+      const opens = new Date(v.opensAt).getTime();
+      const closes = new Date(v.closesAt).getTime();
+      if (!Number.isFinite(opens) || !Number.isFinite(closes) || closes <= opens) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'closesAt must be after opensAt',
+          path: ['closesAt'],
+        });
+      }
+    }
+  });
 
 export type CreateManualAssignmentRequest = z.infer<typeof createManualAssignmentRequestSchema>;
 
 export const updateTeacherAssignmentSchema = z
   .object({
     opensAt: z.string().datetime().optional(),
-    closesAt: z.string().datetime().optional(),
-    windowMinutes: z.number().int().positive().max(60).optional(),
-    numQuestions: z.coerce.number().int().min(1).max(12).optional(),
+    closesAt: z.string().datetime().nullable().optional(),
+    windowMinutes: z.coerce.number().int().min(1).max(600).optional(),
+    numQuestions: z.coerce.number().int().min(1).max(MAX_LIMIT).optional(),
   })
-  .refine(
-    (v) => {
-      if (!v.opensAt || !v.closesAt) return true;
-      return new Date(v.closesAt).getTime() > new Date(v.opensAt).getTime();
-    },
-    { message: 'closesAt must be after opensAt', path: ['closesAt'] },
-  );
+  .superRefine((v, ctx) => {
+    if (!v.opensAt || !v.closesAt) return;
+
+    const opens = new Date(v.opensAt).getTime();
+    const closes = new Date(v.closesAt).getTime();
+    if (!Number.isFinite(opens) || !Number.isFinite(closes) || closes <= opens) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'closesAt must be after opensAt',
+        path: ['closesAt'],
+      });
+    }
+  });
 
 export type UpdateTeacherAssignmentInput = z.infer<typeof updateTeacherAssignmentSchema>;

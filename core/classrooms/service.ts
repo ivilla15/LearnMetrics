@@ -2,7 +2,7 @@ import * as ClassroomsRepo from '@/data';
 import * as StudentsRepo from '@/data';
 import { NotFoundError, ConflictError } from '@/core';
 import { ProgressRosterDTO } from '@/types';
-import { type StudentProgressLite } from '@/types/progression';
+import { type StudentProgressLite } from '@/types/api/progression';
 import { getLevelForOp } from '@/types';
 
 export async function getTeacherClassroomOverview(params: {

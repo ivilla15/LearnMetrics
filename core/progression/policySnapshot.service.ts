@@ -1,7 +1,7 @@
 import { prisma } from '@/data/prisma';
 import { NotFoundError } from '@/core/errors';
 import { clampInt } from '@/utils';
-import type { OperationCode } from '@/types/progression';
+import type { OperationCode } from '@/types/api/progression';
 import { getPolicyOps } from './ops.service';
 
 export async function getProgressionSnapshot(classroomId: number): Promise<{
