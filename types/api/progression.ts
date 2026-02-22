@@ -25,3 +25,25 @@ export type ProgressionPolicyDTO = ProgressionPolicyInputDTO & {
   createdAt: string; // ISO
   updatedAt: string; // ISO
 };
+
+export type ProgressionSnapshotDTO = {
+  enabledOperations: OperationCode[];
+  operationOrder: OperationCode[];
+  primaryOperation: OperationCode;
+  maxNumber: number;
+};
+
+export type PromotionResultDTO = {
+  promoted: boolean;
+  operation: OperationCode;
+  level: number;
+  movedToOperation?: OperationCode;
+};
+
+export function getLevelForOp(
+  progress: ReadonlyArray<{ operation: OperationCode; level: number }>,
+  op: OperationCode,
+): number {
+  const row = progress.find((p) => p.operation === op);
+  return row?.level ?? 1;
+}

@@ -7,7 +7,7 @@ export type AssignmentType = (typeof ASSIGNMENT_TYPES)[number];
 export const ASSIGNMENT_MODES = ['SCHEDULED', 'MAKEUP', 'MANUAL'] as const;
 export type AssignmentMode = (typeof ASSIGNMENT_MODES)[number];
 
-export const RECIPIENT_RULES = ['ALL', 'MASTERY_ONLY', 'NON_MASTERY_ONLY'] as const;
+export const RECIPIENT_RULES = ['ALL', 'NOT_MASTERED_DEPENDENCY'] as const;
 export type RecipientRule = (typeof RECIPIENT_RULES)[number];
 
 export const OPERATION_CODES = ['ADD', 'SUB', 'MUL', 'DIV'] as const;

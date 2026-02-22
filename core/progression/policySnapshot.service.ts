@@ -1,15 +1,11 @@
 import { prisma } from '@/data/prisma';
 import { NotFoundError } from '@/core/errors';
-import { clampInt } from '@/utils';
-import type { OperationCode } from '@/types/api/progression';
+import { clampInt } from '@/utils/math';
+import type { ProgressionSnapshotDTO } from '@/types/api/progression';
+import type { OperationCode } from '@/types/enums';
 import { getPolicyOps } from './ops.service';
 
-export async function getProgressionSnapshot(classroomId: number): Promise<{
-  enabledOperations: OperationCode[];
-  operationOrder: OperationCode[];
-  primaryOperation: OperationCode;
-  maxNumber: number;
-}> {
+export async function getProgressionSnapshot(classroomId: number): Promise<ProgressionSnapshotDTO> {
   const policy = await prisma.classroomProgressionPolicy.findUnique({
     where: { classroomId },
     select: { enabledOperations: true, operationOrder: true, maxNumber: true },

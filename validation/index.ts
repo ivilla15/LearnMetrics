@@ -5,3 +5,6 @@ export * from './classrooms.schema';
 export * from './progression.schema';
 export * from './scheduleRuns.schema';
 export * from './practice.schema';
+export * from './teacher/assignments.schema';
+export * from './teacher';
+export * from './studentAttempts.validators';

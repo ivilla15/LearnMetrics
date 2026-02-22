@@ -1,18 +1,15 @@
 import { prisma } from '@/data/prisma';
 import { NotFoundError } from '@/core/errors';
-import type { OperationCode } from '@/types/api/progression';
+import type { OperationCode } from '@/types/enums';
+import type { PromotionResultDTO } from '@/types/api/progression';
 import { getProgressionSnapshot } from './policySnapshot.service';
 import { ensureStudentProgress } from './studentProgress.service';
-
-export type PromotionResult =
-  | { promoted: false; operation: OperationCode; level: number }
-  | { promoted: true; operation: OperationCode; level: number; movedToOperation?: OperationCode };
 
 export async function promoteStudentAfterMastery(params: {
   studentId: number;
   classroomId: number;
   operation: OperationCode;
-}): Promise<PromotionResult> {
+}): Promise<PromotionResultDTO> {
   const { studentId, classroomId, operation } = params;
 
   const student = await prisma.student.findUnique({
@@ -51,7 +48,7 @@ export async function promoteStudentAfterMastery(params: {
   }
 
   const idx = opOrder.indexOf(operation);
-  const nextOp = idx >= 0 ? (opOrder[idx + 1] as OperationCode | undefined) : undefined;
+  const nextOp = idx >= 0 ? opOrder[idx + 1] : undefined;
 
   if (!nextOp) {
     await prisma.studentProgress.update({
@@ -73,10 +70,5 @@ export async function promoteStudentAfterMastery(params: {
     }),
   ]);
 
-  return {
-    promoted: true,
-    operation: nextOp,
-    level: 1,
-    movedToOperation: nextOp,
-  };
+  return { promoted: true, operation: nextOp, level: 1, movedToOperation: nextOp };
 }

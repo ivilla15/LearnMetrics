@@ -1,13 +1,14 @@
 import { prisma } from '@/data/prisma';
+import type { OperationCode } from '@/types/enums';
 
-type CreateAttemptArgs = {
+export async function createAttempt(args: {
   studentId: number;
   assignmentId: number;
   score: number;
   total: number;
-};
-
-export async function createAttempt(args: CreateAttemptArgs) {
+  completedAt?: Date | null;
+  levelAtTime?: number | null;
+}) {
   const { studentId, assignmentId, score, total } = args;
 
   return prisma.attempt.create({
@@ -16,23 +17,39 @@ export async function createAttempt(args: CreateAttemptArgs) {
       assignmentId,
       score,
       total,
-      // startedAt is defaulted in DB; completedAt should be set on submit elsewhere
+      completedAt: args.completedAt ?? null,
+      levelAtTime: args.levelAtTime ?? null,
+      // startedAt defaults in DB
     },
   });
 }
 
-type AttemptItemInput = {
-  attemptId: number;
-  questionId: number;
-  givenAnswer: number;
-  isCorrect: boolean;
-};
+export async function createAttemptItems(
+  items: Array<{
+    attemptId: number;
 
-export async function createAttemptItems(items: AttemptItemInput[]) {
+    operation: OperationCode;
+    operandA: number;
+    operandB: number;
+
+    correctAnswer: number;
+    givenAnswer: number;
+
+    isCorrect: boolean;
+  }>,
+) {
   if (items.length === 0) return;
 
   await prisma.attemptItem.createMany({
-    data: items,
+    data: items.map((it) => ({
+      attemptId: it.attemptId,
+      operation: it.operation,
+      operandA: it.operandA,
+      operandB: it.operandB,
+      correctAnswer: it.correctAnswer,
+      givenAnswer: it.givenAnswer,
+      isCorrect: it.isCorrect,
+    })),
   });
 }
 
@@ -46,12 +63,16 @@ export async function findByStudentWithAssignment(studentId: number) {
           classroomId: true,
           type: true,
           mode: true,
+          targetKind: true,
+          operation: true,
           opensAt: true,
           closesAt: true,
+          windowMinutes: true,
+          numQuestions: true,
+          durationMinutes: true,
         },
       },
     },
-    // completedAt is nullable now, so order by startedAt to avoid null-order surprises
-    orderBy: { startedAt: 'desc' },
+    orderBy: [{ completedAt: 'desc' }, { startedAt: 'desc' }],
   });
 }

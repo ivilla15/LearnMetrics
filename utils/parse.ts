@@ -1,3 +1,5 @@
+import { AssignmentAttemptsFilter } from '@/types';
+
 export function parseId(raw: string): number | null {
   const n = Number(raw);
   return Number.isFinite(n) && n > 0 ? n : null;
@@ -23,6 +25,16 @@ export function parseAssignmentId(raw: unknown): number | null {
     if (Number.isFinite(n) && n > 0) return n;
   }
   return null;
+}
+
+export function parseAttemptsFilter(raw: string | null): AssignmentAttemptsFilter {
+  const v = (raw ?? 'ALL').toUpperCase();
+
+  if (v === 'MASTERY') return 'MASTERY';
+  if (v === 'NOT_MASTERY') return 'NOT_MASTERY';
+  if (v === 'MISSING') return 'MISSING';
+
+  return 'ALL';
 }
 
 /**

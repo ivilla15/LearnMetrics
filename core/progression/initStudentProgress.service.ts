@@ -1,10 +1,9 @@
 import { prisma } from '@/data/prisma';
 import { NotFoundError } from '@/core/errors';
-import { ALL_OPS } from '@/types/api/progression';
-import type { OperationCode } from '@/types/api/progression';
+import { OPERATION_CODES, type OperationCode } from '@/types/enums';
+import { clampInt } from '@/utils/math';
 import { getPolicyOps } from './ops.service';
 import { distributeLevelAcrossOperations } from './leveling.service';
-import { clampInt } from '@/utils';
 
 export async function initializeStudentProgressForNewStudent(params: {
   classroomId: number;
@@ -17,9 +16,7 @@ export async function initializeStudentProgressForNewStudent(params: {
     select: { enabledOperations: true, operationOrder: true, maxNumber: true },
   });
 
-  if (!policy) {
-    throw new NotFoundError('Progression policy not found');
-  }
+  if (!policy) throw new NotFoundError('Progression policy not found');
 
   const { enabledOperations, operationOrder, primaryOperation } = getPolicyOps({
     enabledOperations: policy.enabledOperations as unknown as OperationCode[],
@@ -39,6 +36,7 @@ export async function initializeStudentProgressForNewStudent(params: {
   const startLevel = Math.max(1, Math.trunc(startLevelRaw));
 
   const enabledOrder = operationOrder.length ? operationOrder : enabledOperations;
+
   const overflowLevels =
     startLevel > maxNumber
       ? distributeLevelAcrossOperations({
@@ -50,10 +48,9 @@ export async function initializeStudentProgressForNewStudent(params: {
       : [{ operation: startOp, level: clampInt(startLevel, 1, maxNumber) }];
 
   const map = new Map<OperationCode, number>();
-
   for (const op of enabledOperations) map.set(op, 1);
 
-  const startIndex: number = enabledOrder.findIndex((o: OperationCode) => o === startOp);
+  const startIndex = enabledOrder.findIndex((o) => o === startOp);
   if (startIndex >= 0) {
     for (let i = 0; i < startIndex; i++) {
       const op = enabledOrder[i];
@@ -67,7 +64,8 @@ export async function initializeStudentProgressForNewStudent(params: {
     }
   }
 
-  const rows = ALL_OPS.map((op) => ({
+  // ✅ create rows for ALL operations (stable), but enabled ones get mapped values
+  const rows = OPERATION_CODES.map((op) => ({
     studentId: params.studentId,
     operation: op,
     level: map.get(op) ?? 1,

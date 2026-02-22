@@ -22,3 +22,19 @@ export function clampInt(n: number, min: number, max: number): number {
 export function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
+
+export function randInt(min: number, max: number, rng: () => number = Math.random): number {
+  return Math.floor(rng() * (max - min + 1)) + min;
+}
+
+export function uniq<T>(items: readonly T[]): T[] {
+  const out: T[] = [];
+  const seen = new Set<T>();
+  for (const it of items) {
+    if (!seen.has(it)) {
+      seen.add(it);
+      out.push(it);
+    }
+  }
+  return out;
+}

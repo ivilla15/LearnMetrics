@@ -1,108 +1,47 @@
 import { z } from 'zod';
-import {
-  ASSIGNMENT_TARGET_KINDS,
-  ASSIGNMENT_TYPES,
-  OPERATION_CODES,
-  RECIPIENT_RULES,
-  WeekdayEnum,
-} from '@/types/enums';
+import { ASSIGNMENT_TYPES, OPERATION_CODES, RECIPIENT_RULES } from '@/types/enums';
 
-const idSchema = z.coerce.number().int().positive();
-const hhmmSchema = z.string().regex(/^\d{2}:\d{2}$/, 'Time must be HH:mm (e.g. "08:00")');
-
-const assignmentTargetKindSchema = z.enum(ASSIGNMENT_TARGET_KINDS);
-const assignmentTypeSchema = z.enum(ASSIGNMENT_TYPES);
+const typeSchema = z.enum(ASSIGNMENT_TYPES);
 const operationSchema = z.enum(OPERATION_CODES);
 const recipientRuleSchema = z.enum(RECIPIENT_RULES);
 
-export const upsertAssignmentScheduleSchema = z
-  .object({
-    classroomId: idSchema.optional(),
+const base = z.object({
+  opensAtLocalTime: z.string().min(1),
+  windowMinutes: z.coerce
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 60)
+    .optional(),
+  days: z.array(z.string().min(1)).min(1),
+  isActive: z.coerce.boolean().optional(),
 
-    isActive: z.coerce.boolean().default(true),
-    days: z.array(z.enum(WeekdayEnum)).min(1, 'Select at least one day'),
+  operation: operationSchema.optional().nullable(),
 
-    opensAtLocalTime: hhmmSchema,
-    windowMinutes: z.coerce.number().int().min(1).max(600).default(4),
+  dependsOnScheduleId: z.coerce.number().int().positive().optional().nullable(),
+  offsetMinutes: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(7 * 24 * 60)
+    .optional(),
+  recipientRule: recipientRuleSchema.optional(),
+});
 
-    targetKind: assignmentTargetKindSchema.default('ASSESSMENT'),
+const assessment = base.extend({
+  targetKind: z.literal('ASSESSMENT'),
+  type: typeSchema,
+  numQuestions: z.coerce.number().int().min(1).max(200).optional(),
+  durationMinutes: z.undefined().optional(),
+});
 
-    // ASSESSMENT fields
-    type: assignmentTypeSchema.optional(),
-    numQuestions: z.coerce.number().int().min(1).max(200).default(12),
-    operation: operationSchema.optional(),
+const practiceTime = base.extend({
+  targetKind: z.literal('PRACTICE_TIME'),
+  durationMinutes: z.coerce.number().int().min(1).max(240),
+  type: z.undefined().optional(),
+  numQuestions: z.undefined().optional(),
+});
 
-    // PRACTICE_TIME fields
-    durationMinutes: z.coerce.number().int().min(1).max(600).optional(),
+export const upsertScheduleSchema = z.discriminatedUnion('targetKind', [assessment, practiceTime]);
 
-    // Dependency scheduling
-    dependsOnScheduleId: idSchema.nullable().optional(),
-    offsetMinutes: z.coerce.number().int().min(0).max(1440).default(0),
-    recipientRule: recipientRuleSchema.default('ALL'),
-  })
-  .superRefine((v, ctx) => {
-    const isDependent = v.dependsOnScheduleId !== null && v.dependsOnScheduleId !== undefined;
-
-    if (isDependent && !v.recipientRule) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'recipientRule is required when dependsOnScheduleId is set',
-        path: ['recipientRule'],
-      });
-    }
-
-    if (v.targetKind === 'ASSESSMENT') {
-      if (!v.type) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'type is required for ASSESSMENT schedules',
-          path: ['type'],
-        });
-      }
-
-      // PRACTICE schedules must specify operation (per your requirement)
-      if (v.type === 'PRACTICE' && !v.operation) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'operation is required for PRACTICE schedules',
-          path: ['operation'],
-        });
-      }
-
-      if (v.durationMinutes !== undefined && v.durationMinutes !== null) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'durationMinutes is only valid for PRACTICE_TIME schedules',
-          path: ['durationMinutes'],
-        });
-      }
-      return;
-    }
-
-    if (v.targetKind === 'PRACTICE_TIME') {
-      if (typeof v.durationMinutes !== 'number') {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'durationMinutes is required for PRACTICE_TIME schedules',
-          path: ['durationMinutes'],
-        });
-      }
-
-      if (v.type !== undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'type is not valid for PRACTICE_TIME schedules',
-          path: ['type'],
-        });
-      }
-      if (v.operation !== undefined) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'operation is not valid for PRACTICE_TIME schedules',
-          path: ['operation'],
-        });
-      }
-    }
-  });
-
-export type UpsertAssignmentScheduleInput = z.infer<typeof upsertAssignmentScheduleSchema>;
+export type UpsertScheduleInput = z.infer<typeof upsertScheduleSchema>;

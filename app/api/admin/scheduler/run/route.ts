@@ -1,12 +1,12 @@
 import crypto from 'crypto';
 
-import { runActiveSchedulesForDate } from '@/core/schedules/service';
+import { runActiveSchedulesForDate } from '@/core';
+import { handleApiError } from '@/app/api/_shared/handle-error';
 import { jsonResponse, errorResponse } from '@/utils/http';
-import { handleApiError } from '@/app';
 
 function isAuthorized(request: Request): boolean {
   const secret = process.env.SCHEDULER_SECRET;
-  if (!secret || secret.length === 0) return false;
+  if (!secret) return false;
 
   const auth = request.headers.get('authorization') ?? '';
   const prefix = 'Bearer ';
@@ -19,7 +19,6 @@ function isAuthorized(request: Request): boolean {
     const hExpected = crypto.createHash('sha256').update(secret, 'utf8').digest();
     const hProvided = crypto.createHash('sha256').update(provided, 'utf8').digest();
 
-    // Both are 32 bytes — safe to timingSafeEqual
     return crypto.timingSafeEqual(hExpected, hProvided);
   } catch {
     return false;
@@ -32,11 +31,12 @@ export async function POST(request: Request) {
   }
 
   try {
-    const results = await runActiveSchedulesForDate(new Date());
+    const now = new Date();
+    const results = await runActiveSchedulesForDate(now);
 
     return jsonResponse(
       {
-        ranAt: new Date().toISOString(),
+        ranAt: now.toISOString(),
         createdAssignments: results,
       },
       200,

@@ -5,33 +5,46 @@ import {
   getOrCreateClassroomPolicy,
   setTeacherStudentProgressRows,
 } from '@/core';
-import { classroomIdParamSchema } from '@/validation';
-import { jsonResponse, errorResponse } from '@/utils';
-import { handleApiError, ClassroomStudentRouteContext, readJson } from '@/app';
-import { z } from 'zod';
 
-const updateStudentSchema = z.object({
-  name: z.string().min(1),
-  username: z.string().min(1),
-  level: z.number().int().min(1).max(100),
-});
+import {
+  classroomStudentParamsSchema,
+  updateStudentSchema,
+} from '@/validation/teacher/classroom-student';
 
-async function getTeacherClassroomAndStudentId(params: ClassroomStudentRouteContext['params']) {
+import { jsonResponse, errorResponse } from '@/utils/http';
+import { handleApiError, readJson, type RouteContext } from '@/app';
+import { OPERATION_CODES, type OperationCode } from '@/types/enums';
+
+type ClassroomStudentParams = {
+  id: string;
+  studentId: string;
+};
+
+function coercePrimaryOperation(raw: unknown): OperationCode {
+  if (typeof raw === 'string' && (OPERATION_CODES as readonly string[]).includes(raw)) {
+    return raw as OperationCode;
+  }
+  return 'MUL';
+}
+
+async function getTeacherClassroomAndStudentId(
+  params: RouteContext<ClassroomStudentParams>['params'],
+) {
   const auth = await requireTeacher();
   if (!auth.ok) return { ok: false as const, response: errorResponse(auth.error, auth.status) };
 
   const { id, studentId } = await params;
-  const { id: classroomId } = classroomIdParamSchema.parse({ id });
+  const parsed = classroomStudentParamsSchema.parse({ id, studentId });
 
-  const studentIdNum = Number(studentId);
-  if (!Number.isFinite(studentIdNum) || studentIdNum <= 0) {
-    return { ok: false as const, response: errorResponse('Invalid student id', 400) };
-  }
-
-  return { ok: true as const, teacher: auth.teacher, classroomId, studentIdNum };
+  return {
+    ok: true as const,
+    teacher: auth.teacher,
+    classroomId: parsed.id,
+    studentId: parsed.studentId,
+  };
 }
 
-export async function PATCH(request: Request, { params }: ClassroomStudentRouteContext) {
+export async function PATCH(request: Request, { params }: RouteContext<ClassroomStudentParams>) {
   try {
     const ctx = await getTeacherClassroomAndStudentId(params);
     if (!ctx.ok) return ctx.response;
@@ -44,31 +57,32 @@ export async function PATCH(request: Request, { params }: ClassroomStudentRouteC
       classroomId: ctx.classroomId,
     });
 
-    const primaryOp = policy.operationOrder[0] ?? policy.enabledOperations[0];
+    // Prisma enums → safely coerced OperationCode
+    const primaryRaw = policy.operationOrder[0] ?? policy.enabledOperations[0] ?? null;
+    const primaryOp = coercePrimaryOperation(primaryRaw);
 
     const student = await updateClassroomStudentById({
       teacherId: ctx.teacher.id,
       classroomId: ctx.classroomId,
-      studentId: ctx.studentIdNum,
+      studentId: ctx.studentId,
       input: { name: input.name, username: input.username },
     });
 
-    if (primaryOp) {
-      await setTeacherStudentProgressRows({
-        teacherId: ctx.teacher.id,
-        classroomId: ctx.classroomId,
-        studentId: ctx.studentIdNum,
-        levels: [{ operation: primaryOp, level: input.level }],
-      });
-    }
+    // Update StudentProgress for the primary operation
+    await setTeacherStudentProgressRows({
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
+      studentId: ctx.studentId,
+      levels: [{ operation: primaryOp, level: input.level }],
+    });
 
-    return jsonResponse({ student }, 200);
+    return jsonResponse({ student } as const, 200);
   } catch (err: unknown) {
     return handleApiError(err);
   }
 }
 
-export async function DELETE(_request: Request, { params }: ClassroomStudentRouteContext) {
+export async function DELETE(_request: Request, { params }: RouteContext<ClassroomStudentParams>) {
   try {
     const ctx = await getTeacherClassroomAndStudentId(params);
     if (!ctx.ok) return ctx.response;
@@ -76,7 +90,7 @@ export async function DELETE(_request: Request, { params }: ClassroomStudentRout
     await deleteClassroomStudentById({
       teacherId: ctx.teacher.id,
       classroomId: ctx.classroomId,
-      studentId: ctx.studentIdNum,
+      studentId: ctx.studentId,
     });
 
     return new Response(null, { status: 204 });

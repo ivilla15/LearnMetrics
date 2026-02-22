@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-
 import { prisma } from '@/data/prisma';
 import { readJson, setStudentSessionCookie, handleApiError } from '@/app';
 import { createStudentSession } from '@/core';

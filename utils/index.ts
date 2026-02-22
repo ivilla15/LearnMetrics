@@ -7,5 +7,4 @@ export * from './seeded-shuffle';
 export * from './serverFetch';
 export * from './devAuthHeaders';
 export * from './assignments';
-export * from './practice-utils';
 export * from './searchParams';

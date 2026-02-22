@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { requireTeacher } from '@/core';
+import { requireTeacher, isTrialLocked, createTeacherClassroom } from '@/core';
 import { jsonError } from '@/utils';
 import { readJson, handleApiError } from '@/app';
-import { createTeacherClassroom } from '@/core/classrooms/createTeacherClassroom';
 import { prisma } from '@/data/prisma';
-import { isTrialLocked } from '@/core/entitlements/isTrialLocked';
 
 const CreateClassroomSchema = z.object({
   name: z.string().trim().min(1).max(80),
@@ -18,7 +16,6 @@ export async function POST(req: Request) {
     const auth = await requireTeacher();
     if (!auth.ok) return jsonError(auth.error, auth.status);
 
-    // Entitlement gate (Trial = 1 classroom total per teacher)
     const ent = await prisma.teacherEntitlement.findUnique({
       where: { teacherId: auth.teacher.id },
       select: { plan: true, status: true, trialEndsAt: true },

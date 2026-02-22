@@ -1,32 +1,14 @@
-import { bulkCreateClassroomStudents, requireTeacher } from '@/core';
-import { classroomIdParamSchema } from '@/validation';
-import { errorResponse, jsonResponse } from '@/utils';
-import { handleApiError, readJson, RouteContext } from '@/app';
 import { z } from 'zod';
-import { BulkStudentInput, operationSchema } from '@/types';
 
-const bulkStudentsSchema = z.object({
-  defaultStartingOperation: operationSchema.optional(),
-  defaultStartingLevel: z.number().int().min(1).max(100).optional(),
+import { requireTeacher, bulkCreateClassroomStudents } from '@/core';
+import { classroomIdParamSchema } from '@/validation';
+import { bulkAddStudentsSchema } from '@/validation/teacher/bulk-students';
 
-  defaultLevel: z.number().int().min(1).max(100).optional(),
+import { errorResponse, jsonResponse } from '@/utils/http';
+import { handleApiError, readJson, type RouteContext } from '@/app';
 
-  students: z
-    .array(
-      z.object({
-        firstName: z.string().min(1),
-        lastName: z.string().min(1),
-        username: z.string().min(1),
-
-        level: z.number().int().min(1).max(100).optional(),
-
-        startingOperation: operationSchema.optional(),
-        startingLevel: z.number().int().min(1).max(100).optional(),
-      }),
-    )
-    .min(1)
-    .max(200),
-});
+import type { OperationCode } from '@/types/enums';
+import type { BulkAddStudentInputDTO } from '@/types/api/teacherStudents';
 
 export async function POST(request: Request, { params }: RouteContext) {
   try {
@@ -37,23 +19,23 @@ export async function POST(request: Request, { params }: RouteContext) {
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
 
     const body = await readJson(request);
-    const parsed = bulkStudentsSchema.parse(body);
+    const parsed = bulkAddStudentsSchema.parse(body);
 
     const defaultStartingOperation = parsed.defaultStartingOperation;
     const defaultStartingLevel = parsed.defaultStartingLevel;
     const defaultLevel = parsed.defaultLevel ?? 1;
 
-    const studentsToCreate = parsed.students.map<BulkStudentInput>((s) => {
-      const resolvedLevel = s.level ?? s.startingLevel ?? defaultStartingLevel ?? defaultLevel;
-      const op = s.startingOperation ?? defaultStartingOperation;
+    const studentsToCreate: BulkAddStudentInputDTO[] = parsed.students.map((s) => {
+      const resolvedLevel = s.startingLevel ?? s.level ?? defaultStartingLevel ?? defaultLevel;
+
+      const resolvedOp: OperationCode | undefined = s.startingOperation ?? defaultStartingOperation;
 
       return {
         firstName: s.firstName,
         lastName: s.lastName,
         username: s.username,
-        level: resolvedLevel,
-        startingOperation: op,
-        startingLevel: s.startingLevel ?? (op ? resolvedLevel : defaultStartingLevel),
+        startingOperation: resolvedOp,
+        startingLevel: resolvedLevel,
       };
     });
 
@@ -65,6 +47,7 @@ export async function POST(request: Request, { params }: RouteContext) {
 
     return jsonResponse(result, 201);
   } catch (err: unknown) {
+    if (err instanceof z.ZodError) return errorResponse('Invalid request body', 400);
     return handleApiError(err);
   }
 }

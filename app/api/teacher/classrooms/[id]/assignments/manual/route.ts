@@ -3,11 +3,7 @@ import { classroomIdParamSchema, createManualAssignmentRequestSchema } from '@/v
 import { jsonResponse, errorResponse } from '@/utils';
 import { handleApiError, readJson, type RouteContext } from '@/app';
 
-function isValidDate(d: Date) {
-  return d instanceof Date && !Number.isNaN(d.getTime());
-}
-
-export async function POST(request: Request, { params }: RouteContext) {
+export async function POST(request: Request, { params }: RouteContext<{ id: string }>) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -19,26 +15,25 @@ export async function POST(request: Request, { params }: RouteContext) {
     const parsed = createManualAssignmentRequestSchema.parse(raw);
 
     const opensAt = new Date(parsed.opensAt);
-    const closesAt = new Date(parsed.closesAt);
-
-    if (!isValidDate(opensAt) || !isValidDate(closesAt)) {
-      return errorResponse('Invalid opensAt/closesAt', 400);
-    }
-
-    if (closesAt <= opensAt) {
-      return errorResponse('closesAt must be after opensAt', 400);
-    }
+    const closesAt = parsed.closesAt ? new Date(parsed.closesAt) : null;
 
     const dto = await createScheduledAssignment({
       teacherId: auth.teacher.id,
       classroomId,
+
       opensAt,
       closesAt,
-      windowMinutes: parsed.windowMinutes ?? 4,
+
+      windowMinutes: parsed.windowMinutes ?? null,
       numQuestions: parsed.numQuestions ?? 12,
-      mode: 'MANUAL',
-      type: 'TEST',
-      questionSetId: parsed.questionSetId ?? null,
+
+      mode: parsed.mode,
+      type: parsed.type ?? 'TEST',
+      targetKind: parsed.targetKind,
+
+      operation: parsed.operation ?? null,
+      durationMinutes: parsed.durationMinutes ?? null,
+
       studentIds: parsed.studentIds,
     });
 

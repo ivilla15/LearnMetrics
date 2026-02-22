@@ -1,13 +1,12 @@
-import { NextResponse } from 'next/server';
-
 import { prisma } from '@/data/prisma';
 import { requireStudent } from '@/core';
 import { handleApiError } from '@/app';
+import { jsonResponse, errorResponse } from '@/utils/http';
 
 export async function GET() {
   try {
     const auth = await requireStudent();
-    if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+    if (!auth.ok) return errorResponse(auth.error, auth.status);
 
     const student = auth.student;
     const now = new Date();
@@ -15,14 +14,21 @@ export async function GET() {
     const assignment = await prisma.assignment.findFirst({
       where: {
         classroomId: student.classroomId,
-        opensAt: { lte: now },
+        targetKind: 'ASSESSMENT',
 
+        opensAt: { lte: now },
         OR: [{ closesAt: null }, { closesAt: { gt: now } }],
 
         AND: [
           {
-            OR: [{ recipients: { none: {} } }, { recipients: { some: { studentId: student.id } } }],
+            OR: [
+              // no recipients => everyone
+              { recipients: { none: {} } },
+              // targeted
+              { recipients: { some: { studentId: student.id } } },
+            ],
           },
+          // not already submitted
           { Attempt: { none: { studentId: student.id } } },
         ],
       },
@@ -39,22 +45,20 @@ export async function GET() {
     });
 
     if (!assignment) {
-      return NextResponse.json({ assignment: null }, { status: 200 });
+      return jsonResponse(null, 200);
     }
 
-    return NextResponse.json(
+    return jsonResponse(
       {
-        assignment: {
-          id: assignment.id,
-          type: assignment.type,
-          mode: assignment.mode,
-          opensAt: assignment.opensAt.toISOString(),
-          closesAt: assignment.closesAt ? assignment.closesAt.toISOString() : null,
-          windowMinutes: assignment.windowMinutes,
-          numQuestions: assignment.numQuestions ?? 12,
-        },
+        id: assignment.id,
+        type: assignment.type,
+        mode: assignment.mode,
+        opensAt: assignment.opensAt.toISOString(),
+        closesAt: assignment.closesAt ? assignment.closesAt.toISOString() : null,
+        windowMinutes: assignment.windowMinutes ?? null,
+        numQuestions: assignment.numQuestions ?? 12,
       },
-      { status: 200 },
+      200,
     );
   } catch (err: unknown) {
     return handleApiError(err);

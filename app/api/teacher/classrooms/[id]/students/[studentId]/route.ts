@@ -1,25 +1,30 @@
+import { z } from 'zod';
 import {
   updateClassroomStudentById,
   deleteClassroomStudentById,
   setTeacherStudentProgressRows,
   getProgressionSnapshot,
+  distributeLevelAcrossOperations,
 } from '@/core';
-import { jsonResponse } from '@/utils';
-import { handleApiError, type ClassroomStudentRouteContext, readJson } from '@/app';
-import { z } from 'zod';
-
-import { getTeacherClassroomAndStudentId } from '@/app/api/_shared/teacherStudentParams';
-import { distributeLevelAcrossOperations } from '@/core/progression/leveling.service';
+import {
+  handleApiError,
+  readJson,
+  type RouteContext,
+  getTeacherClassroomStudentParams,
+} from '@/app/api/_shared';
+import { jsonResponse } from '@/utils/http';
 
 const updateStudentSchema = z.object({
   name: z.string().min(1),
   username: z.string().min(1),
-  level: z.number().int().min(1).max(100),
+  level: z.coerce.number().int().min(1).max(100),
 });
 
-export async function PATCH(request: Request, { params }: ClassroomStudentRouteContext) {
+type Ctx = RouteContext<{ id: string; studentId: string }>;
+
+export async function PATCH(request: Request, { params }: Ctx) {
   try {
-    const ctx = await getTeacherClassroomAndStudentId(params);
+    const ctx = await getTeacherClassroomStudentParams(params);
     if (!ctx.ok) return ctx.response;
 
     const body = await readJson(request);
@@ -60,9 +65,9 @@ export async function PATCH(request: Request, { params }: ClassroomStudentRouteC
   }
 }
 
-export async function DELETE(_request: Request, { params }: ClassroomStudentRouteContext) {
+export async function DELETE(_request: Request, { params }: Ctx) {
   try {
-    const ctx = await getTeacherClassroomAndStudentId(params);
+    const ctx = await getTeacherClassroomStudentParams(params);
     if (!ctx.ok) return ctx.response;
 
     await deleteClassroomStudentById({

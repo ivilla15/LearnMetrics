@@ -1,76 +1,72 @@
-import * as StudentsRepo from '@/data';
-import * as ProgressRepo from '@/data/';
-import { NotFoundError } from '@/core/errors';
-import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
-import { percent, median } from '@/utils';
-import { trendFromLast3 } from './utils';
+import {
+  getAttemptsForAssignments,
+  getAttemptsForStudentInRange,
+  getMissedFactsForStudentInRange,
+  getProgressForStudent,
+  getRecentAssignmentsForClassroomInRange,
+  getRecentAttemptsForStudent,
+} from '@/data/teacherProgress.repo';
 
-import type { MissedFact, ProgressRange, StudentProgressRow } from './service';
+import { findStudentById } from '@/data/students.repo';
+import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
+
+import type { OperationCode } from '@/types/enums';
+import { median, percent } from '@/utils/math';
+import { trendFromLast3 } from './utils';
 import { getLevelForOp } from '@/types';
 
-export type StudentAttemptItem = {
-  id: number;
-  completedAt: string;
-  score: number;
-  total: number;
-  percent: number;
-  mastered: boolean;
-  missedCount: number;
-};
-
-export type TeacherStudentProgressDTO = {
-  classroom: { id: number; name: string };
-  student: StudentProgressRow;
-  range: ProgressRange;
-  insights: { topMissedFacts: MissedFact[] };
-  recent: { attempts: StudentAttemptItem[] };
-};
-
-export async function getTeacherStudentProgress(params: {
+export async function getStudentProgress(params: {
   teacherId: number;
   classroomId: number;
   studentId: number;
   days?: number;
-}): Promise<TeacherStudentProgressDTO> {
-  const { teacherId, classroomId, studentId } = params;
+  primaryOperation?: OperationCode;
+}) {
+  const classroom = await assertTeacherOwnsClassroom(params.teacherId, params.classroomId);
 
-  const classroom = await assertTeacherOwnsClassroom(teacherId, classroomId);
+  const daysRaw = params.days ?? 30;
+  const days = Number.isFinite(daysRaw) && daysRaw > 0 ? Math.floor(daysRaw) : 30;
 
-  const days = Number.isFinite(params.days) && params.days! > 0 ? params.days! : 30;
+  const primaryOp: OperationCode = params.primaryOperation ?? 'MUL';
 
   const endAt = new Date();
   const startAt = new Date(endAt.getTime() - days * 24 * 60 * 60 * 1000);
-
   const recentCutoff = new Date(endAt.getTime() - 180 * 24 * 60 * 60 * 1000);
 
-  const studentRow = await StudentsRepo.findStudentById(studentId);
-  if (!studentRow || studentRow.classroomId !== classroomId) {
-    throw new NotFoundError('Student not found');
+  const studentRow = await findStudentById(params.studentId);
+  if (!studentRow || studentRow.classroomId !== params.classroomId) {
+    throw new Error('Student not found');
   }
 
-  // Fetch progress rows for this student (operation + level)
-  const progressRows = await ProgressRepo.getProgressForStudent(studentId);
+  const progressRows = await getProgressForStudent(params.studentId);
 
   const [attemptsInRangeRaw, recentAttemptsRaw, missedFacts, lastAssignments] = await Promise.all([
-    ProgressRepo.getAttemptsForStudentInRange({ classroomId, studentId, startAt, endAt }),
-    ProgressRepo.getRecentAttemptsForStudent({ classroomId, studentId, since: recentCutoff }),
-    ProgressRepo.getMissedFactsForStudentInRange({
-      classroomId,
-      studentId,
+    getAttemptsForStudentInRange({
+      classroomId: params.classroomId,
+      studentId: params.studentId,
+      startAt,
+      endAt,
+    }),
+    getRecentAttemptsForStudent({
+      classroomId: params.classroomId,
+      studentId: params.studentId,
+      since: recentCutoff,
+    }),
+    getMissedFactsForStudentInRange({
+      classroomId: params.classroomId,
+      studentId: params.studentId,
       startAt,
       endAt,
       limit: 12,
     }),
-    ProgressRepo.getRecentAssignmentsForClassroomInRange({
-      classroomId,
+    getRecentAssignmentsForClassroomInRange({
+      classroomId: params.classroomId,
       startAt,
       endAt,
       take: 1,
     }),
   ]);
 
-  // completedAt is nullable now; these queries should naturally exclude nulls,
-  // but TS types still allow null, so we filter defensively.
   const attemptsInRange = attemptsInRangeRaw.filter((a) => a.completedAt);
   const recentAttempts = recentAttemptsRaw.filter((a) => a.completedAt);
 
@@ -91,13 +87,12 @@ export async function getTeacherStudentProgress(params: {
 
   // ---------- Recent stats ----------
   const last = recentAttempts[0] ?? null;
-  const lastAttemptAt = last && last.completedAt ? last.completedAt.toISOString() : null;
+  const lastAttemptAt = last?.completedAt ? last.completedAt.toISOString() : null;
   const lastPercent = last ? percent(last.score, last.total) : null;
 
-  const daysSinceLastAttempt =
-    last && last.completedAt
-      ? Math.floor((endAt.getTime() - last.completedAt.getTime()) / (24 * 60 * 60 * 1000))
-      : null;
+  const daysSinceLastAttempt = last?.completedAt
+    ? Math.floor((endAt.getTime() - last.completedAt.getTime()) / (24 * 60 * 60 * 1000))
+    : null;
 
   let masteryStreak = 0;
   let nonMasteryStreak = 0;
@@ -133,15 +128,16 @@ export async function getTeacherStudentProgress(params: {
   let lastTestMastery = false;
 
   const lastTest = lastAssignments[0] ?? null;
+
   if (lastTest && !needsSetup) {
-    const attemptsForLast = await ProgressRepo.getAttemptsForAssignments({
-      classroomId,
+    const attemptsForLast = await getAttemptsForAssignments({
+      classroomId: params.classroomId,
       assignmentIds: [lastTest.id],
     });
 
-    missedLastTest = !attemptsForLast.some((a) => a.studentId === studentId);
+    missedLastTest = !attemptsForLast.some((a) => a.studentId === params.studentId);
 
-    const attemptForStudent = attemptsForLast.find((a) => a.studentId === studentId);
+    const attemptForStudent = attemptsForLast.find((a) => a.studentId === params.studentId);
     if (attemptForStudent) {
       lastTestAttempted = true;
       lastTestMastery =
@@ -149,14 +145,13 @@ export async function getTeacherStudentProgress(params: {
     }
   }
 
-  const mulLevel = getLevelForOp(progressRows, 'MUL');
+  const level = getLevelForOp(progressRows, primaryOp);
 
-  const student: StudentProgressRow = {
+  const student = {
     id: studentRow.id,
     name: studentRow.name,
     username: studentRow.username,
-    // NEW: provide MUL level from StudentProgress
-    level: mulLevel,
+    level,
     mustSetPassword: studentRow.mustSetPassword,
 
     attemptsInRange: attemptsInRange.length,
@@ -178,13 +173,12 @@ export async function getTeacherStudentProgress(params: {
       nonMasteryStreak2,
       needsSetup,
       missedLastTest,
-
       lastTestAttempted,
       lastTestMastery,
     },
   };
 
-  const recent: StudentAttemptItem[] = recentAttempts.slice(0, 20).map((a) => {
+  const recent = recentAttempts.slice(0, 20).map((a) => {
     const pct = percent(a.score, a.total);
     return {
       id: a.id,
@@ -197,18 +191,18 @@ export async function getTeacherStudentProgress(params: {
     };
   });
 
-  const topMissedFacts: MissedFact[] = missedFacts.map((m) => ({
-    questionId: m.questionId,
-    factorA: m.factorA,
-    factorB: m.factorB,
-    answer: m.answer,
+  const topMissedFacts = missedFacts.map((m) => ({
+    operation: m.operation,
+    operandA: m.operandA,
+    operandB: m.operandB,
+    correctAnswer: m.correctAnswer,
     incorrectCount: m.incorrectCount,
     totalCount: m.totalCount,
-    errorRate: m.totalCount ? Math.round((m.incorrectCount / m.totalCount) * 100) : 0,
+    errorRate: m.totalCount > 0 ? Math.round((m.incorrectCount / m.totalCount) * 100) : 0,
   }));
 
   return {
-    classroom: { id: classroom.id, name: classroom.name ?? `Classroom ${classroom.id}` },
+    classroom: { id: classroom.id, name: classroom.name },
     range: {
       startAt: startAt.toISOString(),
       endAt: endAt.toISOString(),

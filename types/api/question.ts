@@ -1,13 +1,13 @@
 import type { OperationCode } from '@/types/enums';
 
-export type PracticeQuestionDTO = {
+export type GeneratedQuestionDTO = {
   id: number;
   operation: OperationCode;
-  factorA: number;
-  factorB: number;
+  operandA: number;
+  operandB: number;
 };
 
-export type PracticeGradeItemDTO = {
+export type GradeItemDTO = {
   id: number;
   prompt: string;
   studentAnswer: number;
@@ -15,9 +15,9 @@ export type PracticeGradeItemDTO = {
   isCorrect: boolean;
 };
 
-export type PracticeGradeResultDTO = {
+export type GradeResultDTO = {
   total: number;
   score: number;
   percent: number;
-  items: PracticeGradeItemDTO[];
+  items: GradeItemDTO[];
 };

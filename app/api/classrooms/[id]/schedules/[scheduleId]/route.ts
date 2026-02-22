@@ -1,28 +1,19 @@
-import { updateClassroomScheduleById, deleteClassroomScheduleById, requireTeacher } from '@/core';
-import { classroomIdParamSchema, upsertScheduleSchema } from '@/validation';
-import { jsonResponse, errorResponse } from '@/utils/http';
-import { handleApiError, readJson, RouteParams } from '@/app';
+import { handleApiError } from '@/app/api/_shared/handle-error';
+import { readJson, type RouteContext } from '@/app';
 
-async function getTeacherClassroomAndScheduleId(params: RouteParams['params']) {
-  const auth = await requireTeacher();
-  if (!auth.ok) return { ok: false as const, response: errorResponse(auth.error, auth.status) };
+import { getTeacherClassroomScheduleParams } from '@/app/api/_shared/params/teacher';
+import { jsonResponse } from '@/utils/http';
 
-  const { id, scheduleId } = await params;
+import { updateClassroomScheduleById, deleteClassroomScheduleById } from '@/core';
 
-  const { id: classroomId } = classroomIdParamSchema.parse({ id });
-  const scheduleIdNum = Number(scheduleId);
+import { upsertScheduleSchema } from '@/validation/assignmentSchedules.schema';
 
-  if (!Number.isFinite(scheduleIdNum)) {
-    return { ok: false as const, response: errorResponse('Invalid schedule id', 400) };
-  }
-
-  return { ok: true as const, teacher: auth.teacher, classroomId, scheduleIdNum };
-}
-
-// PATCH: update a specific schedule
-export async function PATCH(request: Request, { params }: RouteParams) {
+export async function PATCH(
+  request: Request,
+  { params }: RouteContext<{ id: string; scheduleId: string }>,
+) {
   try {
-    const ctx = await getTeacherClassroomAndScheduleId(params);
+    const ctx = await getTeacherClassroomScheduleParams(params);
     if (!ctx.ok) return ctx.response;
 
     const body = await readJson(request);
@@ -41,9 +32,12 @@ export async function PATCH(request: Request, { params }: RouteParams) {
   }
 }
 
-export async function DELETE(_request: Request, { params }: RouteParams) {
+export async function DELETE(
+  _request: Request,
+  { params }: RouteContext<{ id: string; scheduleId: string }>,
+) {
   try {
-    const ctx = await getTeacherClassroomAndScheduleId(params);
+    const ctx = await getTeacherClassroomScheduleParams(params);
     if (!ctx.ok) return ctx.response;
 
     await deleteClassroomScheduleById({

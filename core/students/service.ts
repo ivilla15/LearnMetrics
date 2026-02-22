@@ -2,59 +2,51 @@ import * as StudentsRepo from '@/data/students.repo';
 import * as AttemptsRepo from '@/data/attempts.repo';
 import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
 import * as AssignmentsRepo from '@/data/assignments.repo';
+
 import { NotFoundError } from '@/core/errors';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
-import type { BulkCreateStudentArgs } from '@/types';
-import type { OperationCode } from '@/types/api/progression';
-import type { StudentRosterRow } from '@/types/api/roster';
+
 import { initializeStudentProgressForNewStudent } from '@/core/progression/initStudentProgress.service';
 import { getClassroomRosterWithLatestAttempt } from './roster.service';
+
+import type { OperationCode } from '@/types/enums';
+import type {
+  AttemptHistoryItemDTO,
+  StudentHistoryResponse,
+  UpdateStudentArgs,
+  DeleteStudentArgs,
+  DeleteAllStudentsArgs,
+  BulkAddStudentsArgs,
+  BulkAddResponseDTO,
+} from '@/types/api/teacherStudents';
+
+import type { SetupCodeCardDTO } from '@/types/api/roster';
+import { percent } from '@/utils';
 
 // -----------------------------
 // Student history (student + teacher progress pages)
 // -----------------------------
 
-export type AttemptHistoryItem = {
-  attemptId: number;
-  assignmentId: number;
-  classroomId: number;
-  type: 'TEST' | 'PRACTICE' | 'REMEDIATION' | 'PLACEMENT';
-  mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
-  score: number;
-  total: number;
-  percent: number;
-  completedAt: string;
-  wasMastery: boolean;
-  opensAt: string;
-  closesAt: string | null;
-};
-
-export type StudentHistoryDTO = {
-  student: {
-    id: number;
-    name: string;
-    username: string;
-  };
-  attempts: AttemptHistoryItem[];
-};
-
-export async function getStudentHistory(studentId: number): Promise<StudentHistoryDTO> {
+export async function getStudentHistory(studentId: number): Promise<StudentHistoryResponse> {
   const student = await StudentsRepo.findStudentById(studentId);
   if (!student) throw new NotFoundError('Student not found');
 
   const attempts = await AttemptsRepo.findByStudentWithAssignment(studentId);
 
-  const history: AttemptHistoryItem[] = attempts.map((a) => ({
+  const history: AttemptHistoryItemDTO[] = attempts.map((a) => ({
     attemptId: a.id,
     assignmentId: a.assignmentId,
     classroomId: a.Assignment.classroomId,
+
     type: a.Assignment.type,
     mode: a.Assignment.mode,
+
     score: a.score,
     total: a.total,
-    percent: a.total > 0 ? Math.round((a.score / a.total) * 100) : 0,
-    completedAt: a.completedAt ? a.completedAt.toISOString() : a.startedAt.toISOString(),
+    percent: percent(a.score, a.total),
+    completedAt: (a.completedAt ?? a.startedAt).toISOString(),
     wasMastery: a.total > 0 && a.score === a.total,
+
     opensAt: a.Assignment.opensAt.toISOString(),
     closesAt: a.Assignment.closesAt ? a.Assignment.closesAt.toISOString() : null,
   }));
@@ -69,82 +61,60 @@ export async function getStudentHistory(studentId: number): Promise<StudentHisto
 // Roster + setup codes
 // -----------------------------
 
-export type SetupCodeCard = {
-  name: string;
-  username: string;
-  setupCode: string;
-  expiresAt: string;
-};
-
-export type BulkCreateStudentsResult = {
-  students: Awaited<ReturnType<typeof StudentsRepo.findStudentsWithLatestAttempt>>;
-  setupCodes: SetupCodeCard[];
-};
-
 export async function bulkCreateClassroomStudents(
-  args: BulkCreateStudentArgs,
-): Promise<BulkCreateStudentsResult> {
+  args: BulkAddStudentsArgs,
+): Promise<BulkAddResponseDTO> {
   const { teacherId, classroomId, students } = args;
 
   await assertTeacherOwnsClassroom(teacherId, classroomId);
 
-  // Student table creation inputs (NO level here)
   const createInputs = students.map((s) => ({
     firstName: s.firstName,
     lastName: s.lastName,
     username: s.username,
   }));
 
-  const { created, roster } = await StudentsRepo.createManyForClassroom(classroomId, createInputs);
+  const { created } = await StudentsRepo.createManyForClassroom(classroomId, createInputs);
 
-  // Build map by username for starting progression seed
-  const inputByUsername = new Map<
-    string,
-    { startingOperation?: OperationCode; startingLevel?: number }
-  >();
-
+  // Map username -> starting meta (so we can init StudentProgress correctly)
+  const inputByUsername = new Map<string, { op?: OperationCode; level?: number }>();
   for (const s of students) {
     inputByUsername.set(s.username, {
-      startingOperation: s.startingOperation,
-      startingLevel: s.startingLevel,
+      op: s.startingOperation,
+      level: s.startingLevel,
     });
   }
-  // Initialize StudentProgress for each created student (policy-aware + reusable)
+
+  // Initialize StudentProgress rows for each created student (policy-aware)
   for (const c of created) {
     const meta = inputByUsername.get(c.username);
 
     await initializeStudentProgressForNewStudent({
       classroomId,
       studentId: c.id,
-      startingOperation: meta?.startingOperation,
-      startingLevel: meta?.startingLevel,
+      startingOperation: meta?.op,
+      startingLevel: meta?.level,
     });
   }
 
-  const setupCodes: SetupCodeCard[] = created.map((c) => ({
-    name: c.name,
+  const setupCodes: SetupCodeCardDTO[] = created.map((c) => ({
+    studentId: c.id,
     username: c.username,
     setupCode: c.setupCode,
-    expiresAt: c.setupCodeExpiresAt.toISOString(),
+    expiresAt: (c.setupCodeExpiresAt ?? new Date()).toISOString(),
+    name: c.name,
   }));
 
-  return { students: roster, setupCodes };
+  const roster = await getClassroomRosterWithLatestAttempt(classroomId);
+
+  return { setupCodes, students: roster };
 }
 
 // -----------------------------
 // Update / delete single student
 // -----------------------------
 
-export type UpdateStudentArgs = {
-  teacherId: number;
-  classroomId: number;
-  studentId: number;
-  input: { name: string; username: string };
-};
-
-export async function updateClassroomStudentById(
-  args: UpdateStudentArgs,
-): Promise<StudentRosterRow> {
+export async function updateClassroomStudentById(args: UpdateStudentArgs) {
   const { teacherId, classroomId, studentId, input } = args;
 
   await assertTeacherOwnsClassroom(teacherId, classroomId);
@@ -161,8 +131,6 @@ export async function updateClassroomStudentById(
   return updated;
 }
 
-export type DeleteStudentArgs = { teacherId: number; classroomId: number; studentId: number };
-
 export async function deleteClassroomStudentById(args: DeleteStudentArgs): Promise<void> {
   const { teacherId, classroomId, studentId } = args;
 
@@ -177,13 +145,6 @@ export async function deleteClassroomStudentById(args: DeleteStudentArgs): Promi
 // -----------------------------
 // Delete ALL students in classroom (+ optional cascade)
 // -----------------------------
-
-export type DeleteAllStudentsArgs = {
-  teacherId: number;
-  classroomId: number;
-  deleteAssignments: boolean;
-  deleteSchedules: boolean;
-};
 
 export async function deleteAllClassroomStudents(args: DeleteAllStudentsArgs): Promise<void> {
   const { teacherId, classroomId, deleteAssignments, deleteSchedules } = args;

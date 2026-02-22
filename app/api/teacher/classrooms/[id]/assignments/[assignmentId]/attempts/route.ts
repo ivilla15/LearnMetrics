@@ -1,37 +1,26 @@
-import { NextResponse } from 'next/server';
 import { prisma } from '@/data/prisma';
 import { requireTeacher } from '@/core';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
-import { jsonError, parseId, percent } from '@/utils';
-import { handleApiError } from '@/app';
+import { errorResponse, jsonResponse, parseAttemptsFilter, parseId, percent } from '@/utils';
+import { handleApiError, type RouteContext } from '@/app';
 
-type Filter = 'ALL' | 'MASTERY' | 'NOT_MASTERY' | 'MISSING';
-
-function parseFilter(raw: string | null): Filter {
-  const v = (raw ?? 'ALL').toUpperCase();
-  if (v === 'MASTERY' || v === 'NOT_MASTERY' || v === 'MISSING') return v;
-  return 'ALL';
-}
-
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ id: string; assignmentId: string }> },
-) {
+export async function GET(req: Request, { params }: RouteContext) {
   try {
     const auth = await requireTeacher();
-    if (!auth.ok) return jsonError(auth.error, auth.status);
+    if (!auth.ok) return errorResponse(auth.error, auth.status);
 
     const { id, assignmentId } = await params;
+
     const classroomId = parseId(id);
     const aid = parseId(assignmentId);
 
-    if (!classroomId) return jsonError('Invalid classroom id', 400);
-    if (!aid) return jsonError('Invalid assignment id', 400);
+    if (!classroomId) return errorResponse('Invalid classroom id', 400);
+    if (!aid) return errorResponse('Invalid assignment id', 400);
 
     await assertTeacherOwnsClassroom(auth.teacher.id, classroomId);
 
     const url = new URL(req.url);
-    const filter = parseFilter(url.searchParams.get('filter'));
+    const filter = parseAttemptsFilter(url.searchParams.get('filter'));
 
     const assignment = await prisma.assignment.findUnique({
       where: { id: aid },
@@ -48,8 +37,8 @@ export async function GET(
       },
     });
 
-    if (!assignment) return jsonError('Assignment not found', 404);
-    if (assignment.classroomId !== classroomId) return jsonError('Assignment not found', 404);
+    if (!assignment) return errorResponse('Assignment not found', 404);
+    if (assignment.classroomId !== classroomId) return errorResponse('Assignment not found', 404);
 
     const targetedIds = assignment.recipients.map((r) => r.studentId);
 
@@ -110,7 +99,7 @@ export async function GET(
       rows = rows.filter((r) => r.attemptId !== null && r.wasMastery === false);
     }
 
-    return NextResponse.json(
+    return jsonResponse(
       {
         assignment: {
           assignmentId: assignment.id,
@@ -125,7 +114,7 @@ export async function GET(
         },
         rows,
       },
-      { status: 200 },
+      200,
     );
   } catch (err: unknown) {
     return handleApiError(err);

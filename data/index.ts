@@ -2,7 +2,6 @@ export * from './assignments.repo';
 export * from './assignmentSchedules.repo';
 export * from './students.repo';
 export * from './attempts.repo';
-export * from './questions.repo';
 export * from './classrooms.repo';
 export * from './teacherProgress.repo';
 export * from './prisma';

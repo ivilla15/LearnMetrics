@@ -1,5 +1,5 @@
 import { requireStudent, getStudentProgressRows } from '@/core';
-import { jsonResponse, errorResponse } from '@/utils';
+import { jsonResponse, errorResponse } from '@/utils/http';
 import { handleApiError } from '@/app';
 
 export async function GET() {

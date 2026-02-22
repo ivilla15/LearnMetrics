@@ -10,7 +10,7 @@ export * from './api/progression';
 export * from './api/roster';
 export * from './api/schedules';
 export * from './api/student';
-export * from './api/practice';
+export * from './api/question';
 
 export * from './ui/filters';
 export * from './ui/selections';

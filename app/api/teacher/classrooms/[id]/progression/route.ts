@@ -1,14 +1,16 @@
 import { requireTeacher, getOrCreateClassroomPolicy, updateClassroomPolicy } from '@/core';
 import { classroomIdParamSchema, upsertProgressionPolicySchema } from '@/validation';
-import { jsonResponse, errorResponse } from '@/utils';
-import { handleApiError, readJson, RouteContext } from '@/app';
+import { handleApiError, readJson, RouteContext } from '@/app/api/_shared/';
+import { jsonResponse, errorResponse } from '@/utils/http';
 
-export async function GET(_request: Request, context: RouteContext) {
+type Ctx = RouteContext<{ id: string }>;
+
+export async function GET(_request: Request, { params }: Ctx) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
 
-    const { id } = await context.params;
+    const { id } = await params;
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
 
     const policy = await getOrCreateClassroomPolicy({
@@ -18,16 +20,16 @@ export async function GET(_request: Request, context: RouteContext) {
 
     return jsonResponse({ policy }, 200);
   } catch (err: unknown) {
-    return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
+    return handleApiError(err);
   }
 }
 
-export async function PUT(request: Request, context: RouteContext) {
+export async function PUT(request: Request, { params }: Ctx) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
 
-    const { id } = await context.params;
+    const { id } = await params;
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
 
     const body = await readJson(request);
@@ -41,6 +43,6 @@ export async function PUT(request: Request, context: RouteContext) {
 
     return jsonResponse({ policy }, 200);
   } catch (err: unknown) {
-    return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
+    return handleApiError(err);
   }
 }

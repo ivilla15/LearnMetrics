@@ -1,4 +1,9 @@
-import type { AssignmentMode, AssignmentType } from '@/types/enums';
+import type {
+  AssignmentMode,
+  AssignmentType,
+  AssignmentTargetKind,
+  OperationCode,
+} from '@/types/enums';
 
 export type AssignmentCoreDTO = {
   id: number;
@@ -6,12 +11,20 @@ export type AssignmentCoreDTO = {
 
   type: AssignmentType;
   mode: AssignmentMode;
+  targetKind: AssignmentTargetKind;
+
+  operation: OperationCode | null;
 
   opensAt: string;
   closesAt: string | null;
 
   windowMinutes: number | null;
+
+  // ASSESSMENT
   numQuestions: number;
+
+  // PRACTICE_TIME
+  durationMinutes: number | null;
 
   scheduleId: number | null;
   runDate: string | null;
@@ -26,14 +39,26 @@ export type TeacherAssignmentStatsDTO = {
 
 export type TeacherAssignmentListItemDTO = {
   assignmentId: number;
+
   type: AssignmentType;
   mode: AssignmentMode;
+  targetKind: AssignmentTargetKind;
+
+  operation: OperationCode | null;
+
   status: 'FINISHED' | 'OPEN' | 'UPCOMING';
+
   opensAt: string;
   closesAt: string | null;
+
+  windowMinutes: number | null;
+
   numQuestions: number;
+  durationMinutes: number | null;
+
   scheduleId: number | null;
   runDate: string | null;
+
   stats: {
     attemptedCount: number;
     totalStudents: number;
@@ -83,12 +108,66 @@ export type TeacherAssignmentAttemptRowDTO = {
 export type TeacherAssignmentAttemptsResponse = {
   assignment: {
     assignmentId: number;
+
     type: AssignmentType;
     mode: AssignmentMode;
+    targetKind: AssignmentTargetKind;
+
+    operation: OperationCode | null;
+
     opensAt: string;
     closesAt: string | null;
+
     windowMinutes: number | null;
+
     numQuestions: number;
+    durationMinutes: number | null;
   };
   rows: TeacherAssignmentAttemptRowDTO[];
+};
+
+export type TeacherAttemptDetailItemDTO = {
+  id: number;
+  operation: OperationCode;
+  operandA: number;
+  operandB: number;
+  correctAnswer: number;
+  studentAnswer: number;
+  isCorrect: boolean;
+};
+
+export type TeacherAttemptDetailResponse = {
+  attemptId: number;
+  completedAt: string | null;
+
+  score: number;
+  total: number;
+  percent: number;
+  wasMastery: boolean;
+
+  student: {
+    id: number;
+    name: string;
+    username: string;
+  };
+
+  assignment: {
+    assignmentId: number;
+
+    type: AssignmentType;
+    mode: AssignmentMode;
+    targetKind: AssignmentTargetKind;
+
+    operation: OperationCode | null;
+
+    opensAt: string;
+    closesAt: string | null;
+
+    windowMinutes: number | null;
+
+    numQuestions: number;
+    durationMinutes: number | null;
+  };
+
+  items: TeacherAttemptDetailItemDTO[];
 };

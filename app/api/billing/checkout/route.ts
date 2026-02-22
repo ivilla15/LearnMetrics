@@ -1,4 +1,3 @@
-// app/api/billing/checkout/route.ts
 import { redirect } from 'next/navigation';
 import Stripe from 'stripe';
 import { requireTeacher } from '@/core';
@@ -23,7 +22,6 @@ export async function GET(req: Request) {
 
   const priceId = PRICE_BY_PLAN[plan];
   if (!priceId) {
-    // keep behaviour consistent
     if (wantJson) {
       return new Response(JSON.stringify({ ok: false, error: 'invalid_plan' }), { status: 400 });
     }

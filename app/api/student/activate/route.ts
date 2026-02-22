@@ -1,15 +1,9 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-
 import { prisma } from '@/data/prisma';
-import { hashSetupCode, constantTimeEqualHex } from '@/core/auth/setupCodes';
-
-import { createStudentSession } from '@/core/auth/studentSessions';
-import { setStudentSessionCookie } from '@/app/api/_shared/student-session-cookies';
-
-import { handleApiError } from '@/app/api/_shared/handle-error';
-import { readJson } from '@/app/api/_shared/read-json';
+import { hashSetupCode, constantTimeEqualHex, createStudentSession } from '@/core';
+import { handleApiError, setStudentSessionCookie, readJson } from '@/app';
 
 const ActivateBodySchema = z.object({
   username: z.string().min(1),

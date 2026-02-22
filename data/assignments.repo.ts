@@ -1,6 +1,10 @@
-// data/assignments.repo.ts
 import { prisma } from '@/data/prisma';
-import type { Type } from '@prisma/client';
+import type {
+  AssignmentMode,
+  AssignmentTargetKind,
+  AssignmentType,
+  OperationCode,
+} from '@/types/enums';
 
 export async function findAssignmentById(assignmentId: number) {
   return prisma.assignment.findUnique({
@@ -8,15 +12,15 @@ export async function findAssignmentById(assignmentId: number) {
   });
 }
 
-export async function findByClassroomKindAndOpensAt(args: {
+export async function findByClassroomTypeAndOpensAt(args: {
   classroomId: number;
-  kind: Type;
+  type: AssignmentType;
   opensAt: Date;
 }) {
   return prisma.assignment.findFirst({
     where: {
       classroomId: args.classroomId,
-      type: args.kind,
+      type: args.type,
       opensAt: args.opensAt,
     },
   });
@@ -24,26 +28,52 @@ export async function findByClassroomKindAndOpensAt(args: {
 
 export async function createAssignment(args: {
   classroomId: number;
-  kind: Type;
-  mode: 'SCHEDULED' | 'MAKEUP' | 'MANUAL';
+
+  type: AssignmentType;
+  mode: AssignmentMode;
+
+  targetKind: AssignmentTargetKind;
+  operation?: OperationCode | null;
+
   opensAt: Date;
-  closesAt: Date;
-  windowMinutes: number;
-  questionSetId?: number | null;
-  numQuestions: number;
+  closesAt?: Date | null;
+
+  // non-null in schema (default 4)
+  windowMinutes?: number;
+
+  // non-null in schema (default 12)
+  numQuestions?: number;
+
+  durationMinutes?: number | null;
+
   scheduleId?: number | null;
+  runDate?: Date | null;
+
+  parentAssignmentId?: number | null;
 }) {
   return prisma.assignment.create({
     data: {
       classroomId: args.classroomId,
-      type: args.kind,
+
+      type: args.type,
       mode: args.mode,
+      targetKind: args.targetKind,
+
+      operation: args.operation ?? null,
+
       opensAt: args.opensAt,
-      closesAt: args.closesAt,
-      windowMinutes: args.windowMinutes,
-      questionSetId: args.questionSetId ?? null,
-      numQuestions: args.numQuestions,
+      closesAt: args.closesAt ?? null,
+
+      // IMPORTANT: do not write null to non-null columns
+      ...(typeof args.windowMinutes === 'number' ? { windowMinutes: args.windowMinutes } : {}),
+      ...(typeof args.numQuestions === 'number' ? { numQuestions: args.numQuestions } : {}),
+
+      durationMinutes: args.durationMinutes ?? null,
+
       scheduleId: args.scheduleId ?? null,
+      runDate: args.runDate ?? null,
+
+      parentAssignmentId: args.parentAssignmentId ?? null,
     },
   });
 }
@@ -51,7 +81,7 @@ export async function createAssignment(args: {
 export async function findLatestAssignmentForClassroom(classroomId: number) {
   return prisma.assignment.findFirst({
     where: { classroomId },
-    orderBy: { opensAt: 'desc' },
+    orderBy: [{ opensAt: 'desc' }, { id: 'desc' }],
   });
 }
 

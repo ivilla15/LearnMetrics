@@ -1,13 +1,13 @@
+import { prisma } from '@/data/prisma';
 import { requireTeacher } from '@/core';
 import {
   classroomIdParamSchema,
   studentIdParamSchema,
   upsertStudentProgressSchema,
 } from '@/validation';
-import { jsonResponse, errorResponse } from '@/utils';
-import { handleApiError, readJson } from '@/app';
-import { prisma } from '@/data/prisma';
-import { OperationCode, ALL_OPS } from '@/types';
+import { jsonResponse, errorResponse } from '@/utils/http';
+import { handleApiError, readJson, type RouteContext } from '@/app';
+import { OPERATION_CODES, type OperationCode } from '@/types/enums';
 
 async function ensureStudentProgress(studentId: number) {
   const existing = await prisma.studentProgress.findMany({
@@ -16,7 +16,7 @@ async function ensureStudentProgress(studentId: number) {
   });
 
   const have = new Set(existing.map((r) => r.operation as OperationCode));
-  const missing = ALL_OPS.filter((op) => !have.has(op));
+  const missing = OPERATION_CODES.filter((op) => !have.has(op));
 
   if (missing.length === 0) {
     return prisma.studentProgress.findMany({
@@ -26,6 +26,7 @@ async function ensureStudentProgress(studentId: number) {
     });
   }
 
+  // create missing rows in a single transaction
   await prisma.$transaction(
     missing.map((op) =>
       prisma.studentProgress.create({
@@ -41,11 +42,10 @@ async function ensureStudentProgress(studentId: number) {
   });
 }
 
-type StudentProgressRouteContext = {
-  params: Promise<{ id: string; studentId: string }>;
-};
+// RouteContext params for /classrooms/[id]/students/[studentId]/progress
+type Params = { id: string; studentId: string };
 
-export async function GET(_request: Request, context: StudentProgressRouteContext) {
+export async function GET(_request: Request, context: RouteContext<Params>) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -78,7 +78,7 @@ export async function GET(_request: Request, context: StudentProgressRouteContex
   }
 }
 
-export async function PUT(request: Request, context: StudentProgressRouteContext) {
+export async function PUT(request: Request, context: RouteContext<Params>) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -111,7 +111,7 @@ export async function PUT(request: Request, context: StudentProgressRouteContext
 
     // Apply updates (transaction)
     await prisma.$transaction(
-      input.levels.map((row) =>
+      input.levels.map((row: { operation: OperationCode; level: number }) =>
         prisma.studentProgress.update({
           where: { studentId_operation: { studentId: student.id, operation: row.operation } },
           data: { level: row.level },

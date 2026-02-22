@@ -1,23 +1,8 @@
 import { prisma } from '@/data/prisma';
-import { assertTeacherOwnsClassroom } from '@/core';
-import type { ModifierRule, OperationCode, ProgressionPolicyInput } from '@/types/api/progression';
-import { clamp, uniqOps } from '@/utils';
-
-export function sanitizeModifierRules(params: {
-  enabledOperations: OperationCode[];
-  maxNumber: number;
-  rules: ModifierRule[];
-}): ModifierRule[] {
-  const enabledSet = new Set(params.enabledOperations);
-
-  return params.rules.map((r) => ({
-    modifier: r.modifier,
-    operations: uniqOps(r.operations.filter((op) => enabledSet.has(op))),
-    minLevel: clamp(r.minLevel, 1, params.maxNumber),
-    propagate: !!r.propagate,
-    enabled: !!r.enabled,
-  }));
-}
+import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
+import { OPERATION_CODES, type OperationCode } from '@/types/enums';
+import type { ProgressionPolicyInputDTO } from '@/types/api/progression';
+import { clamp, uniq } from '@/utils/math';
 
 export async function getOrCreateClassroomPolicy(params: {
   teacherId: number;
@@ -47,8 +32,8 @@ export async function getOrCreateClassroomPolicy(params: {
   return prisma.classroomProgressionPolicy.create({
     data: {
       classroomId: params.classroomId,
-      enabledOperations: ['MUL'],
-      operationOrder: ['MUL'],
+      enabledOperations: [...OPERATION_CODES],
+      operationOrder: [...OPERATION_CODES],
       maxNumber: 12,
     },
     include: {
@@ -70,22 +55,46 @@ export async function getOrCreateClassroomPolicy(params: {
 export async function updateClassroomPolicy(params: {
   teacherId: number;
   classroomId: number;
-  input: ProgressionPolicyInput;
+  input: ProgressionPolicyInputDTO;
 }) {
   await assertTeacherOwnsClassroom(params.teacherId, params.classroomId);
 
-  const enabledOperations = uniqOps(params.input.enabledOperations);
+  // Assume caller validated with Zod schema; still sanitize defensively
+  const enabledOperations = uniq(params.input.enabledOperations).filter((op): op is OperationCode =>
+    OPERATION_CODES.includes(op),
+  );
+
+  if (enabledOperations.length === 0) {
+    throw new Error('enabledOperations must include at least one operation');
+  }
+
   const enabledSet = new Set(enabledOperations);
 
-  const operationOrder = uniqOps(params.input.operationOrder).filter((op) => enabledSet.has(op));
+  const operationOrderRaw =
+    params.input.operationOrder && params.input.operationOrder.length > 0
+      ? params.input.operationOrder
+      : enabledOperations;
+
+  const operationOrder = uniq(operationOrderRaw)
+    .filter((op): op is OperationCode => OPERATION_CODES.includes(op))
+    .filter((op) => enabledSet.has(op));
+
+  // ensure every enabled op appears in order (stable, predictable)
+  for (const op of enabledOperations) {
+    if (!operationOrder.includes(op)) operationOrder.push(op);
+  }
 
   const maxNumber = clamp(params.input.maxNumber, 1, 100);
 
-  const modifierRules = sanitizeModifierRules({
-    enabledOperations,
-    maxNumber,
-    rules: params.input.modifierRules,
-  }).filter((r) => r.operations.length > 0);
+  const modifierRules = (params.input.modifierRules ?? [])
+    .map((r) => ({
+      modifier: r.modifier,
+      operations: uniq(r.operations).filter((op): op is OperationCode => enabledSet.has(op)),
+      minLevel: clamp(r.minLevel, 1, maxNumber),
+      propagate: !!r.propagate,
+      enabled: !!r.enabled,
+    }))
+    .filter((r) => r.operations.length > 0);
 
   return prisma.$transaction(async (tx) => {
     const policy = await tx.classroomProgressionPolicy.upsert({
@@ -104,9 +113,7 @@ export async function updateClassroomPolicy(params: {
       select: { id: true },
     });
 
-    await tx.modifierRule.deleteMany({
-      where: { policyId: policy.id },
-    });
+    await tx.modifierRule.deleteMany({ where: { policyId: policy.id } });
 
     if (modifierRules.length > 0) {
       await tx.modifierRule.createMany({

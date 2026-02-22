@@ -1,0 +1,147 @@
+app/student/dashboard/page.tsx(19,10): error TS2305: Module '"@/utils"' has no exported member 'statusFor'.
+app/student/practice/page.tsx(21,15): error TS2305: Module '"@/types"' has no exported member 'MeDTO'.
+app/student/practice/session/page.tsx(19,3): error TS2305: Module '"@/modules"' has no exported member 'makePracticeQuestions'.
+app/student/practice/session/page.tsx(20,3): error TS2305: Module '"@/modules"' has no exported member 'gradePractice'.
+app/student/practice/session/page.tsx(24,26): error TS2305: Module '"@/utils"' has no exported member 'PracticeQuestion'.
+app/student/practice/session/page.tsx(123,44): error TS7006: Parameter 'i' implicitly has an 'any' type.
+app/student/practice/session/page.tsx(156,39): error TS7006: Parameter 'it' implicitly has an 'any' type.
+app/student/profile/page.tsx(17,10): error TS2305: Module '"@/types"' has no exported member 'isMeDTO'.
+app/student/profile/page.tsx(17,19): error TS2305: Module '"@/types"' has no exported member 'MeDTO'.
+app/teacher/(app)/classrooms/[id]/print-cards/PrintCardsClient.tsx(5,30): error TS2307: Cannot find module '@/types/classroom' or its corresponding type declarations.
+app/teacher/(app)/classrooms/[id]/progress/_components/ClassroomProgressSection.tsx(2,45): error TS2307: Cannot find module '@/core/teacher/Progress' or its corresponding type declarations.
+app/teacher/(app)/classrooms/[id]/progression/page.tsx(51,54): error TS2322: Type '{ modifierRules: { operations: Operation[]; id: number; modifier: Modifier; minLevel: number; propagate: boolean; enabled: boolean; }[]; } & { id: number; createdAt: Date; ... 4 more ...; maxNumber: number; }' is not assignable to type 'ProgressionPolicyDTO'.
+  Type '{ modifierRules: { operations: Operation[]; id: number; modifier: Modifier; minLevel: number; propagate: boolean; enabled: boolean; }[]; } & { id: number; createdAt: Date; ... 4 more ...; maxNumber: number; }' is not assignable to type '{ classroomId: number; createdAt: string; updatedAt: string; }'.
+    Types of property 'createdAt' are incompatible.
+      Type 'Date' is not assignable to type 'string'.
+app/teacher/(app)/classrooms/[id]/students/[studentId]/progress/page.tsx(8,43): error TS2307: Cannot find module '@/core/teacher/Progress/studentService' or its corresponding type declarations.
+app/teacher/(app)/profile/page.tsx(15,15): error TS2305: Module '"@/types"' has no exported member 'MeDTO'.
+app/teacher/(app)/settings/page.tsx(15,15): error TS2305: Module '"@/types"' has no exported member 'MeDTO'.
+components/Pill.tsx(1,22): error TS2307: Cannot find module '../types/tone' or its corresponding type declarations.
+components/Status-Dot.tsx(1,22): error TS2307: Cannot find module '../types/tone' or its corresponding type declarations.
+components/tones.ts(1,27): error TS2307: Cannot find module '../types/tone' or its corresponding type declarations.
+modules/billing/BillingCard.tsx(13,31): error TS2724: '"@/types"' has no exported member named 'SubscriptionSummary'. Did you mean 'SubscriptionSummaryDTO'?
+modules/student/assignments/StudentAssignmentClient.tsx(9,15): error TS2305: Module '"@/types"' has no exported member 'LoadResponse'.
+modules/student/assignments/StudentAssignmentClient.tsx(9,29): error TS2305: Module '"@/types"' has no exported member 'AssignmentPayload'.
+modules/student/assignments/StudentAssignmentClient.tsx(111,31): error TS7006: Parameter 'q' implicitly has an 'any' type.
+modules/student/assignments/StudentAssignmentClient.tsx(315,6): error TS7006: Parameter 'q' implicitly has an 'any' type.
+modules/student/assignments/StudentAssignmentClient.tsx(324,31): error TS7006: Parameter 'q' implicitly has an 'any' type.
+modules/student/assignments/StudentAssignmentClient.tsx(324,34): error TS7006: Parameter 'i' implicitly has an 'any' type.
+modules/student/assignments/StudentAssignmentClient.tsx(363,35): error TS7006: Parameter 'q' implicitly has an 'any' type.
+modules/student/assignments/StudentAssignmentClient.tsx(363,38): error TS7006: Parameter 'i' implicitly has an 'any' type.
+modules/student/dashboard/hooks/useStudentDashboard.ts(4,15): error TS2305: Module '"@/types"' has no exported member 'AssignmentStatus'.
+modules/student/dashboard/hooks/useStudentDashboard.ts(4,33): error TS2724: '"@/types"' has no exported member named 'AttemptRow'. Did you mean 'AttemptRowDTO'?
+modules/student/dashboard/hooks/useStudentDashboard.ts(4,45): error TS2305: Module '"@/types"' has no exported member 'MeDTO'.
+modules/student/dashboard/hooks/useStudentDashboard.ts(4,52): error TS2305: Module '"@/types"' has no exported member 'NextAssignmentDTO'.
+modules/student/dashboard/hooks/useStudentDashboard.ts(5,10): error TS2305: Module '"@/utils"' has no exported member 'isAttemptRow'.
+modules/student/dashboard/hooks/useStudentDashboard.ts(5,24): error TS2305: Module '"@/utils"' has no exported member 'isMeDTO'.
+modules/student/dashboard/hooks/useStudentDashboard.ts(5,33): error TS2724: '"@/utils"' has no exported member named 'isNextAssignment'. Did you mean 'getAssignment'?
+modules/student/test/index.ts(3,15): error TS2307: Cannot find module '../../../utils/practice-utils' or its corresponding type declarations.
+modules/teacher/assignments/_components/AssignmentsTable.tsx(4,10): error TS2724: '"@/types"' has no exported member named 'TeacherAssignmentListItem'. Did you mean 'TeacherAssignmentListItemDTO'?
+modules/teacher/assignments/_components/AssignmentsTableCard.tsx(5,39): error TS2724: '"@/types"' has no exported member named 'TeacherAssignmentListItem'. Did you mean 'TeacherAssignmentListItemDTO'?
+modules/teacher/assignments/_components/RecentAssignmentsCards.tsx(4,15): error TS2724: '"@/types"' has no exported member named 'TeacherAssignmentListItem'. Did you mean 'TeacherAssignmentListItemDTO'?
+modules/teacher/assignments/_components/RecentAssignmentsSection.tsx(5,15): error TS2724: '"@/types"' has no exported member named 'TeacherAssignmentListItem'. Did you mean 'TeacherAssignmentListItemDTO'?
+modules/teacher/assignments/detail/_components/AssignmentResultsCard.tsx(5,41): error TS2724: '"@/types"' has no exported member named 'AttemptResultsRow'. Did you mean 'AttemptResultsRowDTO'?
+modules/teacher/assignments/detail/_components/AssignmentSummaryCard.tsx(49,29): error TS2339: Property 'kind' does not exist on type '{ assignmentId: number; type: "TEST" | "PRACTICE" | "REMEDIATION" | "PLACEMENT"; mode: "SCHEDULED" | "MAKEUP" | "MANUAL"; targetKind: "ASSESSMENT" | "PRACTICE_TIME"; operation: "ADD" | ... 3 more ... | null; ... 4 more ...; durationMinutes: number | null; }'.
+modules/teacher/assignments/detail/AssignmentDetailClient.tsx(6,3): error TS2724: '"@/types"' has no exported member named 'AttemptResultsRow'. Did you mean 'AttemptResultsRowDTO'?
+modules/teacher/assignments/detail/AssignmentDetailClient.tsx(7,3): error TS2724: '"@/types"' has no exported member named 'TeacherAssignmentAttemptRow'. Did you mean 'TeacherAssignmentAttemptRowDTO'?
+modules/teacher/assignments/detail/hooks/useAssignMissing.ts(4,15): error TS2724: '"@/types"' has no exported member named 'AssignModalStudentRow'. Did you mean 'AssignModalStudentRowDTO'?
+modules/teacher/assignments/detail/hooks/useAssignMissing.ts(4,38): error TS2724: '"@/types"' has no exported member named 'TeacherAssignmentAttemptRow'. Did you mean 'TeacherAssignmentAttemptRowDTO'?
+modules/teacher/assignments/detail/hooks/useAttemptDetail.ts(4,39): error TS2724: '"@/types"' has no exported member named 'TeacherAssignmentAttemptRow'. Did you mean 'TeacherAssignmentAttemptRowDTO'?
+modules/teacher/assignments/hooks/useAssignments.ts(6,3): error TS2724: '"@/types"' has no exported member named 'TeacherAssignmentListItem'. Did you mean 'TeacherAssignmentListItemDTO'?
+modules/teacher/assignments/hooks/useAssignTest.ts(4,15): error TS2305: Module '"@/types"' has no exported member 'AssignModalLastMeta'.
+modules/teacher/assignments/hooks/useAssignTest.ts(4,36): error TS2724: '"@/types"' has no exported member named 'AssignModalStudentRow'. Did you mean 'AssignModalStudentRowDTO'?
+modules/teacher/calendar/_components/AssignmentDetailsModal.tsx(6,15): error TS2724: '"@/types"' has no exported member named 'CalendarItemRow'. Did you mean 'CalendarItemRowDTO'?
+modules/teacher/calendar/_components/DayTile.tsx(7,15): error TS2724: '"@/types"' has no exported member named 'CalendarItemRow'. Did you mean 'CalendarItemRowDTO'?
+modules/teacher/calendar/_components/MonthGrid.tsx(7,15): error TS2724: '"@/types"' has no exported member named 'CalendarItemRow'. Did you mean 'CalendarItemRowDTO'?
+modules/teacher/calendar/CalendarClient.tsx(6,48): error TS2724: '"@/types"' has no exported member named 'CalendarItemRow'. Did you mean 'CalendarItemRowDTO'?
+modules/teacher/calendar/hooks/useCalendar.ts(7,3): error TS2724: '"@/types"' has no exported member named 'CalendarAssignmentDTO'. Did you mean 'CalendarAssignmentRowDTO'?
+modules/teacher/calendar/hooks/useCalendar.ts(8,3): error TS2724: '"@/types"' has no exported member named 'CalendarProjectionRow'. Did you mean 'CalendarProjectionRowDTO'?
+modules/teacher/calendar/hooks/useCalendar.ts(9,3): error TS2724: '"@/types"' has no exported member named 'CalendarItemRow'. Did you mean 'CalendarItemRowDTO'?
+modules/teacher/calendar/hooks/useCalendar.ts(48,20): error TS2345: Argument of type 'string | null | undefined' is not assignable to parameter of type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+modules/teacher/classroom/_components/ClassroomCard.tsx(6,15): error TS2305: Module '"@/data/classrooms.repo"' has no exported member 'TeacherClassroomCardRow'.
+modules/teacher/classroom/_components/ClassroomDialogs.tsx(6,15): error TS2305: Module '"@/data/classrooms.repo"' has no exported member 'TeacherClassroomCardRow'.
+modules/teacher/classroom/_components/ClassroomStatsGrid.tsx(2,15): error TS2724: '"@/data"' has no exported member named 'TeacherClassroomOverviewStats'. Did you mean 'getTeacherClassroomOverviewStats'?
+modules/teacher/classroom/TeacherClassroomsClient.tsx(5,15): error TS2305: Module '"@/data/classrooms.repo"' has no exported member 'TeacherClassroomCardRow'.
+modules/teacher/people/_components/ConfirmModals.tsx(5,15): error TS2724: '"@/types"' has no exported member named 'RosterStudentRow'. Did you mean 'RosterStudentRowDTO'?
+modules/teacher/people/_components/RosterTable.tsx(5,15): error TS2305: Module '"@/types"' has no exported member 'EditingState'.
+modules/teacher/people/_components/RosterTable.tsx(5,29): error TS2724: '"@/types"' has no exported member named 'RosterStudentRow'. Did you mean 'RosterStudentRowDTO'?
+modules/teacher/people/_components/RosterTable.tsx(59,17): error TS7006: Parameter 'prev' implicitly has an 'any' type.
+modules/teacher/people/_components/RosterTableCard.tsx(5,39): error TS2307: Cannot find module '@/utils/student/students' or its corresponding type declarations.
+modules/teacher/people/_components/RosterTableCard.tsx(6,15): error TS2305: Module '"@/types"' has no exported member 'BulkStudentInput'.
+modules/teacher/people/_components/RosterTableCard.tsx(9,15): error TS2305: Module '"@/types"' has no exported member 'EditingState'.
+modules/teacher/people/_components/RosterTableCard.tsx(9,29): error TS2724: '"@/types"' has no exported member named 'RosterStudentRow'. Did you mean 'RosterStudentRowDTO'?
+modules/teacher/people/_components/RosterTableCard.tsx(15,30): error TS2307: Cannot find module '@/types/classroom' or its corresponding type declarations.
+modules/teacher/people/PeopleClient.tsx(9,15): error TS2724: '"@/types"' has no exported member named 'BulkAddResponse'. Did you mean 'BulkAddResponseDTO'?
+modules/teacher/people/PeopleClient.tsx(9,32): error TS2724: '"@/types"' has no exported member named 'RosterStudentRow'. Did you mean 'RosterStudentRowDTO'?
+modules/teacher/people/PeopleClient.tsx(9,50): error TS2305: Module '"@/types"' has no exported member 'BulkStudentInput'.
+modules/teacher/people/PeopleClient.tsx(10,30): error TS2307: Cannot find module '@/types/classroom' or its corresponding type declarations.
+modules/teacher/progress/_components/MissedFactDetailModal.tsx(5,15): error TS2305: Module '"@/types"' has no exported member 'FactDetailDTO'.
+modules/teacher/progress/_components/MissedFactDetailModal.tsx(5,30): error TS2305: Module '"@/types"' has no exported member 'MissedFact'.
+modules/teacher/progress/_components/MissedFactsTableModal.tsx(5,15): error TS2305: Module '"@/types"' has no exported member 'MissedFact'.
+modules/teacher/progress/_components/MostMissedFactsCard.tsx(13,15): error TS2305: Module '"@/types"' has no exported member 'MissedFact'.
+modules/teacher/progress/_components/StudentsTableCard.tsx(17,15): error TS2305: Module '"@/types"' has no exported member 'FilterKey'.
+modules/teacher/progress/_components/StudentsTableCard.tsx(17,26): error TS2305: Module '"@/types"' has no exported member 'StudentRow'.
+modules/teacher/progress/ClassroomProgressClient.tsx(8,15): error TS2305: Module '"@/types"' has no exported member 'ClassroomProgressDTO'.
+modules/teacher/progress/hooks/useClassroomProgress.ts(5,15): error TS2305: Module '"@/types"' has no exported member 'ClassroomProgressDTO'.
+modules/teacher/progress/hooks/useClassroomProgress.ts(5,37): error TS2305: Module '"@/types"' has no exported member 'FactDetailDTO'.
+modules/teacher/progress/hooks/useClassroomProgress.ts(5,52): error TS2305: Module '"@/types"' has no exported member 'FilterKey'.
+modules/teacher/progress/hooks/useClassroomProgress.ts(5,63): error TS2305: Module '"@/types"' has no exported member 'MissedFact'.
+modules/teacher/progress/hooks/useClassroomProgress.ts(120,44): error TS7006: Parameter 'm' implicitly has an 'any' type.
+modules/teacher/progress/hooks/useClassroomProgress.ts(123,44): error TS7006: Parameter 'm' implicitly has an 'any' type.
+modules/teacher/progress/hooks/useClassroomProgress.ts(123,47): error TS7006: Parameter 'r' implicitly has an 'any' type.
+modules/teacher/progress/hooks/useClassroomProgress.ts(126,42): error TS7006: Parameter 'm' implicitly has an 'any' type.
+modules/teacher/progress/hooks/useClassroomProgress.ts(126,45): error TS7006: Parameter 'r' implicitly has an 'any' type.
+modules/teacher/progress/hooks/useClassroomProgress.ts(129,47): error TS7006: Parameter 'm' implicitly has an 'any' type.
+modules/teacher/progress/hooks/useClassroomProgress.ts(129,50): error TS7006: Parameter 'r' implicitly has an 'any' type.
+modules/teacher/progress/hooks/useClassroomProgress.ts(157,28): error TS7006: Parameter 'acc' implicitly has an 'any' type.
+modules/teacher/progress/hooks/useClassroomProgress.ts(157,33): error TS7006: Parameter 's' implicitly has an 'any' type.
+modules/teacher/progress/hooks/useClassroomProgress.ts(164,29): error TS7006: Parameter 's' implicitly has an 'any' type.
+modules/teacher/progress/hooks/useClassroomProgress.ts(170,29): error TS7006: Parameter 's' implicitly has an 'any' type.
+modules/teacher/progress/hooks/useClassroomProgress.ts(200,45): error TS7006: Parameter 'm' implicitly has an 'any' type.
+modules/teacher/progress/hooks/useClassroomProgress.ts(200,48): error TS7006: Parameter 'r' implicitly has an 'any' type.
+modules/teacher/progression/_components/EnabledOperationsPicker.tsx(5,10): error TS2305: Module '"@/types/api/progression"' has no exported member 'ALL_OPS'.
+modules/teacher/progression/_components/EnabledOperationsPicker.tsx(6,15): error TS2459: Module '"@/types/api/progression"' declares 'OperationCode' locally, but it is not exported.
+modules/teacher/progression/_components/EnabledOperationsPicker.tsx(22,33): error TS7006: Parameter 'x' implicitly has an 'any' type.
+modules/teacher/progression/_components/EnabledOperationsPicker.tsx(31,23): error TS7006: Parameter 'op' implicitly has an 'any' type.
+modules/teacher/progression/_components/ModifierRulesEditor.tsx(6,3): error TS2305: Module '"@/types/api/progression"' has no exported member 'modifierSchema'.
+modules/teacher/progression/_components/ModifierRulesEditor.tsx(7,8): error TS2459: Module '"@/types/api/progression"' declares 'ModifierCode' locally, but it is not exported.
+modules/teacher/progression/_components/ModifierRulesEditor.tsx(8,8): error TS2724: '"@/types/api/progression"' has no exported member named 'ModifierRule'. Did you mean 'ModifierRuleDTO'?
+modules/teacher/progression/_components/ModifierRulesEditor.tsx(9,8): error TS2459: Module '"@/types/api/progression"' declares 'OperationCode' locally, but it is not exported.
+modules/teacher/progression/_components/ModifierRulesEditor.tsx(42,40): error TS7006: Parameter 'op' implicitly has an 'any' type.
+modules/teacher/progression/_components/OperationOrderEditor.tsx(5,15): error TS2459: Module '"@/types/api/progression"' declares 'OperationCode' locally, but it is not exported.
+modules/teacher/progression/actions.ts(1,37): error TS2724: '"@/types/api/progression"' has no exported member named 'ProgressionPolicyInput'. Did you mean 'ProgressionPolicyInputDTO'?
+modules/teacher/progression/ProgressionClient.tsx(6,37): error TS2724: '"@/types/api/progression"' has no exported member named 'ProgressionPolicyInput'. Did you mean 'ProgressionPolicyInputDTO'?
+modules/teacher/progression/ProgressionClient.tsx(15,30): error TS2305: Module '"@/utils"' has no exported member 'isEqual'.
+modules/teacher/progression/ProgressionClient.tsx(15,39): error TS2305: Module '"@/utils"' has no exported member 'normalizePolicyInput'.
+modules/teacher/progression/ProgressionClient.tsx(15,61): error TS2305: Module '"@/utils"' has no exported member 'toInput'.
+modules/teacher/progression/ProgressionClient.tsx(80,55): error TS7006: Parameter 'p' implicitly has an 'any' type.
+modules/teacher/progression/ProgressionClient.tsx(86,54): error TS7006: Parameter 'p' implicitly has an 'any' type.
+modules/teacher/progression/ProgressionClient.tsx(93,51): error TS7006: Parameter 'p' implicitly has an 'any' type.
+modules/teacher/progression/ProgressionClient.tsx(101,50): error TS7006: Parameter 'p' implicitly has an 'any' type.
+modules/teacher/schedules/_components/GateBanner.tsx(5,15): error TS2305: Module '"@/types"' has no exported member 'ScheduleGate'.
+modules/teacher/schedules/_components/ScheduleFormModal.tsx(5,15): error TS2459: Module '"@/core/schedules/service"' declares 'ScheduleDTO' locally, but it is not exported.
+modules/teacher/schedules/_components/SchedulesListCard.tsx(13,28): error TS2305: Module '"@/types"' has no exported member 'ScheduleGate'.
+modules/teacher/schedules/actions.ts(3,3): error TS2305: Module '"@/types"' has no exported member 'CreateScheduleArgs'.
+modules/teacher/schedules/actions.ts(5,3): error TS2305: Module '"@/types"' has no exported member 'UpdateScheduleArgs'.
+modules/teacher/schedules/hooks/useSchedules.ts(4,15): error TS2305: Module '"@/types"' has no exported member 'CreateScheduleArgs'.
+modules/teacher/schedules/hooks/useSchedules.ts(4,48): error TS2305: Module '"@/types"' has no exported member 'UpdateScheduleArgs'.
+modules/teacher/schedules/SchedulesClient.tsx(6,28): error TS2305: Module '"@/types"' has no exported member 'ScheduleGate'.
+modules/teacher/student-progress/_components/AttemptDetailModal.tsx(6,15): error TS2305: Module '"@/types/api/attempts"' has no exported member 'AttemptDetailForModal'.
+modules/teacher/student-progress/_components/AttemptDetailModal.tsx(116,24): error TS7006: Parameter 'it' implicitly has an 'any' type.
+modules/teacher/student-progress/_components/AttemptDetailModal.tsx(117,21): error TS7006: Parameter 'it' implicitly has an 'any' type.
+modules/teacher/student-progress/_components/AttemptExplorer.tsx(19,15): error TS2724: '"@/types/api/attempts"' has no exported member named 'AttemptResultsRow'. Did you mean 'AttemptResultsRowDTO'?
+modules/teacher/student-progress/_components/AttemptExplorer.tsx(19,34): error TS2305: Module '"@/types/api/attempts"' has no exported member 'AttemptExplorerFilter'.
+modules/teacher/student-progress/_components/AttemptResultsTable.tsx(19,3): error TS2724: '"@/types/api/attempts"' has no exported member named 'AttemptResultsFilterOption'. Did you mean 'AttemptResultsRowDTO'?
+modules/teacher/student-progress/_components/AttemptResultsTable.tsx(20,3): error TS2305: Module '"@/types/api/attempts"' has no exported member 'AttemptResultsFilterKey'.
+modules/teacher/student-progress/_components/AttemptResultsTable.tsx(21,3): error TS2724: '"@/types/api/attempts"' has no exported member named 'AttemptResultsRow'. Did you mean 'AttemptResultsRowDTO'?
+modules/teacher/student-progress/_components/MissedFactsCard.tsx(5,33): error TS2307: Cannot find module '@/core/teacher/Progress' or its corresponding type declarations.
+modules/teacher/student-progress/_components/PrintHeader.tsx(4,48): error TS2307: Cannot find module '@/core/teacher/Progress' or its corresponding type declarations.
+modules/teacher/student-progress/_components/SummaryCard.tsx(21,48): error TS2307: Cannot find module '@/core/teacher/Progress' or its corresponding type declarations.
+modules/teacher/student-progress/hooks/useAttemptExplorer.ts(5,3): error TS2724: '"@/types/api/attempts"' has no exported member named 'AttemptDetail'. Did you mean 'AttemptDetailDTO'?
+modules/teacher/student-progress/hooks/useAttemptExplorer.ts(6,3): error TS2305: Module '"@/types/api/attempts"' has no exported member 'AttemptExplorerFilter'.
+modules/teacher/student-progress/hooks/useAttemptExplorer.ts(7,3): error TS2305: Module '"@/types/api/attempts"' has no exported member 'AttemptExplorerMe'.
+modules/teacher/student-progress/hooks/useAttemptExplorer.ts(8,3): error TS2724: '"@/types/api/attempts"' has no exported member named 'AttemptRow'. Did you mean 'AttemptRowDTO'?
+modules/teacher/student-progress/hooks/useAttemptExplorer.ts(10,40): error TS2307: Cannot find module '@/utils/attempts' or its corresponding type declarations.
+modules/teacher/student-progress/hooks/useStudentProgress.ts(4,48): error TS2307: Cannot find module '@/core/teacher/Progress' or its corresponding type declarations.
+modules/teacher/student-progress/StudentProgressClient.tsx(6,60): error TS2307: Cannot find module '@/core/teacher/Progress' or its corresponding type declarations.

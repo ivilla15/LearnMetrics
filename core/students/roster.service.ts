@@ -1,8 +1,7 @@
 import * as StudentsRepo from '@/data/students.repo';
 import { prisma } from '@/data/prisma';
-import type { OperationCode } from '@/types/api/progression';
 import { getPolicyOps } from '@/core/progression/ops.service';
-import { Operation } from '@prisma/client';
+import type { OperationCode } from '@/types/enums';
 
 export async function getClassroomRosterWithLatestAttempt(classroomId: number) {
   const policy = await prisma.classroomProgressionPolicy.findUnique({
@@ -10,13 +9,13 @@ export async function getClassroomRosterWithLatestAttempt(classroomId: number) {
     select: { enabledOperations: true, operationOrder: true },
   });
 
+  const enabledOperations = (policy?.enabledOperations ?? ['MUL']) as OperationCode[];
+  const operationOrder = (policy?.operationOrder ?? ['MUL']) as OperationCode[];
+
   const ops = getPolicyOps({
-    enabledOperations: (policy?.enabledOperations ?? ['MUL']) as unknown as OperationCode[],
-    operationOrder: (policy?.operationOrder ?? ['MUL']) as unknown as OperationCode[],
+    enabledOperations,
+    operationOrder,
   });
 
-  return StudentsRepo.findStudentsWithLatestAttempt(
-    classroomId,
-    ops.primaryOperation as unknown as Operation,
-  );
+  return StudentsRepo.findStudentsWithLatestAttempt(classroomId, ops.primaryOperation);
 }

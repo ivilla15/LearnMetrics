@@ -1,37 +1,17 @@
-import { NextResponse } from 'next/server';
-
 import { prisma } from '@/data/prisma';
-import { requireTeacher } from '@/core';
-import { jsonError, parseId } from '@/utils';
-import { handleApiError } from '@/app';
-import { assertTeacherOwnsClassroom } from '@/core/classrooms';
+import { requireStudent, opSymbol } from '@/core';
+import { handleApiError, StudentAttemptRouteContext } from '@/app';
+import { jsonResponse, errorResponse, parseId, percent } from '@/utils';
+import type { AttemptDetailDTO, OperationCode } from '@/types';
 
-type RouteCtx = { params: Promise<{ id: string; studentId: string; attemptId: string }> };
-
-export async function GET(_req: Request, { params }: RouteCtx) {
+export async function GET(_req: Request, { params }: StudentAttemptRouteContext) {
   try {
-    const auth = await requireTeacher();
-    if (!auth.ok) return jsonError(auth.error, auth.status);
+    const auth = await requireStudent();
+    if (!auth.ok) return errorResponse(auth.error, auth.status);
 
-    const { id, studentId, attemptId: rawAttemptId } = await params;
-
-    const classroomId = parseId(id);
-    if (!classroomId) return jsonError('Invalid classroom id', 400);
-
-    const sid = parseId(studentId);
-    if (!sid) return jsonError('Invalid student id', 400);
-
+    const { attemptId: rawAttemptId } = await params;
     const attemptId = parseId(rawAttemptId);
-    if (!attemptId) return jsonError('Invalid attempt id', 400);
-
-    await assertTeacherOwnsClassroom(auth.teacher.id, classroomId);
-
-    // Ensure student belongs to classroom (and grab level for fallback)
-    const student = await prisma.student.findFirst({
-      where: { id: sid, classroomId },
-      select: { id: true },
-    });
-    if (!student) return jsonError('Student not found', 404);
+    if (!attemptId) return errorResponse('Invalid attempt id', 400);
 
     const attempt = await prisma.attempt.findUnique({
       where: { id: attemptId },
@@ -39,10 +19,14 @@ export async function GET(_req: Request, { params }: RouteCtx) {
         id: true,
         studentId: true,
         assignmentId: true,
+
         score: true,
         total: true,
         completedAt: true,
+
+        operationAtTime: true,
         levelAtTime: true,
+
         Assignment: {
           select: {
             type: true,
@@ -52,63 +36,68 @@ export async function GET(_req: Request, { params }: RouteCtx) {
             windowMinutes: true,
           },
         },
+
         AttemptItem: {
           orderBy: { id: 'asc' },
           select: {
             id: true,
-            questionId: true,
+            operation: true,
+            operandA: true,
+            operandB: true,
+            correctAnswer: true,
             givenAnswer: true,
             isCorrect: true,
-            Question: {
-              select: {
-                factorA: true,
-                factorB: true,
-                answer: true,
-              },
-            },
           },
         },
       },
     });
 
-    if (!attempt) return jsonError('Attempt not found', 404);
+    if (!attempt) return errorResponse('Attempt not found', 404);
+    if (attempt.studentId !== auth.student.id) return errorResponse('Not allowed', 403);
+    if (!attempt.completedAt) return errorResponse('Attempt not completed', 409);
 
-    // Ownership enforcement (teacher scope): attempt must belong to this student
-    if (attempt.studentId !== student.id) return jsonError('Not allowed', 403);
+    // No legacy fallbacks: snapshot must exist.
+    if (!attempt.operationAtTime || attempt.levelAtTime == null) {
+      throw new Error('Attempt snapshot missing operationAtTime/levelAtTime');
+    }
 
-    // Attempts may exist with completedAt null (in-progress); this endpoint expects completed attempts.
-    if (!attempt.completedAt) return jsonError('Attempt not completed', 409);
-
-    const percent = attempt.total > 0 ? Math.round((attempt.score / attempt.total) * 100) : 0;
+    const pct = percent(attempt.score, attempt.total);
     const wasMastery = attempt.total > 0 && attempt.score === attempt.total;
 
-    return NextResponse.json(
-      {
-        attemptId: attempt.id,
-        studentId: attempt.studentId,
-        assignmentId: attempt.assignmentId,
-        completedAt: attempt.completedAt.toISOString(),
-        score: attempt.score,
-        total: attempt.total,
-        percent,
-        wasMastery,
-        assignment: {
-          type: attempt.Assignment.type,
-          mode: attempt.Assignment.mode,
-          opensAt: attempt.Assignment.opensAt.toISOString(),
-          closesAt: attempt.Assignment.closesAt ? attempt.Assignment.closesAt.toISOString() : null,
-          windowMinutes: attempt.Assignment.windowMinutes,
-        },
-        items: attempt.AttemptItem.map((it) => ({
-          id: it.id,
-          prompt: `${it.Question.factorA} × ${it.Question.factorB}`,
-          studentAnswer: it.givenAnswer,
-          correctAnswer: it.Question.answer,
-          isCorrect: it.isCorrect,
-        })),
-      },
-      { status: 200 },
-    );
+    const dto: AttemptDetailDTO = {
+      attemptId: attempt.id,
+      completedAt: attempt.completedAt.toISOString(),
+
+      operation: attempt.operationAtTime as OperationCode,
+      levelAtTime: attempt.levelAtTime,
+
+      score: attempt.score,
+      total: attempt.total,
+      percent: pct,
+      wasMastery,
+
+      assignment: attempt.Assignment
+        ? {
+            type: attempt.Assignment.type,
+            mode: attempt.Assignment.mode,
+            opensAt: attempt.Assignment.opensAt.toISOString(),
+            closesAt: attempt.Assignment.closesAt
+              ? attempt.Assignment.closesAt.toISOString()
+              : null,
+            windowMinutes: attempt.Assignment.windowMinutes ?? null,
+          }
+        : undefined,
+
+      items: attempt.AttemptItem.map((it) => ({
+        id: it.id,
+        prompt: `${it.operandA} ${opSymbol(it.operation as OperationCode)} ${it.operandB}`,
+        studentAnswer: it.givenAnswer,
+        correctAnswer: it.correctAnswer,
+        isCorrect: it.isCorrect,
+      })),
+    };
+
+    return jsonResponse(dto, 200);
   } catch (err: unknown) {
     return handleApiError(err);
   }

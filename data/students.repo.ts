@@ -4,16 +4,7 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 import { prisma } from '@/data/prisma';
 import { generateSetupCode, hashSetupCode } from '@/core';
-
-import type { StudentRosterRow } from '@/types/api/roster';
-import type { AttemptSummary } from '@/types/api/attempts';
-import type { Prisma } from '@prisma/client';
-import type { OperationCode } from '@/types/api/progression';
 import { expiresAtFromNow } from '@/utils';
-
-/* -------------------------------------------------------------------------- */
-/* Basic queries                                                               */
-/* -------------------------------------------------------------------------- */
 
 export async function findStudentById(studentId: number) {
   return prisma.student.findUnique({ where: { id: studentId } });
@@ -32,59 +23,8 @@ export async function findStudentByIdInClassroom(classroomId: number, studentId:
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/* Roster with latest attempt                                                  */
-/* -------------------------------------------------------------------------- */
-
-type LatestAttemptRow = Prisma.AttemptGetPayload<{
-  select: {
-    id: true;
-    assignmentId: true;
-    score: true;
-    total: true;
-    completedAt: true;
-    startedAt: true;
-  };
-}>;
-
-type StudentWithLatestAttemptRow = Prisma.StudentGetPayload<{
-  select: {
-    id: true;
-    name: true;
-    username: true;
-    mustSetPassword: true;
-    progress: { select: { operation: true; level: true } };
-    Attempt: {
-      take: 1;
-      orderBy: [{ completedAt: 'desc' }, { startedAt: 'desc' }];
-      select: {
-        id: true;
-        assignmentId: true;
-        score: true;
-        total: true;
-        completedAt: true;
-        startedAt: true;
-      };
-    };
-  };
-}>;
-
-function toAttemptSummary(a: LatestAttemptRow): AttemptSummary {
-  const ts = a.completedAt ?? a.startedAt;
-  return {
-    id: a.id,
-    assignmentId: a.assignmentId,
-    score: a.score,
-    total: a.total,
-    completedAt: ts.toISOString(),
-  };
-}
-
-export async function findStudentsWithLatestAttempt(
-  classroomId: number,
-  primaryOperation: OperationCode,
-): Promise<StudentRosterRow[]> {
-  const students: StudentWithLatestAttemptRow[] = await prisma.student.findMany({
+export async function findStudentsWithLatestAttempt(classroomId: number, primaryOperation: string) {
+  const students = await prisma.student.findMany({
     where: { classroomId },
     select: {
       id: true,
@@ -112,47 +52,50 @@ export async function findStudentsWithLatestAttempt(
     const row = s.progress.find((p) => p.operation === primaryOperation);
     const level = row?.level ?? 1;
 
+    const latest = s.Attempt[0] ?? null;
+    const ts = latest ? (latest.completedAt ?? latest.startedAt).toISOString() : null;
+
     return {
       id: s.id,
       name: s.name,
       username: s.username,
       mustSetPassword: s.mustSetPassword,
       level,
-      lastAttempt: s.Attempt.length ? toAttemptSummary(s.Attempt[0]) : null,
+      lastAttempt: latest
+        ? {
+            id: latest.id,
+            assignmentId: latest.assignmentId,
+            score: latest.score,
+            total: latest.total,
+            completedAt: ts!,
+          }
+        : null,
     };
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/* Bulk create                                                                 */
-/* -------------------------------------------------------------------------- */
-
-export type CreateStudentData = {
-  firstName: string;
-  lastName: string;
-  username: string;
-};
-
-export type CreatedStudentWithSetupCode = {
-  id: number;
-  name: string;
-  username: string;
-  setupCode: string;
-  setupCodeExpiresAt: Date;
-};
-
 export async function createManyForClassroom(
   classroomId: number,
-  students: CreateStudentData[],
+  students: Array<{ firstName: string; lastName: string; username: string }>,
 ): Promise<{
-  created: CreatedStudentWithSetupCode[];
-  roster: StudentRosterRow[];
+  created: Array<{
+    id: number;
+    name: string;
+    username: string;
+    setupCode: string;
+    setupCodeExpiresAt: Date;
+  }>;
 }> {
-  if (!students.length) {
-    return { created: [], roster: [] };
-  }
+  if (!students.length) return { created: [] };
 
-  const created: CreatedStudentWithSetupCode[] = [];
+  const created: Array<{
+    id: number;
+    name: string;
+    username: string;
+    setupCode: string;
+    setupCodeExpiresAt: Date;
+  }> = [];
+
   const setupExpiresAt = expiresAtFromNow(7);
 
   for (const s of students) {
@@ -192,7 +135,7 @@ export async function createManyForClassroom(
     }
   }
 
-  return { created, roster: [] };
+  return { created };
 }
 
 export async function updateById(id: number, data: { name?: string; username?: string }) {

@@ -1,48 +1,11 @@
-// data/classrooms.repo.ts
 import { prisma } from '@/data/prisma';
-import type { Type, Mode } from '@prisma/client';
-
-export type TeacherClassroomCardRow = {
-  id: number;
-  name: string | null;
-  studentCount: number;
-  scheduleCount: number;
-  assignmentCount: number;
-};
-
-export type TeacherClassroomOverviewStats = {
-  classroom: { id: number; name: string; timeZone?: string };
-
-  // Students
-  totalStudents: number;
-  activeStudents: number; // mustSetPassword = false
-  needsSetup: number; // mustSetPassword = true
-
-  // Schedules
-  activeSchedules: number;
-
-  // Assignments
-  nextTest: null | {
-    id: number;
-    opensAt: string;
-    closesAt: string | null;
-    mode: Mode;
-    type: Type;
-  };
-
-  // Attempts
-  attemptsLast7: number;
-  masteryLast7: number; // score === total
-  masteryRateLast7: number; // 0..100
-};
+import type { AssignmentMode, AssignmentType } from '@/types/enums';
 
 export async function findClassroomById(id: number) {
   return prisma.classroom.findUnique({ where: { id } });
 }
 
-export async function getTeacherClassroomsWithCounts(
-  teacherId: number,
-): Promise<TeacherClassroomCardRow[]> {
+export async function getTeacherClassroomsWithCounts(teacherId: number) {
   const rows = await prisma.classroom.findMany({
     where: { teacherId },
     select: {
@@ -73,15 +36,13 @@ export async function getTeacherClassroomsWithCounts(
  * NOTE: This does NOT do ownership checks. Do that in the service.
  * Returns null if classroom doesn't exist.
  */
-export async function getTeacherClassroomOverviewStats(
-  classroomId: number,
-): Promise<TeacherClassroomOverviewStats | null> {
+export async function getTeacherClassroomOverviewStats(classroomId: number) {
   const now = new Date();
   const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
 
   const classroom = await prisma.classroom.findUnique({
     where: { id: classroomId },
-    select: { id: true, name: true },
+    select: { id: true, name: true, timeZone: true },
   });
 
   if (!classroom) return null;
@@ -101,7 +62,6 @@ export async function getTeacherClassroomOverviewStats(
       }),
     ]);
 
-  // "Current assignment": opensAt <= now AND (closesAt is null OR closesAt >= now)
   const currentAssignment = await prisma.assignment.findFirst({
     where: {
       classroomId,
@@ -130,7 +90,7 @@ export async function getTeacherClassroomOverviewStats(
   const masteryRateLast7 = attemptsLast7 > 0 ? Math.round((masteryLast7 / attemptsLast7) * 100) : 0;
 
   return {
-    classroom: { id: classroom.id, name: classroom.name },
+    classroom: { id: classroom.id, name: classroom.name, timeZone: classroom.timeZone },
 
     totalStudents,
     activeStudents,
@@ -143,8 +103,8 @@ export async function getTeacherClassroomOverviewStats(
           id: picked.id,
           opensAt: picked.opensAt.toISOString(),
           closesAt: picked.closesAt ? picked.closesAt.toISOString() : null,
-          mode: picked.mode,
-          type: picked.type,
+          mode: picked.mode as AssignmentMode,
+          type: picked.type as AssignmentType,
         }
       : null,
 

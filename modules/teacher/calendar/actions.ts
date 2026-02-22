@@ -1,13 +1,13 @@
 'use client';
 
+import { parseNumberOrUndefined, isProjection } from '@/utils';
 import { fromZonedTime } from 'date-fns-tz';
-import type { CalendarItemRow, CalendarAssignmentDTO, CalendarProjectionRow } from '@/types';
-import { isProjection, parseNumberOrUndefined } from '@/utils/calendar';
-import { cancelOccurrenceApi } from '@/app/api/_shared/schedules';
+import { cancelOccurrenceApi } from '../schedules';
+import { CalendarAssignmentRowDTO, CalendarItemRowDTO, CalendarProjectionRowDTO } from '@/types';
 
 export async function saveCalendarItemEdit(params: {
   classroomId: number;
-  item: CalendarItemRow;
+  item: CalendarItemRowDTO;
   tz: string;
 
   editLocalDate: string; // yyyy-MM-dd
@@ -43,7 +43,7 @@ export async function saveCalendarItemEdit(params: {
   let res: Response;
 
   if (isProjection(item)) {
-    const proj = item as CalendarProjectionRow;
+    const proj = item as CalendarProjectionRowDTO;
 
     // When creating from a projection, the schedule generates a TEST by default for now.
     // We send the new "type" and "mode" fields per the updated schema.
@@ -62,7 +62,7 @@ export async function saveCalendarItemEdit(params: {
       body: JSON.stringify(payload),
     });
   } else {
-    const a = item as CalendarAssignmentDTO;
+    const a = item as CalendarAssignmentRowDTO;
 
     res = await fetch(`/api/teacher/classrooms/${classroomId}/assignments/${a.assignmentId}`, {
       method: 'PATCH',
@@ -81,7 +81,7 @@ export async function saveCalendarItemEdit(params: {
 
 export async function cancelCalendarItemOccurrence(params: {
   classroomId: number;
-  item: CalendarItemRow;
+  item: CalendarItemRowDTO;
 }) {
   const { classroomId, item } = params;
 
