@@ -4,6 +4,8 @@ import * as React from 'react';
 import { useToast } from '@/components';
 
 import type { ScheduleDTO, ScheduleGate } from '@/types';
+import type { UpsertScheduleInput } from '@/validation/assignmentSchedules.schema';
+
 import {
   GateBanner,
   SchedulesListCard,
@@ -64,13 +66,7 @@ export function SchedulesClient(props: {
     setDeleteOpen(true);
   }
 
-  async function onSubmit(input: {
-    opensAtLocalTime: string;
-    windowMinutes: number;
-    isActive: boolean;
-    days: string[];
-    numQuestions: number;
-  }) {
+  async function onSubmit(input: UpsertScheduleInput) {
     setBusy(true);
     setFormError(null);
 
@@ -91,7 +87,7 @@ export function SchedulesClient(props: {
 
       setModalOpen(false);
       setEditing(null);
-    } catch (e) {
+    } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Failed to save schedule';
       setFormError(msg);
       toast(msg, 'error');
@@ -107,7 +103,7 @@ export function SchedulesClient(props: {
       toast('Successfully deleted schedule', 'success');
       setDeleteOpen(false);
       setDeleteTarget(null);
-    } catch (e) {
+    } catch (e: unknown) {
       toast(e instanceof Error ? e.message : 'Failed to delete schedule', 'error');
     } finally {
       setDeleteBusy(false);

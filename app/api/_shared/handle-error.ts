@@ -1,4 +1,3 @@
-// app/api/_shared/handle-error.ts
 import { ZodError } from 'zod';
 import type { NextResponse } from 'next/server';
 import { NotFoundError, ConflictError } from '@/core/errors';

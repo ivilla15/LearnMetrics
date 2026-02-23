@@ -9,3 +9,4 @@ export * from './progression';
 export * from './progress';
 export * from './errors';
 export * from './entitlements';
+export * from './practice';

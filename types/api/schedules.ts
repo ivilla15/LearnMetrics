@@ -31,3 +31,9 @@ export type ScheduleDTO = {
 export type ClassroomSchedulesResponse = {
   schedules: ScheduleDTO[];
 };
+
+export type ScheduleGate = {
+  ok: boolean;
+  message: string;
+  upgradeUrl?: string;
+};

@@ -1,31 +1,29 @@
-import type {
-  ClassroomSchedulesResponse,
-  CreateScheduleArgs,
-  ScheduleDTO,
-  UpdateScheduleArgs,
-} from '@/types';
-import { ApiErrorShape, getApiErrorMessage } from '@/utils';
+import type { ClassroomSchedulesResponse, ScheduleDTO } from '@/types';
+import type { UpsertScheduleInput } from '@/validation';
+import { getApiErrorMessage, type ApiErrorShape } from '@/utils';
 
-function isScheduleDTO(value: unknown): value is ScheduleDTO {
-  if (!value || typeof value !== 'object') return false;
-  const v = value as Record<string, unknown>;
-  return typeof v.id === 'number';
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null;
 }
 
-function extractScheduleDTO(json: unknown): ScheduleDTO | null {
+function isScheduleDTO(value: unknown): value is ScheduleDTO {
+  if (!isRecord(value)) return false;
+  return typeof value.id === 'number' && typeof value.classroomId === 'number';
+}
+
+function extractSchedule(json: unknown): ScheduleDTO | null {
   if (isScheduleDTO(json)) return json;
 
-  if (json && typeof json === 'object') {
-    const v = json as Record<string, unknown>;
-    if (isScheduleDTO(v.schedule)) return v.schedule;
-    if (isScheduleDTO(v.data)) return v.data;
+  if (isRecord(json)) {
+    const maybeSchedule = json.schedule;
+    if (isScheduleDTO(maybeSchedule)) return maybeSchedule;
   }
 
   return null;
 }
 
 export async function fetchSchedules(classroomId: number): Promise<ScheduleDTO[]> {
-  const res = await fetch(`/api/classrooms/${classroomId}/schedules`, {
+  const res = await fetch(`/api/teacher/classrooms/${classroomId}/schedules`, {
     cache: 'no-store',
     credentials: 'include',
   });
@@ -39,17 +37,19 @@ export async function fetchSchedules(classroomId: number): Promise<ScheduleDTO[]
     throw new Error(getApiErrorMessage(json, 'Failed to load schedules'));
   }
 
-  return Array.isArray((json as ClassroomSchedulesResponse | null)?.schedules)
-    ? (json as ClassroomSchedulesResponse).schedules
-    : [];
+  const schedules = (json as ClassroomSchedulesResponse | null)?.schedules;
+  return Array.isArray(schedules) ? schedules : [];
 }
 
-export async function createScheduleApi(args: CreateScheduleArgs): Promise<ScheduleDTO> {
-  const res = await fetch(`/api/classrooms/${args.classroomId}/schedules`, {
+export async function createScheduleApi(
+  classroomId: number,
+  input: UpsertScheduleInput,
+): Promise<ScheduleDTO> {
+  const res = await fetch(`/api/teacher/classrooms/${classroomId}/schedules`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(args),
+    body: JSON.stringify(input),
   });
 
   const json = (await res.json().catch(() => null)) as unknown;
@@ -58,9 +58,8 @@ export async function createScheduleApi(args: CreateScheduleArgs): Promise<Sched
     throw new Error(getApiErrorMessage(json as ApiErrorShape | null, 'Failed to create schedule'));
   }
 
-  const dto = extractScheduleDTO(json);
+  const dto = extractSchedule(json);
   if (!dto) {
-    // Server succeeded but didn’t return a schedule payload you can use
     throw new Error('Schedule was created, but response payload was missing.');
   }
 
@@ -69,13 +68,14 @@ export async function createScheduleApi(args: CreateScheduleArgs): Promise<Sched
 
 export async function updateScheduleApi(
   classroomId: number,
-  args: UpdateScheduleArgs,
+  scheduleId: number,
+  input: UpsertScheduleInput,
 ): Promise<ScheduleDTO> {
-  const res = await fetch(`/api/classrooms/${classroomId}/schedules/${args.id}`, {
+  const res = await fetch(`/api/teacher/classrooms/${classroomId}/schedules/${scheduleId}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(args),
+    body: JSON.stringify(input),
   });
 
   const json = (await res.json().catch(() => null)) as unknown;
@@ -84,7 +84,7 @@ export async function updateScheduleApi(
     throw new Error(getApiErrorMessage(json as ApiErrorShape | null, 'Failed to update schedule'));
   }
 
-  const dto = extractScheduleDTO(json);
+  const dto = extractSchedule(json);
   if (!dto) {
     throw new Error('Schedule was updated, but response payload was missing.');
   }
@@ -92,8 +92,8 @@ export async function updateScheduleApi(
   return dto;
 }
 
-export async function deleteScheduleApi(classroomId: number, id: number): Promise<void> {
-  const res = await fetch(`/api/classrooms/${classroomId}/schedules/${id}`, {
+export async function deleteScheduleApi(classroomId: number, scheduleId: number): Promise<void> {
+  const res = await fetch(`/api/teacher/classrooms/${classroomId}/schedules/${scheduleId}`, {
     method: 'DELETE',
     credentials: 'include',
   });

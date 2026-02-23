@@ -1,4 +1,4 @@
-import { Tone } from '../types/tone';
+import { Tone } from '../types/ui/tone';
 
 export function StatusDot({ tone }: { tone: Tone }) {
   const cls =

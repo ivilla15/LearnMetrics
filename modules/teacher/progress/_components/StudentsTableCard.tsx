@@ -14,8 +14,7 @@ import {
 } from '@/components';
 
 import { formatLocal } from '@/lib/date';
-import type { FilterKey, StudentRow } from '@/types';
-import { pctTone } from '@/components/tones';
+import { pctTone } from '@/types';
 
 const FILTERS: Array<[FilterKey, string]> = [
   ['all', 'All'],

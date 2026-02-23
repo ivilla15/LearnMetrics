@@ -6,12 +6,9 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useToast, Card, CardContent, Skeleton, Button, Section } from '@/components';
 import { formatLocal, cn } from '@/lib';
 import { AppPage, QuestionCard, TestSidebar } from '@/modules';
-import type { LoadResponse, AssignmentPayload } from '@/types';
+import { usePracticeProgress } from '@/modules/student/assignments/hooks/usePracticeProgress';
 import { parseAssignmentId } from '@/utils';
-
-function getAssignment(data: LoadResponse | null): AssignmentPayload | null {
-  return data ? data.assignment : null;
-}
+import type { StudentAssignmentLoadResponse } from '@/types';
 
 export default function StudentAssignmentClient({
   assignmentIdParam,
@@ -24,14 +21,21 @@ export default function StudentAssignmentClient({
   const assignmentId = parseAssignmentId(assignmentIdParam);
 
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<LoadResponse | null>(null);
+  const [data, setData] = useState<StudentAssignmentLoadResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [answers, setAnswers] = useState<Record<number, number | ''>>({});
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const autoSubmittedRef = useRef(false);
 
-  const assignment = getAssignment(data);
+  const assignment = data?.assignment ?? null;
+  const isPracticeTime = assignment?.targetKind === 'PRACTICE_TIME';
+
+  const {
+    loading: practiceLoading,
+    progress: practiceProgress,
+    refresh: refreshPracticeProgress,
+  } = usePracticeProgress(isPracticeTime && assignmentId ? assignmentId : null);
   const readyQuestions = data?.status === 'READY' ? data.questions : null;
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -72,7 +76,7 @@ export default function StudentAssignmentClient({
         }
 
         setLoadError(null);
-        setData(json as LoadResponse);
+        setData(json as StudentAssignmentLoadResponse);
       } catch {
         if (!cancelled) toast('Could not load test', 'error');
       } finally {
@@ -304,6 +308,95 @@ export default function StudentAssignmentClient({
               Unexpected state.
             </CardContent>
           </Card>
+        </Section>
+      </AppPage>
+    );
+  }
+
+  if (isPracticeTime) {
+    const requiredMin = practiceProgress ? Math.floor(practiceProgress.requiredSeconds / 60) : null;
+    const completedMin = practiceProgress
+      ? Math.floor(practiceProgress.completedSeconds / 60)
+      : null;
+
+    return (
+      <AppPage title="Practice assignment" subtitle="Complete the required practice time.">
+        <Section>
+          <div className="space-y-4">
+            <Card className="shadow-sm">
+              <CardContent className="py-6 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-[hsl(var(--fg))]">
+                      Practice progress
+                    </div>
+                    <div className="mt-1 text-sm text-[hsl(var(--muted-fg))]">
+                      {practiceLoading
+                        ? 'Loading…'
+                        : practiceProgress && requiredMin !== null && completedMin !== null
+                          ? `${completedMin} / ${requiredMin} minutes`
+                          : '—'}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void refreshPracticeProgress()}
+                      disabled={practiceLoading}
+                    >
+                      Refresh
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        router.push(`/student/practice/session?assignmentId=${assignmentId}`);
+                      }}
+                      disabled={!assignmentId}
+                    >
+                      Start practice
+                    </Button>
+                  </div>
+                </div>
+
+                {practiceProgress ? (
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[hsl(var(--surface-2))]">
+                    <div
+                      className="h-full bg-[hsl(var(--brand))]"
+                      style={{ width: `${practiceProgress.percent}%` }}
+                    />
+                  </div>
+                ) : null}
+
+                <div className="text-xs text-[hsl(var(--muted-fg))]">
+                  This assignment updates based on your practice sessions during the assignment
+                  window.
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardContent className="py-6 space-y-2">
+                <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Opens</div>
+                <div className="text-base font-semibold text-[hsl(var(--fg))]">
+                  {formatLocal(assignment.opensAt)}
+                </div>
+
+                {assignment.closesAt ? (
+                  <>
+                    <div className="pt-3 text-xs font-medium text-[hsl(var(--muted-fg))]">
+                      Closes
+                    </div>
+                    <div className="text-base font-semibold text-[hsl(var(--fg))]">
+                      {formatLocal(assignment.closesAt)}
+                    </div>
+                  </>
+                ) : null}
+              </CardContent>
+            </Card>
+          </div>
         </Section>
       </AppPage>
     );

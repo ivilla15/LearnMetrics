@@ -2,67 +2,106 @@
 
 import * as React from 'react';
 import { Modal, Button, Input, Label, HelpText } from '@/components';
-import type { ScheduleDTO } from '@/core/schedules/service';
+import {
+  WEEKDAYS,
+  type AssignmentTargetKind,
+  type AssignmentType,
+  type ScheduleDTO,
+} from '@/types';
+import type { UpsertScheduleInput } from '@/validation/assignmentSchedules.schema';
 import { formatTimeAmPm } from '@/utils/time';
-
-type Mode = 'create' | 'edit';
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  mode: Mode;
+  mode: 'create' | 'edit';
 
   initial?: ScheduleDTO | null;
 
   busy: boolean;
   error: string | null;
 
-  onSubmit: (input: {
-    opensAtLocalTime: string;
-    windowMinutes: number;
-    isActive: boolean;
-    days: string[];
-    numQuestions: number;
-  }) => void | Promise<void>;
+  onSubmit: (input: UpsertScheduleInput) => void | Promise<void>;
 };
 
-const DAY_OPTIONS: Array<{ key: string; label: string }> = [
-  { key: 'Monday', label: 'Mon' },
-  { key: 'Tuesday', label: 'Tue' },
-  { key: 'Wednesday', label: 'Wed' },
-  { key: 'Thursday', label: 'Thu' },
-  { key: 'Friday', label: 'Fri' },
-  { key: 'Saturday', label: 'Sat' },
-  { key: 'Sunday', label: 'Sun' },
-];
+const WEEKDAY_LABELS: Record<(typeof WEEKDAYS)[number], string> = {
+  Sunday: 'Sun',
+  Monday: 'Mon',
+  Tuesday: 'Tue',
+  Wednesday: 'Wed',
+  Thursday: 'Thu',
+  Friday: 'Fri',
+  Saturday: 'Sat',
+};
+
+const ASSIGNMENT_TYPE_LABELS: Record<AssignmentType, string> = {
+  TEST: 'Test',
+  PRACTICE: 'Practice',
+  REMEDIATION: 'Remediation',
+  PLACEMENT: 'Placement',
+};
 
 export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, onSubmit }: Props) {
+  const [targetKind, setTargetKind] = React.useState<AssignmentTargetKind>('ASSESSMENT');
   const [opensAtLocalTime, setOpensAtLocalTime] = React.useState('08:00');
+  const [isActive, setIsActive] = React.useState(true);
+  const [days, setDays] = React.useState<Array<(typeof WEEKDAYS)[number]>>(['Friday']);
+
   const [windowMinutes, setWindowMinutes] = React.useState(4);
   const [numQuestions, setNumQuestions] = React.useState(12);
-  const [isActive, setIsActive] = React.useState(true);
-  const [days, setDays] = React.useState<string[]>(['Friday']);
+  const [type, setType] = React.useState<AssignmentType>('TEST');
+
+  const [durationMinutes, setDurationMinutes] = React.useState(10);
 
   React.useEffect(() => {
     if (!open) return;
 
     if (mode === 'edit' && initial) {
+      setTargetKind(initial.targetKind);
+
       const t = initial.opensAtLocalTime ?? '08:00';
       setOpensAtLocalTime(t.length >= 5 ? t.slice(0, 5) : '08:00');
-      setWindowMinutes(Number(initial.windowMinutes) || 4);
-      setNumQuestions(Number(initial.numQuestions) || 12);
-      setIsActive(!!initial.isActive);
-      setDays(Array.isArray(initial.days) && initial.days.length > 0 ? initial.days : ['Friday']);
+
+      setIsActive(Boolean(initial.isActive));
+
+      const weekdaySet = new Set<(typeof WEEKDAYS)[number]>(WEEKDAYS);
+
+      const initialDays =
+        Array.isArray(initial.days) && initial.days.length > 0
+          ? initial.days
+          : (['Friday'] as (typeof WEEKDAYS)[number][]);
+
+      setDays(
+        initialDays.filter((d): d is (typeof WEEKDAYS)[number] =>
+          weekdaySet.has(d as (typeof WEEKDAYS)[number]),
+        ),
+      );
+
+      if (initial.targetKind === 'ASSESSMENT') {
+        setWindowMinutes(initial.windowMinutes ?? 4);
+        setNumQuestions(initial.numQuestions ?? 12);
+        setType(initial.type ?? 'TEST');
+        setDurationMinutes(initial.durationMinutes ?? 10);
+      } else {
+        setDurationMinutes(initial.durationMinutes ?? 10);
+        setWindowMinutes(initial.windowMinutes ?? 4);
+        setNumQuestions(initial.numQuestions ?? 12);
+        setType(initial.type ?? 'TEST');
+      }
     } else {
+      setTargetKind('ASSESSMENT');
       setOpensAtLocalTime('08:00');
-      setWindowMinutes(4);
-      setNumQuestions(12);
       setIsActive(true);
       setDays(['Friday']);
+
+      setWindowMinutes(4);
+      setNumQuestions(12);
+      setType('TEST');
+
+      setDurationMinutes(10);
     }
   }, [open, mode, initial]);
-
-  function toggleDay(key: string) {
+  function toggleDay(key: (typeof WEEKDAYS)[number]) {
     setDays((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -72,10 +111,48 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
   }
 
   const title = mode === 'edit' ? 'Edit schedule' : 'Create schedule';
+
   const description =
-    mode === 'edit'
-      ? 'Update when tests open, which days run, and how long students have.'
-      : 'Add a new schedule for automatic tests in this classroom.';
+    targetKind === 'ASSESSMENT'
+      ? mode === 'edit'
+        ? 'Update when assessments open, which days run, and how long students have.'
+        : 'Add a new schedule for automatic assessments in this classroom.'
+      : mode === 'edit'
+        ? 'Update when practice opens, which days run, and how long students practice.'
+        : 'Add a new schedule for timed practice in this classroom.';
+
+  function buildSubmitInput(): UpsertScheduleInput {
+    const safeDays = days.length > 0 ? days : (['Friday'] as const);
+
+    if (targetKind === 'ASSESSMENT') {
+      return {
+        targetKind: 'ASSESSMENT',
+        opensAtLocalTime,
+        windowMinutes,
+        isActive,
+        days: safeDays as unknown as string[],
+        type,
+        numQuestions,
+        operation: initial?.operation ?? null,
+        dependsOnScheduleId: initial?.dependsOnScheduleId ?? null,
+        offsetMinutes: initial?.offsetMinutes ?? 0,
+        recipientRule: initial?.recipientRule ?? 'ALL',
+      };
+    }
+
+    return {
+      targetKind: 'PRACTICE_TIME',
+      opensAtLocalTime,
+      windowMinutes: initial?.windowMinutes ?? 4,
+      isActive,
+      days: safeDays as unknown as string[],
+      durationMinutes,
+      operation: initial?.operation ?? null,
+      dependsOnScheduleId: initial?.dependsOnScheduleId ?? null,
+      offsetMinutes: initial?.offsetMinutes ?? 0,
+      recipientRule: initial?.recipientRule ?? 'ALL',
+    };
+  }
 
   return (
     <Modal
@@ -95,13 +172,7 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
             variant="primary"
             disabled={busy}
             onClick={() => {
-              onSubmit({
-                opensAtLocalTime,
-                windowMinutes,
-                isActive,
-                days,
-                numQuestions,
-              });
+              onSubmit(buildSubmitInput());
             }}
           >
             {busy ? 'Saving…' : mode === 'edit' ? 'Save changes' : 'Create schedule'}
@@ -116,17 +187,57 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
           </div>
         ) : null}
 
+        {/* Kind */}
+        <div className="rounded-[18px] bg-[hsl(var(--surface))] p-4 shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
+          <div className="text-sm font-semibold text-[hsl(var(--fg))]">Schedule type</div>
+
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setTargetKind('ASSESSMENT')}
+              className={[
+                'rounded-[999px] border px-3 py-1.5 text-sm font-medium transition-colors',
+                targetKind === 'ASSESSMENT'
+                  ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
+                  : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
+              ].join(' ')}
+            >
+              Assessment
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setTargetKind('PRACTICE_TIME')}
+              className={[
+                'rounded-[999px] border px-3 py-1.5 text-sm font-medium transition-colors',
+                targetKind === 'PRACTICE_TIME'
+                  ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
+                  : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
+              ].join(' ')}
+            >
+              Practice time
+            </button>
+          </div>
+
+          <div className="mt-3">
+            <HelpText>
+              Assessment schedules create graded assignments. Practice-time schedules open a timed
+              practice session.
+            </HelpText>
+          </div>
+        </div>
+
         {/* Days */}
         <div className="rounded-[18px] bg-[hsl(var(--surface))] p-4 shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
           <div className="text-sm font-semibold text-[hsl(var(--fg))]">Days</div>
           <div className="mt-2 flex flex-wrap gap-2">
-            {DAY_OPTIONS.map((d) => {
-              const active = days.includes(d.key);
+            {WEEKDAYS.map((d) => {
+              const active = days.includes(d);
               return (
                 <button
-                  key={d.key}
+                  key={d}
                   type="button"
-                  onClick={() => toggleDay(d.key)}
+                  onClick={() => toggleDay(d)}
                   className={[
                     'rounded-[999px] border px-3 py-1.5 text-sm font-medium transition-colors',
                     active
@@ -134,7 +245,7 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
                       : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
                   ].join(' ')}
                 >
-                  {d.label}
+                  {WEEKDAY_LABELS[d]}
                 </button>
               );
             })}
@@ -169,27 +280,59 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
               />
             </div>
 
-            <div className="grid gap-1">
-              <Label htmlFor="windowMinutes">Time limit (minutes)</Label>
-              <Input
-                id="windowMinutes"
-                inputMode="numeric"
-                value={String(windowMinutes)}
-                onChange={(e) => setWindowMinutes(Number(e.target.value) || 0)}
-              />
-            </div>
+            {targetKind === 'ASSESSMENT' ? (
+              <div className="grid gap-1">
+                <Label htmlFor="windowMinutes">Time limit (minutes)</Label>
+                <Input
+                  id="windowMinutes"
+                  inputMode="numeric"
+                  value={String(windowMinutes)}
+                  onChange={(e) => setWindowMinutes(Number(e.target.value) || 0)}
+                />
+              </div>
+            ) : (
+              <div className="grid gap-1">
+                <Label htmlFor="durationMinutes">Practice duration (minutes)</Label>
+                <Input
+                  id="durationMinutes"
+                  inputMode="numeric"
+                  value={String(durationMinutes)}
+                  onChange={(e) => setDurationMinutes(Number(e.target.value) || 0)}
+                />
+              </div>
+            )}
 
-            <div className="grid gap-1">
-              <Label htmlFor="numQuestions">Questions</Label>
-              <Input
-                id="numQuestions"
-                inputMode="numeric"
-                value={String(numQuestions)}
-                onChange={(e) => setNumQuestions(Number(e.target.value) || 0)}
-              />
-            </div>
+            {targetKind === 'ASSESSMENT' ? (
+              <div className="grid gap-1">
+                <Label htmlFor="assignmentType">Assignment type</Label>
+                <select
+                  id="assignmentType"
+                  value={type}
+                  onChange={(e) => setType(e.target.value as AssignmentType)}
+                  className="h-10 rounded-[10px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-3 text-sm text-[hsl(var(--fg))]"
+                >
+                  {(['TEST', 'PRACTICE', 'REMEDIATION', 'PLACEMENT'] as const).map((t) => (
+                    <option key={t} value={t}>
+                      {ASSIGNMENT_TYPE_LABELS[t]}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : null}
 
-            <div className="grid gap-1">
+            {targetKind === 'ASSESSMENT' ? (
+              <div className="grid gap-1">
+                <Label htmlFor="numQuestions">Questions</Label>
+                <Input
+                  id="numQuestions"
+                  inputMode="numeric"
+                  value={String(numQuestions)}
+                  onChange={(e) => setNumQuestions(Number(e.target.value) || 0)}
+                />
+              </div>
+            ) : null}
+
+            <div className="grid gap-1 sm:col-span-2">
               <Label>Active</Label>
               <div className="flex items-center gap-2">
                 <input
@@ -200,6 +343,15 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
                 <span className="text-sm text-[hsl(var(--fg))]">Schedule is active</span>
               </div>
             </div>
+
+            {targetKind === 'PRACTICE_TIME' ? (
+              <div className="sm:col-span-2">
+                <HelpText>
+                  Practice-time schedules do not create graded attempts. They open a timed practice
+                  session for students.
+                </HelpText>
+              </div>
+            ) : null}
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
-import type { Tone } from '../types/tone';
+export const TONES = ['primary', 'success', 'warning', 'danger', 'muted'] as const;
+export type Tone = (typeof TONES)[number];
 
 export function pctTone(p: number | null): Tone {
   if (p === null || !Number.isFinite(p)) return 'muted';

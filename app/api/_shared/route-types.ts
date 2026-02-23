@@ -1,5 +1,3 @@
-// src/app/api/_shared/route-types.ts
-
 type ParamsRecord = Record<string, string>;
 
 export type RouteContext<TParams extends ParamsRecord = ParamsRecord> = {

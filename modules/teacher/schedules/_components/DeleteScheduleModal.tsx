@@ -16,12 +16,20 @@ export function DeleteScheduleModal(props: {
   return (
     <Modal
       open={open}
-      onClose={onClose}
+      onClose={() => {
+        if (!busy) onClose();
+      }}
       title="Delete schedule?"
       description="This will permanently delete the schedule. This cannot be undone."
       footer={
         <div className="flex justify-end gap-2">
-          <Button variant="secondary" onClick={onClose} disabled={busy}>
+          <Button
+            variant="secondary"
+            onClick={() => {
+              if (!busy) onClose();
+            }}
+            disabled={busy}
+          >
             Cancel
           </Button>
           <Button

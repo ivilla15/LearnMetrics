@@ -90,3 +90,15 @@ export async function deleteAssignmentsByClassroomId(classroomId: number) {
     where: { classroomId },
   });
 }
+
+export async function isStudentRecipientForAssignment(params: {
+  assignmentId: number;
+  studentId: number;
+}): Promise<boolean> {
+  const row = await prisma.assignmentRecipient.findUnique({
+    where: { assignmentId_studentId: params },
+    select: { assignmentId: true },
+  });
+
+  return !!row;
+}

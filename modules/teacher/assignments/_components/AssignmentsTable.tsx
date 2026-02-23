@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { Button, Badge } from '@/components';
 import { formatLocal } from '@/lib';
-import { TeacherAssignmentListItem } from '@/types';
-import { pctTone } from '@/components/tones';
+import { pctTone } from '@/types';
 
 function statusTone(status: 'FINISHED' | 'OPEN' | 'UPCOMING') {
   switch (status) {
@@ -84,16 +83,18 @@ export function AssignmentsTable({
                     {a.closesAt ? formatLocal(a.closesAt) : '—'}
                   </td>
 
-                  <td className="py-3 px-3 text-center">{assigned === 0 ? '—' : String(assigned)}</td>
+                  <td className="py-3 px-3 text-center">
+                    {assigned === 0 ? '—' : String(assigned)}
+                  </td>
 
                   <td className="py-3 px-3 text-center">
-                    {a.status === 'UPCOMING' ? (
-                      // For upcoming show assigned only
-                      assigned === 0 ? '—' : String(assigned)
-                    ) : (
-                      // For open/finished show attempted/assigned
-                      `${attempted}/${assigned}`
-                    )}
+                    {a.status === 'UPCOMING'
+                      ? // For upcoming show assigned only
+                        assigned === 0
+                        ? '—'
+                        : String(assigned)
+                      : // For open/finished show attempted/assigned
+                        `${attempted}/${assigned}`}
                   </td>
 
                   <td className="py-3 px-3 text-center">
@@ -116,7 +117,11 @@ export function AssignmentsTable({
                     <Button variant="secondary" size="sm" onClick={() => onOpen(a.assignmentId)}>
                       View
                     </Button>
-                    <Button variant="destructive" size="sm" onClick={() => onDelete(a.assignmentId)}>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => onDelete(a.assignmentId)}
+                    >
                       Delete
                     </Button>
                   </td>

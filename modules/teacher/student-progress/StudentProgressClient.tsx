@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 
-import type { TeacherStudentProgressDTO, MissedFact } from '@/core/teacher/Progress';
+import type { TeacherStudentProgressDTO, MissedFact } from '@/core';
 import { SummaryCard, MissedFactsCard, PrintHeader, AttemptExplorer } from './_components';
 import { useStudentProgress } from './hooks';
 

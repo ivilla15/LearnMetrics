@@ -18,20 +18,32 @@ import {
   Section,
 } from '@/components';
 
-import type { MeDTO } from '@/types';
+import type { StudentMeDTO, MinutesOption } from '@/types';
 import { parseIntSafe, clamp } from '@/utils';
+import { OPERATION_CODES, type OperationCode } from '@/types/enums';
 
-type MinutesOption = 'OFF' | '2' | '4' | '6' | '8';
+type OpCode = OperationCode;
+const OPS = OPERATION_CODES;
+
+function getLevelForOp(progress: StudentMeDTO['progress'], op: OpCode): number | null {
+  const list = Array.isArray(progress) ? progress : [];
+  const row = list.find((p) => p.operation === op);
+  return typeof row?.level === 'number' ? row.level : null;
+}
 
 export default function StudentPracticeSetupPage() {
   const router = useRouter();
 
-  const [me, setMe] = useState<MeDTO | null>(null);
+  const [me, setMe] = useState<StudentMeDTO | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [levelText, setLevelText] = useState('3');
   const [countText, setCountText] = useState('30');
   const [minutes, setMinutes] = useState<MinutesOption>('4');
+
+  const [selectedOps, setSelectedOps] = useState<OpCode[]>(['MUL']);
+  const [fractions, setFractions] = useState(false);
+  const [decimals, setDecimals] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,13 +62,17 @@ export default function StudentPracticeSetupPage() {
         return;
       }
 
-      const student = (json?.student ?? json) as MeDTO;
+      const student = (json?.student ?? json) as StudentMeDTO;
       setMe(student);
 
-      const defaultLevel = clamp(student.level ?? 3, 1, 12);
+      const defaultLevel = clamp(getLevelForOp(student.progress, 'MUL') ?? 3, 1, 12);
       setLevelText(String(defaultLevel));
       setCountText('30');
       setMinutes('4');
+
+      setSelectedOps(['MUL']);
+      setFractions(false);
+      setDecimals(false);
 
       setLoading(false);
     }
@@ -68,25 +84,47 @@ export default function StudentPracticeSetupPage() {
     };
   }, []);
 
+  const toggleOp = (op: OpCode) => {
+    setSelectedOps((prev) => {
+      const next = new Set(prev);
+      if (next.has(op)) next.delete(op);
+      else next.add(op);
+      return Array.from(next) as OpCode[];
+    });
+  };
+
+  const selectAllOps = () => {
+    setSelectedOps(Array.from(OPS) as OpCode[]);
+  };
+
+  const clearOps = () => {
+    setSelectedOps([]);
+  };
+
   const summary = useMemo(() => {
     const lvlRaw = parseIntSafe(levelText);
     const cntRaw = parseIntSafe(countText);
 
-    const lvl = clamp(lvlRaw ?? me?.level ?? 3, 1, 12);
+    const lvl = clamp(lvlRaw ?? (me ? getLevelForOp(me.progress, 'MUL') : null) ?? 3, 1, 12);
     const c = clamp(cntRaw ?? 30, 6, 40);
     const m = minutes === 'OFF' ? 0 : Number(minutes);
 
-    return { lvl, c, m };
-  }, [levelText, countText, minutes, me?.level]);
+    const ops = selectedOps.length > 0 ? selectedOps : (['MUL'] as OpCode[]);
+
+    return { lvl, c, m, ops, fractions, decimals };
+  }, [levelText, countText, minutes, me, selectedOps, fractions, decimals]);
 
   const qsString = useMemo(() => {
-    const qs = new URLSearchParams({
+    const params = new URLSearchParams({
       level: String(summary.lvl),
       count: String(summary.c),
       minutes: String(summary.m),
+      ops: summary.ops.join(','),
+      fractions: summary.fractions ? '1' : '0',
+      decimals: summary.decimals ? '1' : '0',
     });
-    return qs.toString();
-  }, [summary.lvl, summary.c, summary.m]);
+    return params.toString();
+  }, [summary.lvl, summary.c, summary.m, summary.ops, summary.fractions, summary.decimals]);
 
   const canStart = !loading && !!me;
 
@@ -133,10 +171,16 @@ export default function StudentPracticeSetupPage() {
                       }}
                       onBlur={() => {
                         const n = parseIntSafe(levelText);
-                        setLevelText(String(clamp(n ?? me.level ?? 3, 1, 12)));
+                        setLevelText(
+                          String(
+                            clamp(n ?? (me ? getLevelForOp(me.progress, 'MUL') : null) ?? 3, 1, 12),
+                          ),
+                        );
                       }}
                     />
-                    <HelpText>Default is your current level: {me.level}.</HelpText>
+                    <HelpText>
+                      Default is your current level: {getLevelForOp(me.progress, 'MUL') ?? 3}.
+                    </HelpText>
                   </div>
 
                   <div className="grid gap-2">
@@ -175,6 +219,72 @@ export default function StudentPracticeSetupPage() {
                     <HelpText>Practice can be timed or untimed.</HelpText>
                   </div>
 
+                  <div className="grid gap-2">
+                    <div className="flex items-center justify-between">
+                      <Label>Operations</Label>
+                      <div className="flex gap-2">
+                        <button type="button" onClick={selectAllOps} className="text-xs underline">
+                          All
+                        </button>
+                        <button type="button" onClick={clearOps} className="text-xs underline">
+                          Clear
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2">
+                      {OPS.map((op) => {
+                        const active = selectedOps.includes(op);
+                        return (
+                          <button
+                            key={op}
+                            type="button"
+                            onClick={() => toggleOp(op)}
+                            className={[
+                              'rounded-[999px] border px-3 py-1.5 text-sm font-medium transition-colors',
+                              active
+                                ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
+                                : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
+                            ].join(' ')}
+                          >
+                            {op === 'ADD'
+                              ? 'Add'
+                              : op === 'SUB'
+                                ? 'Sub'
+                                : op === 'MUL'
+                                  ? 'Mul'
+                                  : 'Div'}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    <div className="mt-2 flex gap-4">
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={fractions}
+                          onChange={(e) => setFractions(e.target.checked)}
+                        />
+                        <span className="text-sm">Include fractions</span>
+                      </label>
+
+                      <label className="inline-flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={decimals}
+                          onChange={(e) => setDecimals(e.target.checked)}
+                        />
+                        <span className="text-sm">Include decimals</span>
+                      </label>
+                    </div>
+
+                    <HelpText>
+                      By default practice focuses on multiplication. Choose other operations or
+                      include fractions/decimals for mixed practice.
+                    </HelpText>
+                  </div>
+
                   <Button
                     size="lg"
                     disabled={!canStart}
@@ -208,6 +318,21 @@ export default function StudentPracticeSetupPage() {
                 <div className="text-xs text-[hsl(var(--muted-fg))]">Time</div>
                 <div className="text-lg font-semibold text-[hsl(var(--fg))]">
                   {summary.m === 0 ? 'Off' : `${summary.m} minutes`}
+                </div>
+              </div>
+
+              <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4">
+                <div className="text-xs text-[hsl(var(--muted-fg))]">Operations</div>
+                <div className="text-lg font-semibold text-[hsl(var(--fg))]">
+                  {summary.ops.join(', ')}
+                </div>
+              </div>
+
+              <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4">
+                <div className="text-xs text-[hsl(var(--muted-fg))]">Extras</div>
+                <div className="text-lg font-semibold text-[hsl(var(--fg))]">
+                  {summary.fractions ? 'Fractions' : 'No fractions'} ·{' '}
+                  {summary.decimals ? 'Decimals' : 'No decimals'}
                 </div>
               </div>
 

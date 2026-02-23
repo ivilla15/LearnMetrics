@@ -1,4 +1,9 @@
-import type { AssignmentMode, AssignmentType, OperationCode } from '@/types/enums';
+import type {
+  AssignmentMode,
+  AssignmentTargetKind,
+  AssignmentType,
+  OperationCode,
+} from '@/types/enums';
 
 export type StudentMeDTO = {
   id: number;
@@ -31,11 +36,16 @@ export type StudentQuestionDTO = {
 
 export type StudentAssignmentDTO = {
   id: number;
+
   type: AssignmentType;
   mode: AssignmentMode;
+  targetKind: AssignmentTargetKind;
+
   opensAt: string;
   closesAt: string | null;
+
   windowMinutes: number | null;
+
   numQuestions: number;
 };
 
@@ -48,6 +58,7 @@ export type AlreadySubmittedResultDTO = {
 
 export type StudentAssignmentLoadResponse =
   | { status: 'NOT_OPEN' | 'CLOSED'; assignment: StudentAssignmentDTO }
+  | { status: 'READY_PRACTICE_TIME'; assignment: StudentAssignmentDTO }
   | {
       status: 'ALREADY_SUBMITTED';
       assignment: StudentAssignmentDTO;
@@ -55,12 +66,14 @@ export type StudentAssignmentLoadResponse =
     }
   | {
       status: 'READY';
-      student: {
-        id: number;
-        name: string;
-        operation: OperationCode;
-        level: number;
-      };
+      student: { id: number; name: string; operation: OperationCode; level: number };
       assignment: StudentAssignmentDTO;
       questions: StudentQuestionDTO[];
     };
+
+export type PracticeProgressDTO = {
+  assignmentId: number;
+  requiredSeconds: number;
+  completedSeconds: number;
+  percent: number;
+};

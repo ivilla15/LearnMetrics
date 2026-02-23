@@ -16,7 +16,6 @@ import {
 
 import { AppShell, studentNavItems, useStudentDashboard } from '@/modules';
 import { formatLocal } from '@/lib';
-import { statusFor } from '@/utils';
 
 function DashboardSkeleton() {
   return (
@@ -85,13 +84,24 @@ export default function StudentDashboardPage() {
 
   const { loading, me, nextAssignment, nextStatus, latestAttempt } = useStudentDashboard();
 
-  const s = statusFor(nextAssignment);
+  const now = Date.now();
+  const opensAtMs = nextAssignment ? new Date(nextAssignment.opensAt).getTime() : NaN;
+  const closesAtMs = nextAssignment?.closesAt ? new Date(nextAssignment.closesAt).getTime() : null;
+
+  const isUpcoming = Number.isFinite(opensAtMs) && opensAtMs > now;
+  const isFinished =
+    closesAtMs !== null &&
+    typeof closesAtMs === 'number' &&
+    Number.isFinite(closesAtMs) &&
+    closesAtMs <= now;
+
+  const canStartNow = !!nextAssignment && !isUpcoming && !isFinished;
 
   const id = nextAssignment?.id;
   const hasNext = typeof id === 'number';
   const alreadySubmitted = nextStatus === 'ALREADY_SUBMITTED';
   const buttonLabel = alreadySubmitted ? 'See results' : 'Start test';
-  const canClick = hasNext && (alreadySubmitted || s.canStart);
+  const canClick = hasNext && (alreadySubmitted || canStartNow);
 
   return (
     <AppShell navItems={studentNavItems} currentPath={pathname}>

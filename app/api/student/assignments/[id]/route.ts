@@ -66,14 +66,23 @@ export async function GET(_req: Request, { params }: RouteContext<AssignmentRout
       select: {
         id: true,
         classroomId: true,
+
         type: true,
         mode: true,
         targetKind: true,
+
         opensAt: true,
         closesAt: true,
+
         windowMinutes: true,
+
+        // ASSESSMENT
         numQuestions: true,
         operation: true,
+
+        // PRACTICE_TIME
+        durationMinutes: true,
+
         recipients: { select: { studentId: true } },
       },
     });
@@ -84,20 +93,50 @@ export async function GET(_req: Request, { params }: RouteContext<AssignmentRout
       return errorResponse('Not allowed', 403);
     }
 
-    if (assignment.targetKind !== 'ASSESSMENT') {
-      return errorResponse('This assignment is practice-time based.', 409);
-    }
-
     const assignmentPayload = {
       id: assignment.id,
       type: assignment.type,
       mode: assignment.mode,
+      targetKind: assignment.targetKind,
+
       opensAt: assignment.opensAt.toISOString(),
       closesAt: assignment.closesAt ? assignment.closesAt.toISOString() : null,
+
       windowMinutes: assignment.windowMinutes,
+
       numQuestions: assignment.numQuestions,
+
+      durationMinutes: assignment.durationMinutes ?? null,
+      operation: assignment.operation ?? null,
     };
 
+    const now = new Date();
+    const status = getAssignmentStatus({
+      opensAt: assignment.opensAt,
+      closesAt: assignment.closesAt,
+      now,
+    });
+
+    if (status === 'NOT_OPEN') {
+      return jsonResponse({ status: 'NOT_OPEN', assignment: assignmentPayload }, 200);
+    }
+
+    if (status === 'CLOSED') {
+      return jsonResponse({ status: 'CLOSED', assignment: assignmentPayload }, 200);
+    }
+
+    // PRACTICE_TIME: no Attempt / questions to load here.
+    if (assignment.targetKind === 'PRACTICE_TIME') {
+      return jsonResponse(
+        {
+          status: 'READY_PRACTICE_TIME',
+          assignment: assignmentPayload,
+        },
+        200,
+      );
+    }
+
+    // ASSESSMENT: if already submitted, return result
     const existingAttempt = await prisma.attempt.findUnique({
       where: { studentId_assignmentId: { studentId: student.id, assignmentId: assignment.id } },
       select: { id: true, score: true, total: true, completedAt: true, startedAt: true },
@@ -118,20 +157,6 @@ export async function GET(_req: Request, { params }: RouteContext<AssignmentRout
         },
         200,
       );
-    }
-
-    const now = new Date();
-    const status = getAssignmentStatus({
-      opensAt: assignment.opensAt,
-      closesAt: assignment.closesAt,
-      now,
-    });
-
-    if (status === 'NOT_OPEN') {
-      return jsonResponse({ status: 'NOT_OPEN', assignment: assignmentPayload }, 200);
-    }
-    if (status === 'CLOSED') {
-      return jsonResponse({ status: 'CLOSED', assignment: assignmentPayload }, 200);
     }
 
     const snapshot = await getProgressionSnapshot(student.classroomId);

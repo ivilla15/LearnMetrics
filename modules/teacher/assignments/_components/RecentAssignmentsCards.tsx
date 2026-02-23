@@ -1,8 +1,7 @@
 import * as React from 'react';
 import { formatLocal } from '@/lib';
 import { Badge, Tile } from '@/components';
-import type { TeacherAssignmentListItem } from '@/types';
-import { pctTone } from '@/components/tones';
+import { pctTone } from '@/types';
 
 function statusTone(status: 'FINISHED' | 'OPEN' | 'UPCOMING') {
   if (status === 'OPEN') return 'warning' as const;

@@ -9,8 +9,8 @@ const ASSIGNMENT_TYPES: readonly AssignmentType[] = [
   'REMEDIATION',
   'PLACEMENT',
 ];
-const ASSIGNMENT_MODES: readonly AssignmentMode[] = ['SCHEDULED', 'MAKEUP', 'MANUAL'];
-const OPS: readonly OperationCode[] = ['ADD', 'SUB', 'MUL', 'DIV'];
+export const ASSIGNMENT_MODES: readonly AssignmentMode[] = ['SCHEDULED', 'MAKEUP', 'MANUAL'];
+export const OPS: readonly OperationCode[] = ['ADD', 'SUB', 'MUL', 'DIV'];
 
 function isString(v: unknown): v is string {
   return typeof v === 'string';
