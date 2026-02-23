@@ -3,8 +3,8 @@
 import * as React from 'react';
 import type {
   AssignmentAttemptsFilter,
-  AttemptResultsRow,
-  TeacherAssignmentAttemptRow,
+  AttemptResultsRowDTO,
+  TeacherAssignmentAttemptRowDTO,
   TeacherAssignmentAttemptsResponse,
 } from '@/types';
 
@@ -29,7 +29,7 @@ export function AssignmentDetailClient(props: {
   const detail = useAttemptDetail({ classroomId });
   const assign = useAssignMissing({ classroomId, attemptRows: a.rows });
 
-  const tableRows: AttemptResultsRow[] = React.useMemo(
+  const tableRows: AttemptResultsRowDTO[] = React.useMemo(
     () =>
       a.rows.map((r) => ({
         studentId: r.studentId,
@@ -47,9 +47,9 @@ export function AssignmentDetailClient(props: {
     [a.rows],
   );
 
-  function handleViewDetails(row: AttemptResultsRow) {
+  function handleViewDetails(row: AttemptResultsRowDTO) {
     if (!row.attemptId) return;
-    const original = (a.rows as TeacherAssignmentAttemptRow[]).find(
+    const original = (a.rows as TeacherAssignmentAttemptRowDTO[]).find(
       (x) => x.attemptId === row.attemptId,
     );
     if (original) void detail.openAttempt(original);
@@ -65,28 +65,31 @@ export function AssignmentDetailClient(props: {
 
       <AssignmentResultsCard
         loading={a.loading}
+        targetKind={a.assignment?.targetKind ?? null}
         filter={a.filter}
         onChangeFilter={(next: AssignmentAttemptsFilter) => void a.reload(next)}
         rows={tableRows}
         onViewDetails={handleViewDetails}
       />
 
-      <AssignMakeupTestModal
-        open={assign.open}
-        onClose={() => assign.setOpen(false)}
-        classroomId={classroomId}
-        students={assign.students}
-        lastTestMeta={{
-          numQuestions: a.assignment?.numQuestions ?? 12,
-          windowMinutes: a.assignment?.windowMinutes ?? 4,
-          questionSetId: null,
-        }}
-        defaultAudience="CUSTOM"
-        defaultSelectedIds={assign.defaultSelectedIds}
-        onCreated={async () => {
-          await a.reload(a.filter);
-        }}
-      />
+      {a.assignment?.targetKind === 'PRACTICE_TIME' ? null : (
+        <AssignMakeupTestModal
+          open={assign.open}
+          onClose={() => assign.setOpen(false)}
+          classroomId={classroomId}
+          students={assign.students}
+          lastTestMeta={{
+            numQuestions: a.assignment?.numQuestions ?? 12,
+            windowMinutes: a.assignment?.windowMinutes ?? 4,
+            questionSetId: null,
+          }}
+          defaultAudience="CUSTOM"
+          defaultSelectedIds={assign.defaultSelectedIds}
+          onCreated={async () => {
+            await a.reload(a.filter);
+          }}
+        />
+      )}
 
       {assign.loading ? (
         <div className="text-xs text-[hsl(var(--muted-fg))]">Loading students…</div>

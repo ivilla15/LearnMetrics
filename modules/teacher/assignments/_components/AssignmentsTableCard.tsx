@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, Button } from '@/components';
-import type { AssignmentStatusFilter, TeacherAssignmentListItem } from '@/types';
+import type { AssignmentStatusFilter, TeacherAssignmentListItemDTO } from '@/types';
 import { AssignmentsTable, AssignmentsToolbar } from '@/modules';
 
 export function AssignmentsTableCard(props: {
@@ -13,7 +13,7 @@ export function AssignmentsTableCard(props: {
   setSearch: (v: string) => void;
   onChangeStatus: (s: AssignmentStatusFilter) => void;
 
-  rows: TeacherAssignmentListItem[];
+  rows: TeacherAssignmentListItemDTO[];
 
   loading: boolean;
   nextCursor: string | null;
@@ -46,12 +46,12 @@ export function AssignmentsTableCard(props: {
           <div>
             <CardTitle>Assignments</CardTitle>
             <CardDescription>
-              Browse assignments in this classroom. Defaults to finished tests.
+              Browse tests and practice-time assignments in this classroom.
             </CardDescription>
           </div>
 
           <Button variant="primary" className="cursor-pointer" onClick={onOpenAssign}>
-            Assign test
+            Assign
           </Button>
         </div>
       </CardHeader>

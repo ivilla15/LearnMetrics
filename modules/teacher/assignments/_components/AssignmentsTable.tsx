@@ -1,19 +1,16 @@
 import * as React from 'react';
-import { Button, Badge } from '@/components';
-import { formatLocal } from '@/lib';
-import { pctTone } from '@/types';
 
-function statusTone(status: 'FINISHED' | 'OPEN' | 'UPCOMING') {
-  switch (status) {
-    case 'FINISHED':
-      return 'muted' as const;
-    case 'OPEN':
-      return 'warning' as const;
-    case 'UPCOMING':
-      return 'success' as const;
-    default:
-      return 'muted' as const;
+import { Badge, Button } from '@/components';
+import { formatLocal } from '@/lib';
+import { pctTone, assignmentStatusTone, type TeacherAssignmentListItemDTO } from '@/types';
+
+function formatTargetLine(
+  a: Pick<TeacherAssignmentListItemDTO, 'targetKind' | 'numQuestions' | 'durationMinutes'>,
+) {
+  if (a.targetKind === 'PRACTICE_TIME') {
+    return a.durationMinutes ? `${a.durationMinutes} min` : 'Practice time';
   }
+  return `${a.numQuestions ?? 12} questions`;
 }
 
 export function AssignmentsTable({
@@ -22,7 +19,7 @@ export function AssignmentsTable({
   onDelete,
 }: {
   classroomId?: number;
-  rows: TeacherAssignmentListItem[];
+  rows: TeacherAssignmentListItemDTO[];
   onOpen: (assignmentId: number) => void;
   onDelete: (assignmentId: number) => void;
 }) {
@@ -54,8 +51,10 @@ export function AssignmentsTable({
             rows.map((a) => {
               const assigned = a.stats?.totalStudents ?? 0;
               const attempted = a.stats?.attemptedCount ?? 0;
-              const mastery = a.stats?.masteryRate ?? null;
-              const avg = a.stats?.avgPercent ?? null;
+
+              const isPracticeTime = a.targetKind === 'PRACTICE_TIME';
+              const mastery = isPracticeTime ? null : (a.stats?.masteryRate ?? null);
+              const avg = isPracticeTime ? null : (a.stats?.avgPercent ?? null);
 
               return (
                 <tr
@@ -67,18 +66,22 @@ export function AssignmentsTable({
                       <div className="flex items-center gap-2">
                         <Badge tone="muted">{a.type}</Badge>
                         <Badge tone="muted">{a.mode}</Badge>
+                        {isPracticeTime ? <Badge tone="muted">Practice time</Badge> : null}
                       </div>
+
                       <div className="text-xs text-[hsl(var(--muted-fg))]">
-                        {a.numQuestions ?? 12} questions
+                        {formatTargetLine(a)}
+                        {a.operation ? ` · ${a.operation}` : null}
                       </div>
                     </div>
                   </td>
 
                   <td className="py-3 px-3">
-                    <Badge tone={statusTone(a.status)}>{a.status}</Badge>
+                    <Badge tone={assignmentStatusTone(a.status)}>{a.status}</Badge>
                   </td>
 
                   <td className="py-3 px-3 whitespace-nowrap">{formatLocal(a.opensAt)}</td>
+
                   <td className="py-3 px-3 whitespace-nowrap">
                     {a.closesAt ? formatLocal(a.closesAt) : '—'}
                   </td>
@@ -88,13 +91,13 @@ export function AssignmentsTable({
                   </td>
 
                   <td className="py-3 px-3 text-center">
-                    {a.status === 'UPCOMING'
-                      ? // For upcoming show assigned only
-                        assigned === 0
-                        ? '—'
-                        : String(assigned)
-                      : // For open/finished show attempted/assigned
-                        `${attempted}/${assigned}`}
+                    {isPracticeTime
+                      ? '—'
+                      : a.status === 'UPCOMING'
+                        ? assigned === 0
+                          ? '—'
+                          : String(assigned)
+                        : `${attempted}/${assigned}`}
                   </td>
 
                   <td className="py-3 px-3 text-center">
@@ -117,6 +120,7 @@ export function AssignmentsTable({
                     <Button variant="secondary" size="sm" onClick={() => onOpen(a.assignmentId)}>
                       View
                     </Button>
+
                     <Button
                       variant="destructive"
                       size="sm"

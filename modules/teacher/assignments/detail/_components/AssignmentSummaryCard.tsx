@@ -16,6 +16,15 @@ import type { TeacherAssignmentAttemptsResponse } from '@/types';
 
 type AssignmentSummary = TeacherAssignmentAttemptsResponse['assignment'];
 
+function formatTargetPill(a: AssignmentSummary | null) {
+  if (!a) return '—';
+  if (a.targetKind === 'PRACTICE_TIME') {
+    const mins = a.durationMinutes ?? 0;
+    return `${mins} min`;
+  }
+  return `${a.numQuestions ?? 12} Q`;
+}
+
 export function AssignmentSummaryCard(props: {
   assignment: AssignmentSummary | null;
   counts: {
@@ -28,6 +37,8 @@ export function AssignmentSummaryCard(props: {
 }) {
   const { assignment, counts, onAssign } = props;
 
+  const isPracticeTime = assignment?.targetKind === 'PRACTICE_TIME';
+
   return (
     <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
       <CardHeader>
@@ -38,7 +49,7 @@ export function AssignmentSummaryCard(props: {
           </div>
 
           <Button variant="primary" onClick={onAssign}>
-            Assign test
+            Assign
           </Button>
         </div>
       </CardHeader>
@@ -46,8 +57,10 @@ export function AssignmentSummaryCard(props: {
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2">
           {Pill(assignment?.mode ?? '—', 'muted')}
-          {Pill(assignment?.kind ?? '—', 'muted')}
-          {Pill(`${assignment?.numQuestions ?? 12} Q`, 'muted')}
+          {Pill(assignment?.type ?? '—', 'muted')}
+          {Pill(assignment?.targetKind ?? '—', 'muted')}
+          {Pill(formatTargetPill(assignment), 'muted')}
+          {assignment?.operation ? Pill(assignment.operation, 'muted') : null}
         </div>
 
         <div className="text-sm text-[hsl(var(--muted-fg))]">
@@ -63,12 +76,20 @@ export function AssignmentSummaryCard(props: {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {Pill(`Attempted: ${counts.attemptedCount}/${counts.totalStudents}`, 'muted')}
-          {Pill(`Mastered: ${counts.masteryCount}`, 'success')}
+          {isPracticeTime
+            ? Pill(`Assigned: ${counts.totalStudents}`, 'muted')
+            : Pill(`Attempted: ${counts.attemptedCount}/${counts.totalStudents}`, 'muted')}
+
+          {!isPracticeTime ? Pill(`Mastered: ${counts.masteryCount}`, 'success') : null}
+
           {Pill(`Missing: ${counts.missingCount}`, 'warning')}
         </div>
 
-        <HelpText>Click a student row to open their attempt details.</HelpText>
+        <HelpText>
+          {isPracticeTime
+            ? 'Practice-time assignments track time across multiple sessions during the window.'
+            : 'Click a student row to open their attempt details.'}
+        </HelpText>
       </CardContent>
     </Card>
   );

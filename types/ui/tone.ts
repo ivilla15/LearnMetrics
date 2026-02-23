@@ -19,3 +19,16 @@ export function masteryTone(m: boolean | null): Tone {
   if (m === null) return 'muted';
   return m ? 'success' : 'danger';
 }
+
+export function assignmentStatusTone(status: 'FINISHED' | 'OPEN' | 'UPCOMING'): Tone {
+  switch (status) {
+    case 'FINISHED':
+      return 'muted';
+    case 'OPEN':
+      return 'warning';
+    case 'UPCOMING':
+      return 'success';
+    default:
+      return 'muted';
+  }
+}

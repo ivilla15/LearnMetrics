@@ -25,7 +25,6 @@ export function AssignmentsClient({
   const router = useRouter();
   const toast = useToast();
 
-  // useAssignments should accept initial DTO and expose filters + derived rows
   const a = useAssignments(initial, classroomId);
   const assign = useAssignTest(classroomId);
 

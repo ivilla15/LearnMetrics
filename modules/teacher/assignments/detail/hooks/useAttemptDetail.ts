@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { AttemptDetailSelection, TeacherAssignmentAttemptRow } from '@/types';
+import type { AttemptDetailSelection, TeacherAssignmentAttemptRowDTO } from '@/types';
 import { fetchAttemptDetail } from '../actions';
 
 export function useAttemptDetail(params: { classroomId: number }) {
@@ -16,7 +16,7 @@ export function useAttemptDetail(params: { classroomId: number }) {
 
   const [showIncorrectOnly, setShowIncorrectOnly] = React.useState(false);
 
-  async function openAttempt(row: TeacherAssignmentAttemptRow) {
+  async function openAttempt(row: TeacherAssignmentAttemptRowDTO) {
     if (!row.attemptId) return;
 
     setSelected({

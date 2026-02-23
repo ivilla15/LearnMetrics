@@ -1,13 +1,13 @@
 'use client';
 
 import * as React from 'react';
-import type { AssignModalLastMeta, AssignModalStudentRow } from '@/types';
+import type { AssignModalLastMeta, AssignModalStudentRowDTO } from '@/types';
 import { fetchAssignModalBootstrap } from '../actions';
 
 export function useAssignTest(classroomId: number) {
   const [open, setOpen] = React.useState(false);
 
-  const [students, setStudents] = React.useState<AssignModalStudentRow[]>([]);
+  const [students, setStudents] = React.useState<AssignModalStudentRowDTO[]>([]);
   const [lastMeta, setLastMeta] = React.useState<AssignModalLastMeta | null>(null);
 
   const [loading, setLoading] = React.useState(false);

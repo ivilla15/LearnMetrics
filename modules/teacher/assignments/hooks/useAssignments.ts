@@ -3,7 +3,7 @@
 import * as React from 'react';
 import type {
   AssignmentStatusFilter,
-  TeacherAssignmentListItem,
+  TeacherAssignmentListItemDTO,
   TeacherAssignmentsListResponse,
   AssignmentModeFilter,
   AssignmentTypeFilter,
@@ -12,7 +12,7 @@ import { fetchAssignments } from '../actions';
 
 const PAGE_LIMIT = 20;
 
-function matchesStatus(row: TeacherAssignmentListItem, status: AssignmentStatusFilter) {
+function matchesStatus(row: TeacherAssignmentListItemDTO, status: AssignmentStatusFilter) {
   if (status === 'all') return true;
   if (status === 'open') return row.status === 'OPEN';
   if (status === 'upcoming') return row.status === 'UPCOMING';
@@ -20,12 +20,12 @@ function matchesStatus(row: TeacherAssignmentListItem, status: AssignmentStatusF
   return true;
 }
 
-function matchesMode(row: TeacherAssignmentListItem, mode: AssignmentModeFilter) {
+function matchesMode(row: TeacherAssignmentListItemDTO, mode: AssignmentModeFilter) {
   if (mode === 'all') return true;
   return row.mode === mode;
 }
 
-function matchesType(row: TeacherAssignmentListItem, type: AssignmentTypeFilter) {
+function matchesType(row: TeacherAssignmentListItemDTO, type: AssignmentTypeFilter) {
   if (type === 'all') return true;
   return row.type === type;
 }
@@ -41,7 +41,7 @@ export function useAssignments(initial: TeacherAssignmentsListResponse, classroo
   const [search, setSearch] = React.useState('');
   const [loading, setLoading] = React.useState(false);
 
-  const rows = React.useMemo<TeacherAssignmentListItem[]>(
+  const rows = React.useMemo<TeacherAssignmentListItemDTO[]>(
     () => (Array.isArray(data?.rows) ? data.rows : []),
     [data?.rows],
   );

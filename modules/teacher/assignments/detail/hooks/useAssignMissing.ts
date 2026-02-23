@@ -1,17 +1,17 @@
 'use client';
 
 import * as React from 'react';
-import type { AssignModalStudentRow, TeacherAssignmentAttemptRow } from '@/types';
+import type { AssignModalStudentRowDTO, TeacherAssignmentAttemptRowDTO } from '@/types';
 import { fetchAssignModalBootstrap } from '../../actions';
 
 export function useAssignMissing(params: {
   classroomId: number;
-  attemptRows: TeacherAssignmentAttemptRow[];
+  attemptRows: TeacherAssignmentAttemptRowDTO[];
 }) {
   const { classroomId, attemptRows } = params;
 
   const [open, setOpen] = React.useState(false);
-  const [students, setStudents] = React.useState<AssignModalStudentRow[]>([]);
+  const [students, setStudents] = React.useState<AssignModalStudentRowDTO[]>([]);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 

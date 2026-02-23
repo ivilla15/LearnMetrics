@@ -1,12 +1,15 @@
 import * as React from 'react';
 import { formatLocal } from '@/lib';
 import { Badge, Tile } from '@/components';
-import { pctTone } from '@/types';
+import { pctTone, assignmentStatusTone, type TeacherAssignmentListItemDTO } from '@/types';
 
-function statusTone(status: 'FINISHED' | 'OPEN' | 'UPCOMING') {
-  if (status === 'OPEN') return 'warning' as const;
-  if (status === 'UPCOMING') return 'success' as const;
-  return 'muted' as const;
+function formatTargetBadge(
+  a: Pick<TeacherAssignmentListItemDTO, 'targetKind' | 'numQuestions' | 'durationMinutes'>,
+) {
+  if (a.targetKind === 'PRACTICE_TIME') {
+    return a.durationMinutes ? `${a.durationMinutes} min` : 'Practice time';
+  }
+  return `${a.numQuestions ?? 12} Q`;
 }
 
 export function RecentAssignmentsCards({
@@ -14,7 +17,7 @@ export function RecentAssignmentsCards({
   onOpen,
 }: {
   classroomId: number;
-  rows: TeacherAssignmentListItem[];
+  rows: TeacherAssignmentListItemDTO[];
   onOpen: (assignmentId: number) => void;
 }) {
   return (
@@ -23,8 +26,12 @@ export function RecentAssignmentsCards({
         const assigned = t.stats?.totalStudents ?? 0;
         const attempted = t.stats?.attemptedCount ?? 0;
 
-        const mastery = t.status === 'FINISHED' ? (t.stats?.masteryRate ?? null) : null;
-        const avg = t.status === 'FINISHED' ? (t.stats?.avgPercent ?? null) : null;
+        const isPracticeTime = t.targetKind === 'PRACTICE_TIME';
+
+        const mastery =
+          !isPracticeTime && t.status === 'FINISHED' ? (t.stats?.masteryRate ?? null) : null;
+        const avg =
+          !isPracticeTime && t.status === 'FINISHED' ? (t.stats?.avgPercent ?? null) : null;
 
         return (
           <Tile
@@ -43,8 +50,12 @@ export function RecentAssignmentsCards({
               <div className="mt-2 flex flex-wrap gap-2">
                 <Badge tone="muted">{t.type}</Badge>
                 <Badge tone="muted">{t.mode}</Badge>
-                <Badge tone={statusTone(t.status)}>{t.status}</Badge>
-                <Badge tone="muted">{t.numQuestions ?? 12} Q</Badge>
+                <Badge tone={assignmentStatusTone(t.status)}>{t.status}</Badge>
+
+                {isPracticeTime ? <Badge tone="muted">Practice time</Badge> : null}
+                <Badge tone="muted">{formatTargetBadge(t)}</Badge>
+
+                {t.operation ? <Badge tone="muted">{t.operation}</Badge> : null}
               </div>
 
               <div className="mt-3 grid grid-cols-3 gap-3">
@@ -57,12 +68,16 @@ export function RecentAssignmentsCards({
 
                 <div>
                   <div className="text-[11px] text-[hsl(var(--muted-fg))]">
-                    {t.status === 'UPCOMING' ? 'Assigned' : 'Attempted'}
+                    {t.status === 'UPCOMING'
+                      ? 'Assigned'
+                      : isPracticeTime
+                        ? 'Assigned'
+                        : 'Attempted'}
                   </div>
                   <div className="text-lg font-semibold text-[hsl(var(--fg))]">
                     {assigned === 0
                       ? '—'
-                      : t.status === 'UPCOMING'
+                      : t.status === 'UPCOMING' || isPracticeTime
                         ? `${assigned}`
                         : `${attempted}/${assigned}`}
                   </div>
