@@ -2,7 +2,14 @@ import * as React from 'react';
 
 import { Badge, Button } from '@/components';
 import { formatLocal } from '@/lib';
-import { pctTone, assignmentStatusTone, type TeacherAssignmentListItemDTO } from '@/types';
+import {
+  pctTone,
+  assignmentStatusTone,
+  type TeacherAssignmentListItemDTO,
+  formatAssignmentType,
+  formatAssignmentMode,
+  formatOperation,
+} from '@/types';
 
 function formatTargetLine(
   a: Pick<TeacherAssignmentListItemDTO, 'targetKind' | 'numQuestions' | 'durationMinutes'>,
@@ -64,14 +71,14 @@ export function AssignmentsTable({
                   <td className="py-3 pl-5 pr-3">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                        <Badge tone="muted">{a.type}</Badge>
-                        <Badge tone="muted">{a.mode}</Badge>
+                        <Badge tone="muted">{formatAssignmentType(a.type)}</Badge>
+                        <Badge tone="muted">{formatAssignmentMode(a.mode)}</Badge>
                         {isPracticeTime ? <Badge tone="muted">Practice time</Badge> : null}
                       </div>
 
                       <div className="text-xs text-[hsl(var(--muted-fg))]">
                         {formatTargetLine(a)}
-                        {a.operation ? ` · ${a.operation}` : null}
+                        {a.operation ? ` · ${formatOperation(a.operation)}` : null}
                       </div>
                     </div>
                   </td>

@@ -4,7 +4,8 @@ import * as React from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
 
 import { Pill } from '@/components';
-import type { CalendarItemRow } from '@/types';
+import type { CalendarItemRowDTO } from '@/types';
+import { formatAssignmentMode, formatAssignmentType } from '@/types';
 import { isProjection, toIso } from '@/utils/calendar';
 
 type Props = {
@@ -12,10 +13,22 @@ type Props = {
   tz: string;
   inMonth: boolean;
   isToday: boolean;
-  items: CalendarItemRow[];
-  onOpenDetails: (item: CalendarItemRow) => void;
-  onOpenDay?: () => void; // used by mobile list mode
+  items: CalendarItemRowDTO[];
+  onOpenDetails: (item: CalendarItemRowDTO) => void;
+  onOpenDay?: () => void;
 };
+
+function itemTitle(item: CalendarItemRowDTO) {
+  if (isProjection(item)) {
+    return item.targetKind === 'PRACTICE_TIME' ? 'Projected practice time' : 'Projected assignment';
+  }
+
+  const typeLabel = formatAssignmentType(item.type);
+  const modeLabel = formatAssignmentMode(item.mode);
+  const isPracticeTime = item.targetKind === 'PRACTICE_TIME';
+
+  return isPracticeTime ? `Practice time · ${modeLabel}` : `${typeLabel} · ${modeLabel}`;
+}
 
 export function DayTile({ date, tz, inMonth, isToday, items, onOpenDetails, onOpenDay }: Props) {
   const firstTwo = items.slice(0, 2);
@@ -58,7 +71,7 @@ export function DayTile({ date, tz, inMonth, isToday, items, onOpenDetails, onOp
             >
               <div className="flex items-center justify-between gap-2">
                 <span className="font-medium text-[hsl(var(--fg))] truncate">
-                  {proj ? 'Upcoming test' : `#${item.assignmentId} ${item.mode}`}
+                  {itemTitle(item)}
                 </span>
                 <span className="text-[10px] text-[hsl(var(--muted-fg))]">
                   {formatInTimeZone(toIso(item.opensAt), tz, 'h:mm a')}

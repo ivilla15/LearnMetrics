@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Input, Label, HelpText, Modal } from '@/components';
 import { clampClassroomName } from '@/core/classrooms/validation';
-import type { TeacherClassroomCardRow } from '@/data/classrooms.repo';
+import type { TeacherClassroomCardRowDTO } from '@/types';
 
 export function RenameClassroomDialog({
   open,
@@ -12,19 +12,18 @@ export function RenameClassroomDialog({
   renameAction,
 }: {
   open: boolean;
-  classroom: TeacherClassroomCardRow | null;
+  classroom: TeacherClassroomCardRowDTO | null;
   onClose: () => void;
   renameAction: (formData: FormData) => Promise<void>;
 }) {
   const [value, setValue] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  // keep initial value in sync when opening
-  // (simple approach: set when classroom changes & open)
-  if (open && classroom && value === '') {
-    // intentional: only seed once per open
-    // eslint-disable-next-line react/no-direct-mutation-state
-  }
+  useEffect(() => {
+    if (!open) return;
+    setValue(classroom?.name ?? '');
+    setError(null);
+  }, [open, classroom?.id, classroom?.name]);
 
   return (
     <Modal
@@ -55,7 +54,7 @@ export function RenameClassroomDialog({
             <Label htmlFor="rename-name">Classroom name</Label>
             <Input
               id="rename-name"
-              value={value || classroom.name || ''}
+              value={value}
               onChange={(e) => setValue(e.target.value)}
               maxLength={80}
               placeholder="Example: Period 1"
@@ -90,7 +89,7 @@ export function DeleteClassroomDialog({
   deleteAction,
 }: {
   open: boolean;
-  classroom: TeacherClassroomCardRow | null;
+  classroom: TeacherClassroomCardRowDTO | null;
   onClose: () => void;
   deleteAction: (formData: FormData) => Promise<void>;
 }) {

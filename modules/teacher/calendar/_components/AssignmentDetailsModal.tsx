@@ -3,14 +3,35 @@
 import * as React from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
 import { Modal, Button, HelpText, Pill } from '@/components';
-import type { CalendarItemRow } from '@/types';
-import { getAssignment, toIso } from '@/utils';
+import type { CalendarItemRowDTO } from '@/types';
+import { formatAssignmentMode, formatAssignmentType, formatOperation } from '@/types';
+import { isProjection, toIso } from '@/utils/calendar';
+
+function formatTargetLine(item: CalendarItemRowDTO) {
+  if (isProjection(item)) {
+    if (item.targetKind === 'PRACTICE_TIME') return `${item.durationMinutes ?? 0} minutes`;
+    return `${item.numQuestions ?? 0} questions`;
+  }
+
+  if (item.targetKind === 'PRACTICE_TIME') return `${item.durationMinutes ?? 0} minutes`;
+  return `${item.numQuestions ?? 0} questions`;
+}
+
+function formatTypeLabel(item: CalendarItemRowDTO) {
+  if (isProjection(item)) {
+    if (item.targetKind === 'PRACTICE_TIME') return 'Practice time';
+    return item.type ? formatAssignmentType(item.type) : 'Assignment';
+  }
+
+  if (item.targetKind === 'PRACTICE_TIME') return 'Practice time';
+  return formatAssignmentType(item.type);
+}
 
 export function AssignmentDetailsModal(props: {
   open: boolean;
   onClose: () => void;
 
-  item: CalendarItemRow | null;
+  item: CalendarItemRowDTO | null;
   tz: string;
 
   isProjection: boolean;
@@ -30,16 +51,22 @@ export function AssignmentDetailsModal(props: {
     onCancelOccurrence,
   } = props;
 
-  const selectedAssignment = getAssignment(item);
-
   const title = !item
     ? 'Assignment'
     : proj
-      ? 'Upcoming scheduled test'
-      : `Assignment ${selectedAssignment?.assignmentId ?? '—'}`;
+      ? 'Scheduled occurrence'
+      : item.kind === 'assignment'
+        ? `Assignment #${item.assignmentId}`
+        : 'Scheduled occurrence';
 
   const opensIso = item ? toIso(item.opensAt) : null;
   const closesIso = item && item.closesAt ? toIso(item.closesAt) : null;
+
+  const modeLabel = item ? formatAssignmentMode(item.mode) : '—';
+  const typeLabel = item ? formatTypeLabel(item) : '—';
+  const opLabel = item?.operation ? formatOperation(item.operation) : null;
+
+  const stats = !item || proj || isProjection(item) ? null : (item.stats ?? null);
 
   return (
     <Modal
@@ -64,7 +91,7 @@ export function AssignmentDetailsModal(props: {
               <Button variant="destructive" onClick={() => void onCancelOccurrence()}>
                 Cancel occurrence
               </Button>
-            ) : selectedAssignment?.scheduleId && selectedAssignment?.runDate ? (
+            ) : item.scheduleId && item.runDate ? (
               <Button variant="destructive" onClick={() => void onCancelOccurrence()}>
                 Cancel occurrence
               </Button>
@@ -78,10 +105,11 @@ export function AssignmentDetailsModal(props: {
       ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
-            {Pill(item.mode, 'muted')}
-            {Pill(item.type, 'muted')}
-            {Pill(`${item.numQuestions} Q`, 'muted')}
-            {Pill(item.windowMinutes ? `${item.windowMinutes} min` : 'No limit', 'muted')}
+            {Pill(typeLabel, 'muted')}
+            {Pill(modeLabel, 'muted')}
+            {Pill(formatTargetLine(item), 'muted')}
+            {Pill(item.windowMinutes ? `${item.windowMinutes} min window` : 'No window', 'muted')}
+            {opLabel ? Pill(opLabel, 'muted') : null}
           </div>
 
           <div className="text-sm text-[hsl(var(--muted-fg))]">
@@ -96,24 +124,22 @@ export function AssignmentDetailsModal(props: {
             </span>
           </div>
 
-          {selectedAssignment?.stats ? (
+          {stats ? (
             <div className="flex flex-wrap gap-2">
-              {Pill(
-                `Attempted: ${selectedAssignment.stats.attemptedCount}/${selectedAssignment.stats.totalStudents}`,
-                'muted',
-              )}
-              {Pill(`Mastery: ${selectedAssignment.stats.masteryRate}%`, 'success')}
-              {Pill(`Avg: ${selectedAssignment.stats.avgPercent}%`, 'muted')}
+              {Pill(`Attempted: ${stats.attemptedCount}/${stats.totalStudents}`, 'muted')}
+              {stats.masteryRate == null ? null : Pill(`Mastery: ${stats.masteryRate}%`, 'success')}
+              {stats.avgPercent == null ? null : Pill(`Avg: ${stats.avgPercent}%`, 'muted')}
             </div>
           ) : null}
 
           {proj ? (
             <HelpText>
-              This is an upcoming projected test. Editing + saving will create the real assignment.
+              This is a scheduled occurrence. Saving edits will create the real assignment.
             </HelpText>
           ) : (
             <HelpText>
-              Editing/deleting is blocked once an assignment has attempts, and after the close time.
+              Editing is blocked after the close time. Some changes may also be blocked once
+              attempts exist.
             </HelpText>
           )}
         </div>

@@ -11,6 +11,7 @@ export * from './api/roster';
 export * from './api/schedules';
 export * from './api/student';
 export * from './api/question';
+export * from './api/teacher';
 
 export * from './ui/filters';
 export * from './ui/selections';

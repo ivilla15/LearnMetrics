@@ -1,9 +1,36 @@
 'use client';
 
-import { parseNumberOrUndefined, isProjection } from '@/utils';
 import { fromZonedTime } from 'date-fns-tz';
-import { cancelOccurrenceApi } from '../schedules';
-import { CalendarAssignmentRowDTO, CalendarItemRowDTO, CalendarProjectionRowDTO } from '@/types';
+import {
+  type CalendarAssignmentRowDTO,
+  type CalendarItemRowDTO,
+  type CalendarProjectionRowDTO,
+} from '@/types';
+import { parseNumberOrUndefined, isProjection } from '@/utils';
+
+async function skipOccurrenceApi(params: {
+  classroomId: number;
+  scheduleId: number;
+  runDate: string;
+  reason?: string;
+}) {
+  const res = await fetch(`/api/teacher/classrooms/${params.classroomId}/schedule-runs/skip`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      scheduleId: params.scheduleId,
+      runDate: params.runDate,
+      reason: params.reason,
+    }),
+  });
+
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as { error?: unknown } | null;
+    const msg = typeof json?.error === 'string' ? json.error : 'Failed to cancel occurrence';
+    throw new Error(msg);
+  }
+}
 
 export async function saveCalendarItemEdit(params: {
   classroomId: number;
@@ -38,6 +65,8 @@ export async function saveCalendarItemEdit(params: {
     closesAt: closesAtUtc.toISOString(),
     windowMinutes: windowToUse,
   };
+
+  // Only meaningful for assessment items
   if (nq !== undefined) baseBody.numQuestions = nq;
 
   let res: Response;
@@ -45,15 +74,29 @@ export async function saveCalendarItemEdit(params: {
   if (isProjection(item)) {
     const proj = item as CalendarProjectionRowDTO;
 
-    // When creating from a projection, the schedule generates a TEST by default for now.
-    // We send the new "type" and "mode" fields per the updated schema.
+    // Create assignment from projection.
+    // IMPORTANT: respect projection targetKind/type instead of hardcoding TEST.
     const payload: Record<string, unknown> = {
       ...baseBody,
       scheduleId: proj.scheduleId,
       runDate: proj.runDate,
-      mode: 'SCHEDULED',
-      type: 'TEST',
+      mode: proj.mode,
+      targetKind: proj.targetKind,
     };
+
+    // optional fields depending on kind
+    if (proj.type) payload.type = proj.type;
+    if (proj.operation) payload.operation = proj.operation;
+
+    if (proj.targetKind === 'PRACTICE_TIME') {
+      payload.durationMinutes = proj.durationMinutes ?? 0;
+      // numQuestions irrelevant, but harmless if backend ignores
+    } else {
+      // assessment
+      if (nq !== undefined) payload.numQuestions = nq;
+      else if (proj.numQuestions != null) payload.numQuestions = proj.numQuestions;
+      if (proj.windowMinutes != null) payload.windowMinutes = proj.windowMinutes;
+    }
 
     res = await fetch(`/api/teacher/classrooms/${classroomId}/assignments`, {
       method: 'POST',
@@ -86,7 +129,7 @@ export async function cancelCalendarItemOccurrence(params: {
   const { classroomId, item } = params;
 
   if (isProjection(item)) {
-    await cancelOccurrenceApi(classroomId, item.scheduleId, item.runDate);
+    await skipOccurrenceApi({ classroomId, scheduleId: item.scheduleId, runDate: item.runDate });
     return;
   }
 
@@ -97,5 +140,5 @@ export async function cancelCalendarItemOccurrence(params: {
     throw new Error('This assignment is not tied to a schedule occurrence.');
   }
 
-  await cancelOccurrenceApi(classroomId, scheduleId, runDate);
+  await skipOccurrenceApi({ classroomId, scheduleId, runDate });
 }

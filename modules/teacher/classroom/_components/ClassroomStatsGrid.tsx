@@ -1,7 +1,8 @@
 import * as React from 'react';
-import type { TeacherClassroomOverviewStats } from '@/data';
-import { StatTile } from '../../../../components/StatTile';
 import { formatInTimeZone } from 'date-fns-tz';
+import { StatTile } from '../../../../components/StatTile';
+import type { TeacherClassroomOverviewStatsDTO } from '@/types';
+import { formatAssignmentMode } from '@/types/display';
 
 function percent(numerator: number, denominator: number) {
   if (!denominator) return '—';
@@ -9,7 +10,7 @@ function percent(numerator: number, denominator: number) {
   return `${p}%`;
 }
 
-export function ClassroomStatsGrid({ stats }: { stats: TeacherClassroomOverviewStats }) {
+export function ClassroomStatsGrid({ stats }: { stats: TeacherClassroomOverviewStatsDTO }) {
   const tz = stats.classroom.timeZone ?? 'UTC';
 
   const nextTestValue = stats.nextTest
@@ -18,11 +19,7 @@ export function ClassroomStatsGrid({ stats }: { stats: TeacherClassroomOverviewS
 
   const nextTestHelper = stats.nextTest ? (
     <span>
-      {stats.nextTest.mode === 'SCHEDULED'
-        ? 'Scheduled'
-        : stats.nextTest.mode === 'MAKEUP'
-          ? 'Make up'
-          : 'Manual'}
+      {formatAssignmentMode(stats.nextTest.mode)}
       {' · '}
       Closes{' '}
       {stats.nextTest.closesAt ? formatInTimeZone(stats.nextTest.closesAt, tz, 'h:mm a') : '—'}
@@ -65,11 +62,13 @@ export function ClassroomStatsGrid({ stats }: { stats: TeacherClassroomOverviewS
         label="Mastery rate (7 days)"
         value={percent(stats.masteryLast7, stats.attemptsLast7)}
         tone={
-          stats.masteryRateLast7 >= 80
-            ? 'success'
-            : stats.masteryRateLast7 >= 50
-              ? 'warning'
-              : 'danger'
+          stats.attemptsLast7 === 0
+            ? 'default'
+            : Math.round((stats.masteryLast7 / stats.attemptsLast7) * 100) >= 80
+              ? 'success'
+              : Math.round((stats.masteryLast7 / stats.attemptsLast7) * 100) >= 50
+                ? 'warning'
+                : 'danger'
         }
         helper={
           <span>

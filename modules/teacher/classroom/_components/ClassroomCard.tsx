@@ -3,14 +3,14 @@
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, StatBox } from '@/components';
 import { DropdownMenu } from '@/components/overlays/DropdownMenu';
-import type { TeacherClassroomCardRow } from '@/data/classrooms.repo';
+import type { TeacherClassroomCardRowDTO } from '@/types';
 
 export function ClassroomCard({
   classroom,
   onRename,
   onDelete,
 }: {
-  classroom: TeacherClassroomCardRow;
+  classroom: TeacherClassroomCardRowDTO;
   onRename: () => void;
   onDelete: () => void;
 }) {

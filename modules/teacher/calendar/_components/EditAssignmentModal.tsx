@@ -2,6 +2,7 @@
 
 import * as React from 'react';
 import { Modal, Button, HelpText } from '@/components';
+import type { AssignmentTargetKind } from '@/types';
 
 export function EditAssignmentModal(props: {
   open: boolean;
@@ -10,17 +11,29 @@ export function EditAssignmentModal(props: {
   tz: string;
   isProjection: boolean;
 
+  // NEW
+  targetKind: AssignmentTargetKind;
+
   saving: boolean;
 
   dateValue: string;
   timeValue: string;
+
+  // assessment fields
   windowMinutesValue: string;
   numQuestionsValue: string;
 
+  // NEW practice-time field
+  durationMinutesValue: string;
+
   onChangeDate: (v: string) => void;
   onChangeTime: (v: string) => void;
+
   onChangeWindowMinutes: (v: string) => void;
   onChangeNumQuestions: (v: string) => void;
+
+  // NEW
+  onChangeDurationMinutes: (v: string) => void;
 
   onSave: () => void;
 }) {
@@ -38,8 +51,13 @@ export function EditAssignmentModal(props: {
     onChangeTime,
     onChangeWindowMinutes,
     onChangeNumQuestions,
+    targetKind,
+    durationMinutesValue,
+    onChangeDurationMinutes,
     onSave,
   } = props;
+
+  const isPracticeTime = targetKind === 'PRACTICE_TIME';
 
   return (
     <Modal
@@ -81,27 +99,44 @@ export function EditAssignmentModal(props: {
             />
           </div>
 
-          <div className="grid gap-2">
-            <label className="text-sm font-medium text-[hsl(var(--fg))]">Window minutes</label>
-            <input
-              inputMode="numeric"
-              value={windowMinutesValue}
-              onChange={(e) => onChangeWindowMinutes(e.target.value)}
-              placeholder="4"
-              className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
-            />
-          </div>
+          {isPracticeTime ? (
+            <div className="grid gap-2">
+              <label className="text-sm font-medium text-[hsl(var(--fg))]">Duration minutes</label>
+              <input
+                inputMode="numeric"
+                value={durationMinutesValue}
+                onChange={(e) => onChangeDurationMinutes(e.target.value)}
+                placeholder="10"
+                className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
+              />
+            </div>
+          ) : (
+            <>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium text-[hsl(var(--fg))]">Window minutes</label>
+                <input
+                  inputMode="numeric"
+                  value={windowMinutesValue}
+                  onChange={(e) => onChangeWindowMinutes(e.target.value)}
+                  placeholder="4"
+                  className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
+                />
+              </div>
 
-          <div className="grid gap-2">
-            <label className="text-sm font-medium text-[hsl(var(--fg))]">Number of questions</label>
-            <input
-              inputMode="numeric"
-              value={numQuestionsValue}
-              onChange={(e) => onChangeNumQuestions(e.target.value)}
-              placeholder="12"
-              className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
-            />
-          </div>
+              <div className="grid gap-2">
+                <label className="text-sm font-medium text-[hsl(var(--fg))]">
+                  Number of questions
+                </label>
+                <input
+                  inputMode="numeric"
+                  value={numQuestionsValue}
+                  onChange={(e) => onChangeNumQuestions(e.target.value)}
+                  placeholder="12"
+                  className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
+                />
+              </div>
+            </>
+          )}
         </div>
 
         <HelpText>

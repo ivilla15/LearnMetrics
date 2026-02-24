@@ -3,20 +3,23 @@
 import * as React from 'react';
 import { useToast } from '@/components';
 
-import type { CalendarAssignmentsListResponse, CalendarItemRow } from '@/types';
+import type { CalendarAssignmentsListResponse, CalendarItemRowDTO } from '@/types';
 import { useCalendar } from '@/modules/teacher/calendar/hooks/useCalendar';
 import { MonthGrid } from './_components';
 import { AssignmentDetailsModal } from './_components/AssignmentDetailsModal';
 import { EditAssignmentModal } from './_components/EditAssignmentModal';
 
-export function CalendarClient(props: { classroomId: number; initial: CalendarAssignmentsListResponse }) {
+export function CalendarClient(props: {
+  classroomId: number;
+  initial: CalendarAssignmentsListResponse;
+}) {
   const { classroomId, initial } = props;
 
   const toast = useToast();
 
   const cal = useCalendar(initial, classroomId);
 
-  const [selected, setSelected] = React.useState<CalendarItemRow | null>(null);
+  const [selected, setSelected] = React.useState<CalendarItemRowDTO | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
 
   const [editOpen, setEditOpen] = React.useState(false);
@@ -34,7 +37,7 @@ export function CalendarClient(props: { classroomId: number; initial: CalendarAs
       : false;
 
   const openDetails = React.useCallback(
-    (item: CalendarItemRow) => {
+    (item: CalendarItemRowDTO) => {
       const payload = cal.openDetailsPayloadFor(item);
       setSelected(payload.item);
       setEditLocalDate(payload.date);

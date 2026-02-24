@@ -15,14 +15,19 @@ export type CalendarAssignmentStatsDTO = {
 export type CalendarAssignmentRowDTO = {
   kind: 'assignment';
   assignmentId: number;
+
   type: AssignmentType;
   mode: AssignmentMode;
+  targetKind: AssignmentTargetKind;
 
   opensAt: string;
   closesAt: string | null;
 
   windowMinutes: number | null;
+
   numQuestions: number;
+
+  durationMinutes: number | null;
 
   operation: OperationCode | null;
 

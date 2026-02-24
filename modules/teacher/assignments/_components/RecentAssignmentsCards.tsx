@@ -1,7 +1,13 @@
 import * as React from 'react';
 import { formatLocal } from '@/lib';
 import { Badge, Tile } from '@/components';
-import { pctTone, assignmentStatusTone, type TeacherAssignmentListItemDTO } from '@/types';
+import {
+  pctTone,
+  assignmentStatusTone,
+  type TeacherAssignmentListItemDTO,
+  formatAssignmentType,
+  formatAssignmentMode,
+} from '@/types';
 
 function formatTargetBadge(
   a: Pick<TeacherAssignmentListItemDTO, 'targetKind' | 'numQuestions' | 'durationMinutes'>,
@@ -48,8 +54,8 @@ export function RecentAssignmentsCards({
               </div>
 
               <div className="mt-2 flex flex-wrap gap-2">
-                <Badge tone="muted">{t.type}</Badge>
-                <Badge tone="muted">{t.mode}</Badge>
+                <Badge tone="muted">{formatAssignmentType(t.type)}</Badge>
+                <Badge tone="muted">{formatAssignmentMode(t.mode)}</Badge>
                 <Badge tone={assignmentStatusTone(t.status)}>{t.status}</Badge>
 
                 {isPracticeTime ? <Badge tone="muted">Practice time</Badge> : null}
