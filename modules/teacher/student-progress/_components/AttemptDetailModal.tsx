@@ -118,7 +118,7 @@ export function AttemptDetailModal({
                 <li
                   key={it.id}
                   className={cn(
-                    'rounded-[var(--radius)] border p-3 border-l-4',
+                    'rounded-(--radius) border p-3 border-l-4',
                     it.isCorrect
                       ? 'border-[hsl(var(--success)/0.4)] bg-[hsl(var(--success)/0.12)] border-l-[hsl(var(--success))]'
                       : 'border-[hsl(var(--danger)/0.4)] bg-[hsl(var(--danger)/0.12)] border-l-[hsl(var(--danger))]',

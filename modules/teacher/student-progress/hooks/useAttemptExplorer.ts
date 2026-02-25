@@ -1,21 +1,18 @@
 'use client';
 
 import * as React from 'react';
-import type { AttemptDetail, AttemptExplorerFilter, AttemptExplorerMe, AttemptRow } from '@/types';
-import { parseMeFromApiResponse, getApiErrorMessage } from '@/utils';
+import type { AttemptDetailDTO, AttemptExplorerFilter, AttemptRowDTO } from '@/types';
+import { getApiErrorMessage } from '@/utils/http';
 
 export function useAttemptExplorer(baseUrl: string) {
-  const [attempts, setAttempts] = React.useState<AttemptRow[]>([]);
+  const [attempts, setAttempts] = React.useState<AttemptRowDTO[]>([]);
   const [loading, setLoading] = React.useState(true);
 
   const [filter, setFilter] = React.useState<AttemptExplorerFilter>('ALL');
   const [nextCursor, setNextCursor] = React.useState<string | null>(null);
   const [loadingMore, setLoadingMore] = React.useState(false);
-
-  const [me, setMe] = React.useState<AttemptExplorerMe | null>(null);
-
   const [selectedAttemptId, setSelectedAttemptId] = React.useState<number | null>(null);
-  const [attemptDetail, setAttemptDetail] = React.useState<AttemptDetail | null>(null);
+  const [attemptDetail, setAttemptDetail] = React.useState<AttemptDetailDTO | null>(null);
 
   const [detailLoading, setDetailLoading] = React.useState(false);
   const [detailError, setDetailError] = React.useState<string | null>(null);
@@ -24,54 +21,37 @@ export function useAttemptExplorer(baseUrl: string) {
   React.useEffect(() => {
     let cancelled = false;
 
-    async function loadMe() {
-      const res = await fetch(`${baseUrl}/me`);
-      if (!res.ok) {
-        if (!cancelled) setMe(null);
-        return;
-      }
-      const data: unknown = await res.json().catch(() => null);
-      const parsed = parseMeFromApiResponse(data);
-      if (!cancelled) setMe(parsed);
-    }
-
-    void loadMe();
-    return () => {
-      cancelled = true;
-    };
-  }, [baseUrl]);
-
-  React.useEffect(() => {
-    let cancelled = false;
-
     async function loadFirstPage() {
       setLoading(true);
 
-      const res = await fetch(`${baseUrl}/attempts?filter=${filter}`);
-      if (cancelled) return;
+      try {
+        const res = await fetch(`${baseUrl}/attempts?filter=${filter}`, { cache: 'no-store' });
+        const payload: unknown = await res.json().catch(() => null);
+        if (cancelled) return;
 
-      if (!res.ok) {
-        setAttempts([]);
-        setNextCursor(null);
-        setLoading(false);
+        if (!res.ok) {
+          setAttempts([]);
+          setNextCursor(null);
+          setSelectedAttemptId(null);
+          setAttemptDetail(null);
+          setShowIncorrectOnly(false);
+          setDetailError(getApiErrorMessage(payload, 'Failed to load attempts'));
+          return;
+        }
+
+        const rows = (payload as { rows?: unknown })?.rows;
+        const next = (payload as { nextCursor?: unknown })?.nextCursor;
+
+        setAttempts(Array.isArray(rows) ? (rows as AttemptRowDTO[]) : []);
+        setNextCursor(typeof next === 'string' ? next : null);
+
         setSelectedAttemptId(null);
         setAttemptDetail(null);
         setShowIncorrectOnly(false);
         setDetailError(null);
-        setDetailLoading(false);
-        return;
+      } finally {
+        if (!cancelled) setLoading(false);
       }
-
-      const data = await res.json().catch(() => null);
-      setAttempts(Array.isArray(data?.rows) ? (data.rows as AttemptRow[]) : []);
-      setNextCursor(typeof data?.nextCursor === 'string' ? data.nextCursor : null);
-      setLoading(false);
-
-      setSelectedAttemptId(null);
-      setAttemptDetail(null);
-      setShowIncorrectOnly(false);
-      setDetailError(null);
-      setDetailLoading(false);
     }
 
     void loadFirstPage();
@@ -94,12 +74,18 @@ export function useAttemptExplorer(baseUrl: string) {
 
     setLoadingMore(true);
     try {
-      const res = await fetch(`${baseUrl}/attempts?filter=${filter}&cursor=${nextCursor}`);
+      const res = await fetch(`${baseUrl}/attempts?filter=${filter}&cursor=${nextCursor}`, {
+        cache: 'no-store',
+      });
+      const payload: unknown = await res.json().catch(() => null);
+
       if (!res.ok) return;
 
-      const data = await res.json().catch(() => null);
-      const newRows = Array.isArray(data?.rows) ? (data.rows as AttemptRow[]) : [];
-      const newCursor = typeof data?.nextCursor === 'string' ? data.nextCursor : null;
+      const rows = (payload as { rows?: unknown })?.rows;
+      const next = (payload as { nextCursor?: unknown })?.nextCursor;
+
+      const newRows = Array.isArray(rows) ? (rows as AttemptRowDTO[]) : [];
+      const newCursor = typeof next === 'string' ? next : null;
 
       setAttempts((prev) => [...prev, ...newRows]);
       setNextCursor(newCursor);
@@ -116,8 +102,8 @@ export function useAttemptExplorer(baseUrl: string) {
 
     setDetailLoading(true);
     try {
-      const res = await fetch(`${baseUrl}/attempts/${attemptId}`);
-      const payload = await res.json().catch(() => null);
+      const res = await fetch(`${baseUrl}/attempts/${attemptId}`, { cache: 'no-store' });
+      const payload: unknown = await res.json().catch(() => null);
 
       if (!res.ok) {
         setAttemptDetail(null);
@@ -125,7 +111,7 @@ export function useAttemptExplorer(baseUrl: string) {
         return;
       }
 
-      setAttemptDetail(payload as AttemptDetail);
+      setAttemptDetail(payload as AttemptDetailDTO);
     } finally {
       setDetailLoading(false);
     }
@@ -152,7 +138,5 @@ export function useAttemptExplorer(baseUrl: string) {
 
     showIncorrectOnly,
     setShowIncorrectOnly,
-
-    me,
   } as const;
 }

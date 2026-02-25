@@ -20,10 +20,8 @@ export type AssignmentCoreDTO = {
 
   windowMinutes: number | null;
 
-  // ASSESSMENT
   numQuestions: number;
 
-  // PRACTICE_TIME
   durationMinutes: number | null;
 
   scheduleId: number | null;

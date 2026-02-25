@@ -5,6 +5,7 @@ import {
   getProgressForStudent,
   getRecentAssignmentsForClassroomInRange,
   getRecentAttemptsForStudent,
+  getPracticeAssignmentsForStudentInRange,
 } from '@/data/teacherProgress.repo';
 
 import { findStudentById } from '@/data/students.repo';
@@ -14,6 +15,9 @@ import type { OperationCode } from '@/types/enums';
 import { median, percent } from '@/utils/math';
 import { trendFromLast3 } from './utils';
 import { getLevelForOp } from '@/types';
+
+import { getPracticeProgressForAssignment } from '@/core/practice/progress';
+import type { PracticeProgressDTO } from '@/types';
 
 export async function getStudentProgress(params: {
   teacherId: number;
@@ -40,37 +44,44 @@ export async function getStudentProgress(params: {
 
   const progressRows = await getProgressForStudent(params.studentId);
 
-  const [attemptsInRangeRaw, recentAttemptsRaw, missedFacts, lastAssignments] = await Promise.all([
-    getAttemptsForStudentInRange({
-      classroomId: params.classroomId,
-      studentId: params.studentId,
-      startAt,
-      endAt,
-    }),
-    getRecentAttemptsForStudent({
-      classroomId: params.classroomId,
-      studentId: params.studentId,
-      since: recentCutoff,
-    }),
-    getMissedFactsForStudentInRange({
-      classroomId: params.classroomId,
-      studentId: params.studentId,
-      startAt,
-      endAt,
-      limit: 12,
-    }),
-    getRecentAssignmentsForClassroomInRange({
-      classroomId: params.classroomId,
-      startAt,
-      endAt,
-      take: 1,
-    }),
-  ]);
+  const [attemptsInRangeRaw, recentAttemptsRaw, missedFacts, lastAssignments, practiceAssignments] =
+    await Promise.all([
+      getAttemptsForStudentInRange({
+        classroomId: params.classroomId,
+        studentId: params.studentId,
+        startAt,
+        endAt,
+      }),
+      getRecentAttemptsForStudent({
+        classroomId: params.classroomId,
+        studentId: params.studentId,
+        since: recentCutoff,
+      }),
+      getMissedFactsForStudentInRange({
+        classroomId: params.classroomId,
+        studentId: params.studentId,
+        startAt,
+        endAt,
+        limit: 12,
+      }),
+      getRecentAssignmentsForClassroomInRange({
+        classroomId: params.classroomId,
+        startAt,
+        endAt,
+        take: 1,
+      }),
+      getPracticeAssignmentsForStudentInRange({
+        classroomId: params.classroomId,
+        studentId: params.studentId,
+        startAt,
+        endAt,
+        take: 25,
+      }),
+    ]);
 
   const attemptsInRange = attemptsInRangeRaw.filter((a) => a.completedAt);
   const recentAttempts = recentAttemptsRaw.filter((a) => a.completedAt);
 
-  // ---------- Range stats ----------
   const pctsRange = attemptsInRange.map((a) => percent(a.score, a.total));
   const avgRange = pctsRange.length
     ? Math.round(pctsRange.reduce((a, b) => a + b, 0) / pctsRange.length)
@@ -85,7 +96,6 @@ export async function getStudentProgress(params: {
       )
     : 0;
 
-  // ---------- Recent stats ----------
   const last = recentAttempts[0] ?? null;
   const lastAttemptAt = last?.completedAt ? last.completedAt.toISOString() : null;
   const lastPercent = last ? percent(last.score, last.total) : null;
@@ -122,7 +132,6 @@ export async function getStudentProgress(params: {
     nonMasteryStreak2 ||
     (attemptsInRange.length > 0 && medRange < 70);
 
-  // ---------- Missed last test ----------
   let missedLastTest = false;
   let lastTestAttempted = false;
   let lastTestMastery = false;
@@ -201,6 +210,38 @@ export async function getStudentProgress(params: {
     errorRate: m.totalCount > 0 ? Math.round((m.incorrectCount / m.totalCount) * 100) : 0,
   }));
 
+  let practice: {
+    summary: { requiredSeconds: number; completedSeconds: number; percent: number } | null;
+    rows: PracticeProgressDTO[];
+  } | null = null;
+
+  if (practiceAssignments.length > 0) {
+    const rows = await Promise.all(
+      practiceAssignments.map((a) =>
+        getPracticeProgressForAssignment({ studentId: params.studentId, assignmentId: a.id }),
+      ),
+    );
+
+    const requiredSeconds = rows.reduce((acc, r) => acc + (r.requiredSeconds ?? 0), 0);
+    const completedSeconds = rows.reduce((acc, r) => acc + (r.completedSeconds ?? 0), 0);
+
+    const pct =
+      requiredSeconds <= 0
+        ? 0
+        : Math.min(100, Math.round((completedSeconds / requiredSeconds) * 100));
+
+    practice = {
+      summary: rows.length
+        ? {
+            requiredSeconds,
+            completedSeconds,
+            percent: pct,
+          }
+        : null,
+      rows,
+    };
+  }
+
   return {
     classroom: { id: classroom.id, name: classroom.name },
     range: {
@@ -209,6 +250,7 @@ export async function getStudentProgress(params: {
       days,
     },
     student,
+    practice,
     insights: { topMissedFacts },
     recent: { attempts: recent },
   };
