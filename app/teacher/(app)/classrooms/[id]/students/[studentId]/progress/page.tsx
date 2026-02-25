@@ -5,7 +5,7 @@ import { requireTeacher } from '@/core';
 import { ClassroomSubNav } from '@/modules';
 
 import { PageHeader, Section } from '@/components';
-import { getTeacherStudentProgress } from '@/core/teacher/Progress/studentService';
+import { getStudentProgress } from '@/core/progress/studentProgress.service';
 import { StudentProgressClient } from '@/modules/teacher/student-progress';
 
 export default async function Page({
@@ -28,9 +28,9 @@ export default async function Page({
     return <div className="p-6 text-sm text-[hsl(var(--danger))]">Invalid student id</div>;
   }
 
-  let dto: Awaited<ReturnType<typeof getTeacherStudentProgress>>;
+  let dto: Awaited<ReturnType<typeof getStudentProgress>>;
   try {
-    dto = await getTeacherStudentProgress({
+    dto = await getStudentProgress({
       teacherId: auth.teacher.id,
       classroomId,
       studentId: sid,

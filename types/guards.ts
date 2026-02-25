@@ -1,4 +1,4 @@
-import type { AttemptRowDTO, StudentMeDTO, StudentNextAssignmentDTO } from '@/types';
+import type { AttemptRowDTO, StudentMeDTO, StudentNextAssignmentDTO, TeacherMeDTO } from '@/types';
 
 export function isStudentMeDTO(value: unknown): value is StudentMeDTO {
   if (!value || typeof value !== 'object') return false;
@@ -55,4 +55,11 @@ export function isAttemptRowDTO(value: unknown): value is AttemptRowDTO {
     typeof v.percent === 'number' &&
     typeof v.wasMastery === 'boolean'
   );
+}
+
+export function isTeacherMeDTO(value: unknown): value is TeacherMeDTO {
+  if (!value || typeof value !== 'object') return false;
+  const v = value as Record<string, unknown>;
+
+  return typeof v.id === 'number' && typeof v.name === 'string' && typeof v.email === 'string';
 }

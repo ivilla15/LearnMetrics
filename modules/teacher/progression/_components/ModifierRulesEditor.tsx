@@ -2,15 +2,11 @@
 
 import * as React from 'react';
 import { HelpText, Input, Button } from '@/components';
-import {
-  modifierSchema,
-  type ModifierCode,
-  type ModifierRuleDTO,
-  type OperationCode,
-} from '@/types';
+import { MODIFIER_CODES, type ModifierCode, type OperationCode } from '@/types/enums';
+import type { ModifierRuleDTO } from '@/types/api/progression';
 import { clamp } from '@/utils';
 
-const MODIFIERS: ModifierCode[] = [modifierSchema.enum.DECIMAL, modifierSchema.enum.FRACTION];
+const MODIFIERS: ModifierCode[] = [...MODIFIER_CODES];
 
 function ensureRule(mod: ModifierCode, rules: ModifierRuleDTO[]): ModifierRuleDTO {
   const existing = rules.find((r) => r.modifier === mod);

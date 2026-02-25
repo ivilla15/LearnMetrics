@@ -1,4 +1,4 @@
-import type { ProgressionPolicyDTO, ProgressionPolicyInput } from '@/types/api/progression';
+import type { ProgressionPolicyDTO, ProgressionPolicyInputDTO } from '@/types';
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : null;
@@ -33,7 +33,7 @@ export async function fetchProgressionPolicy(classroomId: number): Promise<Progr
 
 export async function saveProgressionPolicy(params: {
   classroomId: number;
-  input: ProgressionPolicyInput;
+  input: ProgressionPolicyInputDTO;
 }): Promise<ProgressionPolicyDTO> {
   const res = await fetch(`/api/teacher/classrooms/${params.classroomId}/progression`, {
     method: 'PUT',

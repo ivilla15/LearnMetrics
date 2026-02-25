@@ -1,6 +1,6 @@
 import * as React from 'react';
 
-import { requireTeacher, getRosterWithLastAttempt } from '@/core';
+import { requireTeacher, getRosterWithLastAttempt, getProgressionSnapshot } from '@/core';
 import { classroomIdParamSchema } from '@/validation/classrooms.schema';
 
 import { PageHeader, Section } from '@/components';
@@ -37,6 +37,8 @@ export default async function Page({
     return <div className="p-6 text-sm text-[hsl(var(--danger))]">{msg}</div>;
   }
 
+  const policy = await getProgressionSnapshot(classroomId);
+
   const title = roster.classroom?.name?.trim() ? roster.classroom.name : `Classroom ${classroomId}`;
 
   const currentPath = `/teacher/classrooms/${classroomId}/people`;
@@ -48,7 +50,12 @@ export default async function Page({
       <Section className="space-y-4">
         <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
 
-        <PeopleClient classroomId={classroomId} initialStudents={roster.students} />
+        <PeopleClient
+          classroomId={classroomId}
+          initialStudents={roster.students}
+          enabledOperations={policy.enabledOperations}
+          primaryOperation={policy.primaryOperation}
+        />
       </Section>
     </>
   );

@@ -46,3 +46,75 @@ export function parseNumberOrUndefined(raw: string): number | undefined {
   const n = Number(v);
   return Number.isFinite(n) ? n : undefined;
 }
+
+export type ParsedBulkStudent = {
+  name: string;
+  firstName: string;
+  lastName: string;
+  username: string;
+};
+
+export function parseBulkStudentsText(
+  text: string,
+  existingUsernames: ReadonlyArray<string> = [],
+): ParsedBulkStudent[] {
+  const taken = new Set(existingUsernames.map((u) => String(u).trim().toLowerCase()));
+  const rows: ParsedBulkStudent[] = [];
+
+  const lines = text
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  for (const line of lines) {
+    const parts = line.split(/\s+/).filter(Boolean);
+    if (parts.length < 2) continue;
+
+    const first = parts[0];
+    const last = parts[parts.length - 1];
+
+    const displayName = parts.join(' ');
+
+    const baseUsername = buildUsernameBase(first, last);
+    if (!baseUsername) continue;
+
+    const username = makeUniqueUsername(baseUsername, taken);
+    taken.add(username.toLowerCase());
+
+    rows.push({
+      name: displayName,
+      firstName: first,
+      lastName: parts.slice(1).join(' '),
+      username,
+    });
+  }
+
+  return rows;
+}
+
+function buildUsernameBase(first: string, last: string): string | null {
+  const f = normalizeUserFragment(first);
+  const l = normalizeUserFragment(last);
+  if (!f || !l) return null;
+  return `${f[0]}${l}`;
+}
+
+function normalizeUserFragment(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]/g, '');
+}
+
+function makeUniqueUsername(base: string, taken: Set<string>): string {
+  let candidate = base;
+  let i = 1;
+
+  while (taken.has(candidate.toLowerCase())) {
+    i += 1;
+    candidate = `${base}${i}`;
+  }
+
+  return candidate;
+}

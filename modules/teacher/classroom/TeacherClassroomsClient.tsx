@@ -2,13 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components';
-import type { TeacherClassroomCardRow } from '@/data/classrooms.repo';
 
 import { ClassroomCard } from './_components/ClassroomCard';
 import { RenameClassroomDialog, DeleteClassroomDialog } from './_components/ClassroomDialogs';
+import { TeacherClassroomCardRowDTO } from '@/types';
 
 type Props = {
-  classrooms: TeacherClassroomCardRow[];
+  classrooms: TeacherClassroomCardRowDTO[];
   renameAction: (formData: FormData) => Promise<void>;
   deleteAction: (formData: FormData) => Promise<void>;
 };
@@ -18,7 +18,7 @@ export function TeacherClassroomsClient({ classrooms, renameAction, deleteAction
 
   const [renameOpen, setRenameOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
-  const [active, setActive] = useState<TeacherClassroomCardRow | null>(null);
+  const [active, setActive] = useState<TeacherClassroomCardRowDTO | null>(null);
 
   return (
     <>

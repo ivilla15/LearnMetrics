@@ -1,7 +1,7 @@
-export type Trend = 'improving' | 'regressing' | 'flat' | 'insufficient';
+export type Trend = 'improving' | 'regressing' | 'flat' | 'need3';
 
 export function trendFromLast3(pcts: number[]): Trend {
-  if (pcts.length < 3) return 'insufficient';
+  if (pcts.length < 3) return 'need3';
   const [a, b, c] = pcts;
   if (a < b && b < c) return 'improving';
   if (a > b && b > c) return 'regressing';

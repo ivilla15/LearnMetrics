@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Modal, Button, HelpText } from '@/components';
-import type { RosterStudentRow } from '@/types';
+import type { RosterStudentRowDTO } from '@/types';
 
 export function ConfirmModals(props: {
   busy: boolean;
@@ -18,7 +18,7 @@ export function ConfirmModals(props: {
   onCloseRemove: () => void;
   onConfirmRemove: (studentId: number) => void;
 
-  confirmResetStudent: RosterStudentRow | null;
+  confirmResetStudent: RosterStudentRowDTO | null;
   onCloseReset: () => void;
   onConfirmReset: (studentId: number) => void;
 }) {

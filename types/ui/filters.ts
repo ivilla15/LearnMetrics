@@ -8,6 +8,18 @@ export type AssignmentTypeFilter = 'all' | AssignmentType;
 export type AssignmentAttemptsFilter = 'ALL' | 'MASTERY' | 'NOT_MASTERY' | 'MISSING';
 export const ATTEMPT_EXPLORER_FILTERS = ['ALL', 'MASTERY', 'NOT_MASTERY'] as const;
 export type AttemptExplorerFilter = (typeof ATTEMPT_EXPLORER_FILTERS)[number];
+export const ATTEMPT_EXPLORER_FILTER_OPTIONS = [
+  { key: 'ALL', label: 'All' },
+  { key: 'MASTERY', label: 'Mastery' },
+  { key: 'NOT_MASTERY', label: 'Not mastery' },
+] as const;
+
+export const ASSIGNMENT_ATTEMPTS_FILTER_OPTIONS = [
+  { key: 'ALL', label: 'All' },
+  { key: 'MASTERY', label: 'Mastery' },
+  { key: 'NOT_MASTERY', label: 'Not mastery' },
+  { key: 'MISSING', label: 'Missing' },
+] as const;
 
 export type MinutesOption = 'OFF' | '2' | '4' | '6' | '8';
 

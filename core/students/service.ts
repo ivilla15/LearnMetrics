@@ -22,6 +22,7 @@ import type {
 
 import type { SetupCodeCardDTO } from '@/types/api/roster';
 import { percent } from '@/utils';
+import { getProgressionSnapshot } from '../progression';
 
 // -----------------------------
 // Student history (student + teacher progress pages)
@@ -105,7 +106,19 @@ export async function bulkCreateClassroomStudents(
     name: c.name,
   }));
 
-  const roster = await getClassroomRosterWithLatestAttempt(classroomId);
+  const policy = await getProgressionSnapshot(classroomId);
+  const primaryOperation: OperationCode = policy.primaryOperation;
+
+  const rawRoster = await StudentsRepo.findStudentsWithLatestAttempt(classroomId, primaryOperation);
+
+  const roster = rawRoster.map((s) => ({
+    id: s.id,
+    name: s.name,
+    username: s.username,
+    mustSetPassword: s.mustSetPassword,
+    lastAttempt: s.lastAttempt,
+    progress: [{ operation: primaryOperation, level: s.level }],
+  }));
 
   return { setupCodes, students: roster };
 }

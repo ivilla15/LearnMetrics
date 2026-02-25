@@ -1,14 +1,14 @@
 'use client';
 
 import * as React from 'react';
-import type { AssignModalLastMeta, AssignModalStudentRowDTO } from '@/types';
+import type { AssignModalStudentRowDTO } from '@/types';
 import { fetchAssignModalBootstrap } from '../actions';
 
 export function useAssignTest(classroomId: number) {
   const [open, setOpen] = React.useState(false);
 
   const [students, setStudents] = React.useState<AssignModalStudentRowDTO[]>([]);
-  const [lastMeta, setLastMeta] = React.useState<AssignModalLastMeta | null>(null);
+  const [lastNumQuestions, setLastNumQuestions] = React.useState<number | null>(null);
 
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -17,7 +17,6 @@ export function useAssignTest(classroomId: number) {
     setError(null);
     setOpen(true);
 
-    // already loaded
     if (students.length > 0) return;
 
     setLoading(true);
@@ -28,9 +27,7 @@ export function useAssignTest(classroomId: number) {
       setStudents(nextStudents);
 
       const last = dto?.recent?.last3Tests?.[0] ?? null;
-      setLastMeta(
-        last ? { numQuestions: last.numQuestions, windowMinutes: 4, questionSetId: null } : null,
-      );
+      setLastNumQuestions(typeof last?.numQuestions === 'number' ? last.numQuestions : null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load');
     } finally {
@@ -41,13 +38,10 @@ export function useAssignTest(classroomId: number) {
   return {
     open,
     setOpen,
-
     students,
-    lastMeta,
-
+    lastNumQuestions,
     loading,
     error,
-
     openModal,
   } as const;
 }

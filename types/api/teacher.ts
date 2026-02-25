@@ -25,3 +25,9 @@ export type TeacherClassroomOverviewStatsDTO = {
   masteryLast7: number;
   attemptsLast7: number;
 };
+
+export type TeacherMeDTO = {
+  id: number;
+  name: string;
+  email: string;
+};

@@ -29,6 +29,9 @@ export function AssignmentsClient({
   const assign = useAssignTest(classroomId);
 
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<number | null>(null);
+  const lastTestMeta = assign.lastNumQuestions
+    ? { numQuestions: assign.lastNumQuestions, windowMinutes: 4, questionSetId: null }
+    : null;
 
   return (
     <div className="space-y-6">
@@ -63,7 +66,7 @@ export function AssignmentsClient({
           onClose={() => assign.setOpen(false)}
           classroomId={classroomId}
           students={assign.students}
-          lastTestMeta={assign.lastMeta}
+          lastTestMeta={lastTestMeta}
           defaultAudience="ALL"
         />
       ) : null}

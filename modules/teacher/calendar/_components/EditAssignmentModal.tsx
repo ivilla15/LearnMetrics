@@ -11,7 +11,6 @@ export function EditAssignmentModal(props: {
   tz: string;
   isProjection: boolean;
 
-  // NEW
   targetKind: AssignmentTargetKind;
 
   saving: boolean;
@@ -19,11 +18,9 @@ export function EditAssignmentModal(props: {
   dateValue: string;
   timeValue: string;
 
-  // assessment fields
   windowMinutesValue: string;
   numQuestionsValue: string;
 
-  // NEW practice-time field
   durationMinutesValue: string;
 
   onChangeDate: (v: string) => void;
@@ -32,7 +29,6 @@ export function EditAssignmentModal(props: {
   onChangeWindowMinutes: (v: string) => void;
   onChangeNumQuestions: (v: string) => void;
 
-  // NEW
   onChangeDurationMinutes: (v: string) => void;
 
   onSave: () => void;

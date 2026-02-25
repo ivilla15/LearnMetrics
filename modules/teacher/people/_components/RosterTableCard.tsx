@@ -2,29 +2,39 @@
 
 import * as React from 'react';
 
-import { parseBulkStudentsText } from '@/utils/student/students';
-import type { BulkStudentInput } from '@/types';
-import { Card, CardContent, useToast } from '@/components';
+import { parseBulkStudentsText } from '@/utils';
+import type {
+  BulkAddStudentInputDTO,
+  RosterEditingStateDTO,
+  RosterStudentRowDTO,
+  OperationCode,
+} from '@/types';
+import type { SetupCodeCardDTO } from '@/types';
 
-import type { EditingState, RosterStudentRow } from '@/types';
+import { Card, CardContent, useToast } from '@/components';
+import { getApiErrorMessage } from '@/utils';
 
 import { RosterToolbar } from './RosterToolbar';
 import { BulkAddPanel } from './BulkAddPanel';
 import { RosterTable } from './RosterTable';
 import { ConfirmModals } from './ConfirmModals';
-import { SetupCodeRow } from '@/types/classroom';
-import { getApiErrorMessage } from '@/utils';
 
 export function RosterTableCard(props: {
   classroomId: number;
-  students: RosterStudentRow[];
+  students: RosterStudentRowDTO[];
   busy?: boolean;
 
-  onBulkAdd: (students: BulkStudentInput[]) => Promise<{ setupCodes: SetupCodeRow[] }>;
-  onUpdateStudent: (
-    id: number,
-    update: { name: string; username: string; level: number },
-  ) => Promise<void>;
+  enabledOperations: OperationCode[];
+  primaryOperation: OperationCode;
+
+  onBulkAdd: (students: BulkAddStudentInputDTO[]) => Promise<{ setupCodes: SetupCodeCardDTO[] }>;
+  onUpdateStudent: (id: number, update: { name: string; username: string }) => Promise<void>;
+  onUpdateStudentProgress: (params: {
+    studentId: number;
+    operation: OperationCode;
+    level: number;
+  }) => Promise<void>;
+
   onDeleteStudent: (id: number) => Promise<void>;
   onResetAccess: (studentId: number) => Promise<string>;
 
@@ -35,8 +45,11 @@ export function RosterTableCard(props: {
     classroomId,
     students,
     busy = false,
+    enabledOperations,
+    primaryOperation,
     onBulkAdd,
     onUpdateStudent,
+    onUpdateStudentProgress,
     onDeleteStudent,
     onResetAccess,
     onGoProgress,
@@ -51,7 +64,7 @@ export function RosterTableCard(props: {
   const [bulkError, setBulkError] = React.useState<string | null>(null);
 
   // edit state
-  const [editing, setEditing] = React.useState<EditingState | null>(null);
+  const [editing, setEditing] = React.useState<RosterEditingStateDTO | null>(null);
 
   // selection state
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set());
@@ -59,7 +72,7 @@ export function RosterTableCard(props: {
 
   // confirm modal states
   const [confirmRemoveId, setConfirmRemoveId] = React.useState<number | null>(null);
-  const [confirmResetStudent, setConfirmResetStudent] = React.useState<RosterStudentRow | null>(
+  const [confirmResetStudent, setConfirmResetStudent] = React.useState<RosterStudentRowDTO | null>(
     null,
   );
   const [confirmBulkRemoveOpen, setConfirmBulkRemoveOpen] = React.useState(false);
@@ -142,7 +155,13 @@ export function RosterTableCard(props: {
         return;
       }
 
-      const result = await onBulkAdd(payload);
+      const dtoPayload: BulkAddStudentInputDTO[] = payload.map((p) => ({
+        firstName: p.firstName,
+        lastName: p.lastName,
+        username: p.username,
+      }));
+
+      const result = await onBulkAdd(dtoPayload);
 
       setIsAdding(false);
       setBulkNamesText('');
@@ -159,13 +178,16 @@ export function RosterTableCard(props: {
   };
 
   // edit handlers
-  const handleSaveEditing = async (next: EditingState) => {
+  const handleSaveEditing = async (next: RosterEditingStateDTO) => {
     try {
-      await onUpdateStudent(next.id, {
-        name: next.name,
-        username: next.username,
+      await onUpdateStudent(next.id, { name: next.name, username: next.username });
+
+      await onUpdateStudentProgress({
+        studentId: next.id,
+        operation: next.operation,
         level: next.level || 1,
       });
+
       toast('Student updated', 'success');
       setEditing(null);
     } catch (err) {
@@ -219,12 +241,11 @@ export function RosterTableCard(props: {
   };
 
   // reset access handlers
-  const handleOpenConfirmReset = (student: RosterStudentRow) => setConfirmResetStudent(student);
+  const handleOpenConfirmReset = (student: RosterStudentRowDTO) => setConfirmResetStudent(student);
 
   const handleConfirmReset = async (studentId: number) => {
     try {
       await onResetAccess(studentId);
-      // printing handled by PeopleClient (it navigates), but keeping UX clear
       toast('Setup code generated. Redirecting to print cards…', 'success');
       onPrintCards();
     } catch (err) {
@@ -263,6 +284,8 @@ export function RosterTableCard(props: {
           students={students}
           busy={busy}
           bulkDeleteBusy={bulkDeleteBusy}
+          enabledOperations={enabledOperations}
+          primaryOperation={primaryOperation}
           editing={editing}
           setEditing={setEditing}
           selectedIds={selectedIds}

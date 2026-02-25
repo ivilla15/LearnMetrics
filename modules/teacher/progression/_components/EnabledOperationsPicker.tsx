@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { HelpText } from '@/components';
-import type { OperationCode } from '@/types';
+import { OPERATION_CODES, type OperationCode } from '@/types/enums';
 
 export function EnabledOperationsPicker(props: {
   enabledOperations: OperationCode[];
@@ -18,7 +18,7 @@ export function EnabledOperationsPicker(props: {
     if (next.has(op)) next.delete(op);
     else next.add(op);
 
-    const arr = ALL_OPS.filter((x) => next.has(x));
+    const arr = OPERATION_CODES.filter((x) => next.has(x));
     onChange(arr.length ? arr : ['MUL']);
   }
 
@@ -27,7 +27,7 @@ export function EnabledOperationsPicker(props: {
       <div className="text-sm font-semibold text-[hsl(var(--fg))]">Enabled operations</div>
 
       <div className="flex flex-wrap gap-3">
-        {ALL_OPS.map((op) => {
+        {OPERATION_CODES.map((op) => {
           const checked = enabledSet.has(op);
           return (
             <label key={op} className="inline-flex items-center gap-2 text-sm">

@@ -8,3 +8,4 @@ export * from './serverFetch';
 export * from './devAuthHeaders';
 export * from './assignments';
 export * from './searchParams';
+export * from './isEqual';

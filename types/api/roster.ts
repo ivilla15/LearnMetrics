@@ -1,4 +1,4 @@
-import type { AttemptSummaryDTO } from '@/types/api/attempts';
+import type { AttemptSummaryDTO, OperationCode, StudentProgressLiteDTO } from '@/types';
 
 export type RosterClassroomDTO = {
   id: number;
@@ -12,6 +12,8 @@ export type RosterStudentRowDTO = {
   username: string;
   mustSetPassword: boolean;
   lastAttempt: AttemptSummaryDTO | null;
+
+  progress: StudentProgressLiteDTO[];
 };
 
 export type ProgressRosterDTO = {
@@ -31,4 +33,13 @@ export type SetupCodeCardDTO = {
 export type BulkAddResponseDTO = {
   setupCodes: SetupCodeCardDTO[];
   students: RosterStudentRowDTO[];
+};
+
+export type RosterEditingStateDTO = {
+  id: number;
+  name: string;
+  username: string;
+
+  operation: OperationCode;
+  level: number;
 };

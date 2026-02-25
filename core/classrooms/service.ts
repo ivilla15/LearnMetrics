@@ -1,7 +1,8 @@
 import * as ClassroomsRepo from '@/data/classrooms.repo';
 import * as StudentsRepo from '@/data/students.repo';
 import { getProgressionSnapshot, NotFoundError, ConflictError } from '@/core';
-import type { OperationCode, ProgressRosterDTO } from '@/types';
+import type { ProgressRosterDTO } from '@/types';
+import type { OperationCode } from '@/types/enums';
 
 export async function getTeacherClassroomOverview(params: {
   classroomId: number;
@@ -36,7 +37,16 @@ export async function getRosterWithLastAttempt(params: {
   const snapshot = await getProgressionSnapshot(classroomId);
   const primaryOperation: OperationCode = snapshot.primaryOperation;
 
-  const students = await StudentsRepo.findStudentsWithLatestAttempt(classroomId, primaryOperation);
+  const raw = await StudentsRepo.findStudentsWithLatestAttempt(classroomId, primaryOperation);
+
+  const students = raw.map((s) => ({
+    id: s.id,
+    name: s.name,
+    username: s.username,
+    mustSetPassword: s.mustSetPassword,
+    lastAttempt: s.lastAttempt,
+    progress: [{ operation: primaryOperation, level: s.level }],
+  }));
 
   return {
     classroom: {

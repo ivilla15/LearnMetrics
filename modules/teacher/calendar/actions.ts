@@ -41,6 +41,7 @@ export async function saveCalendarItemEdit(params: {
   editLocalTime: string; // HH:mm
   editWindowMinutes: string; // text input
   editNumQuestions: string; // text input
+  editDurationMinutes: string;
 }) {
   const { classroomId, item, tz, editLocalDate, editLocalTime } = params;
 
@@ -57,6 +58,11 @@ export async function saveCalendarItemEdit(params: {
     throw new Error('Num questions must be a number between 1 and 60');
   }
 
+  const parsedDuration = parseNumberOrUndefined(params.editDurationMinutes);
+  if (parsedDuration !== undefined && (parsedDuration < 1 || parsedDuration > 1440)) {
+    throw new Error('Duration minutes must be a number between 1 and 1440');
+  }
+
   const windowToUse = parsedWindow ?? item.windowMinutes ?? 4;
   const closesAtUtc = new Date(opensAtUtc.getTime() + windowToUse * 60 * 1000);
 
@@ -66,7 +72,6 @@ export async function saveCalendarItemEdit(params: {
     windowMinutes: windowToUse,
   };
 
-  // Only meaningful for assessment items
   if (nq !== undefined) baseBody.numQuestions = nq;
 
   let res: Response;
@@ -74,8 +79,6 @@ export async function saveCalendarItemEdit(params: {
   if (isProjection(item)) {
     const proj = item as CalendarProjectionRowDTO;
 
-    // Create assignment from projection.
-    // IMPORTANT: respect projection targetKind/type instead of hardcoding TEST.
     const payload: Record<string, unknown> = {
       ...baseBody,
       scheduleId: proj.scheduleId,
@@ -84,15 +87,13 @@ export async function saveCalendarItemEdit(params: {
       targetKind: proj.targetKind,
     };
 
-    // optional fields depending on kind
     if (proj.type) payload.type = proj.type;
     if (proj.operation) payload.operation = proj.operation;
 
     if (proj.targetKind === 'PRACTICE_TIME') {
-      payload.durationMinutes = proj.durationMinutes ?? 0;
-      // numQuestions irrelevant, but harmless if backend ignores
+      payload.durationMinutes =
+        parsedDuration !== undefined ? parsedDuration : (proj.durationMinutes ?? 0);
     } else {
-      // assessment
       if (nq !== undefined) payload.numQuestions = nq;
       else if (proj.numQuestions != null) payload.numQuestions = proj.numQuestions;
       if (proj.windowMinutes != null) payload.windowMinutes = proj.windowMinutes;
@@ -106,6 +107,14 @@ export async function saveCalendarItemEdit(params: {
     });
   } else {
     const a = item as CalendarAssignmentRowDTO;
+
+    if (a.targetKind === 'PRACTICE_TIME' && parsedDuration !== undefined) {
+      baseBody.durationMinutes = parsedDuration;
+    }
+
+    if (a.targetKind !== 'PRACTICE_TIME' && nq !== undefined) {
+      baseBody.numQuestions = nq;
+    }
 
     res = await fetch(`/api/teacher/classrooms/${classroomId}/assignments/${a.assignmentId}`, {
       method: 'PATCH',

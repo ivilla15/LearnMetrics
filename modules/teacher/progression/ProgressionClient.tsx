@@ -3,8 +3,8 @@
 import * as React from 'react';
 
 import { Card, CardContent, CardHeader, Button, useToast, HelpText } from '@/components';
-import type { ProgressionPolicyDTO, ProgressionPolicyInput } from '@/types/api/progression';
-
+import type { ProgressionPolicyDTO, ProgressionPolicyInputDTO } from '@/types/api/progression';
+import { normalizePolicyInput, toInput } from '@/types/api/progression';
 import { fetchProgressionPolicy, saveProgressionPolicy } from './actions';
 import {
   ProgressionBasicsForm,
@@ -12,7 +12,8 @@ import {
   OperationOrderEditor,
   ModifierRulesEditor,
 } from './_components';
-import { getApiErrorMessage, isEqual, normalizePolicyInput, toInput } from '@/utils';
+import { getApiErrorMessage } from '@/utils/http';
+import { isEqual } from '@/utils';
 
 type Props = {
   classroomId: number;
@@ -26,7 +27,7 @@ export function ProgressionClient({ classroomId, initialPolicy }: Props) {
     () => normalizePolicyInput(toInput(initialPolicy)),
     [initialPolicy],
   );
-  const [input, setInput] = React.useState<ProgressionPolicyInput>(initialInput);
+  const [input, setInput] = React.useState<ProgressionPolicyInputDTO>(initialInput);
   const [busy, setBusy] = React.useState(false);
 
   const dirty = !isEqual(input, initialInput);

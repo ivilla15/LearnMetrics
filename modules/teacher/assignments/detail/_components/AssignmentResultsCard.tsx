@@ -2,8 +2,9 @@
 
 import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components';
-import type { AssignmentAttemptsFilter, AttemptResultsRowDTO, AssignmentTargetKind } from '@/types';
 import { AttemptResultsTable } from '@/modules/teacher/student-progress';
+import type { AssignmentAttemptsFilter, AttemptResultsRowDTO, AssignmentTargetKind } from '@/types';
+import { ASSIGNMENT_ATTEMPTS_FILTER_OPTIONS } from '@/types';
 
 export function AssignmentResultsCard(props: {
   loading: boolean;
@@ -43,14 +44,9 @@ export function AssignmentResultsCard(props: {
             loading={loading}
             showStudentColumn={true}
             searchEnabled={true}
-            filterOptions={[
-              { key: 'ALL', label: 'All' },
-              { key: 'MASTERY', label: 'Mastery' },
-              { key: 'NOT_MASTERY', label: 'Not mastery' },
-              { key: 'MISSING', label: 'Missing' },
-            ]}
+            filterOptions={ASSIGNMENT_ATTEMPTS_FILTER_OPTIONS}
             filter={filter}
-            onChangeFilter={(key) => onChangeFilter(key as AssignmentAttemptsFilter)}
+            onChangeFilter={onChangeFilter}
             onViewDetails={onViewDetails}
             helpText={<>Missing means there is no attempt record for this assignment.</>}
           />

@@ -14,7 +14,7 @@ import {
   Skeleton,
 } from '@/components';
 import { studentNavItems, AppShell } from '@/modules';
-import { isMeDTO, MeDTO } from '@/types';
+import { isStudentMeDTO, type StudentMeDTO } from '@/types';
 
 function ProfileSkeleton() {
   return (
@@ -60,7 +60,7 @@ function ProfileSkeleton() {
 export default function StudentProfilePage() {
   const pathname = usePathname();
 
-  const [me, setMe] = useState<MeDTO | null>(null);
+  const [me, setMe] = useState<StudentMeDTO | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -84,7 +84,7 @@ export default function StudentProfilePage() {
             ? ((json as { student?: unknown }).student ?? json)
             : null;
 
-        setMe(isMeDTO(candidate) ? candidate : null);
+        setMe(isStudentMeDTO(candidate) ? candidate : null);
       } catch {
         setMe(null);
       } finally {

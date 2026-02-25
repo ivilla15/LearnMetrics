@@ -24,8 +24,6 @@ export function StudentProgressClient({ classroomId, studentId, initial }: Props
     printMode,
   });
 
-  const s = data.student;
-
   const missedFacts: MissedFactDTO[] = Array.isArray(data.insights?.topMissedFacts)
     ? data.insights.topMissedFacts
     : [];
@@ -49,9 +47,6 @@ export function StudentProgressClient({ classroomId, studentId, initial }: Props
 
       <AttemptExplorer
         baseUrl={`/api/teacher/classrooms/${classroomId}/students/${studentId}`}
-        studentId={studentId}
-        studentName={s?.name}
-        studentUsername={s?.username}
         hideControls={printMode}
       />
     </div>

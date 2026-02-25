@@ -69,7 +69,7 @@ export type TeacherAssignmentsListResponse = {
   classroom: { id: number; name: string; timeZone?: string | null };
   rows: TeacherAssignmentListItemDTO[];
   nextCursor: string | null;
-  projections?: unknown; // calendar endpoint owns projection type
+  projections?: unknown;
 };
 
 export type AssignModalStudentRowDTO = {

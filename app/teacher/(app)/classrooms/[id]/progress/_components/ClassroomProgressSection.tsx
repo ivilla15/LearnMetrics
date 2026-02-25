@@ -1,5 +1,5 @@
 import { ClassroomProgressClient } from '@/modules';
-import { getTeacherClassroomProgress } from '@/core/teacher/Progress';
+import { getClassroomProgress } from '@/core/progress';
 
 export async function ClassroomProgressSection({
   teacherId,
@@ -10,6 +10,6 @@ export async function ClassroomProgressSection({
   classroomId: number;
   days: number;
 }) {
-  const dto = await getTeacherClassroomProgress({ teacherId, classroomId, days });
+  const dto = await getClassroomProgress({ teacherId, classroomId, days });
   return <ClassroomProgressClient classroomId={classroomId} initial={dto} />;
 }

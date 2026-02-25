@@ -9,11 +9,11 @@ import {
   masteryTone,
   missedTone,
   pctTone,
-  type AttemptExplorerFilter,
+  type AssignmentAttemptsFilter,
   type AttemptResultsRowDTO,
 } from '@/types';
 
-type FilterOption = { key: AttemptExplorerFilter; label: string };
+type FilterOption = Readonly<{ key: AssignmentAttemptsFilter; label: string }>;
 
 function safeLower(s: string | undefined | null) {
   return (s ?? '').trim().toLowerCase();
@@ -39,9 +39,9 @@ export function AttemptResultsTable({
   searchLabel?: string;
   searchPlaceholder?: string;
 
-  filterOptions: FilterOption[];
-  filter: AttemptExplorerFilter;
-  onChangeFilter: (next: AttemptExplorerFilter) => void;
+  filterOptions: ReadonlyArray<FilterOption>;
+  filter: AssignmentAttemptsFilter;
+  onChangeFilter: (next: AssignmentAttemptsFilter) => void;
 
   showStudentColumn: boolean;
 
