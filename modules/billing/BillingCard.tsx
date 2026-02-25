@@ -85,7 +85,7 @@ export function BillingCard() {
         <CardDescription>Manage your plan and payments</CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4 min-h-[150px]">
+      <CardContent className="space-y-4 min-h-37.5">
         {loading ? (
           <div className="space-y-2">
             <Skeleton className="h-10 w-40" />

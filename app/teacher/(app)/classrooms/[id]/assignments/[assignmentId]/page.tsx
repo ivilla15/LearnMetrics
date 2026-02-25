@@ -4,7 +4,7 @@ import { requireTeacher } from '@/core/auth/requireTeacher';
 
 import { ClassroomSubNav, AssignmentDetailClient } from '@/modules';
 import { PageHeader, Section } from '@/components';
-import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch';
+import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch.app';
 
 export default async function Page({
   params,

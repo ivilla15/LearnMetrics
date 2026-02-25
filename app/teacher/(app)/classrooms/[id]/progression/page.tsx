@@ -9,7 +9,7 @@ import { ProgressionClient } from '@/modules';
 
 import type { ProgressionPolicyDTO } from '@/types';
 import { getApiErrorMessage } from '@/utils/http';
-import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils';
+import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch.app';
 
 export default async function Page({
   params,

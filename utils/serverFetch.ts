@@ -1,7 +1,4 @@
-import { headers } from 'next/headers';
-
-export async function getBaseUrlFromHeaders() {
-  const h = await headers();
+export function getBaseUrlFromHeadersLike(h: { get(name: string): string | null }) {
   const host = h.get('host');
   const proto = h.get('x-forwarded-proto') ?? 'http';
 
@@ -9,7 +6,6 @@ export async function getBaseUrlFromHeaders() {
   return `${proto}://${host}`;
 }
 
-export async function getCookieHeader() {
-  const h = await headers();
+export function getCookieHeaderFromHeadersLike(h: { get(name: string): string | null }) {
   return h.get('cookie') ?? '';
 }

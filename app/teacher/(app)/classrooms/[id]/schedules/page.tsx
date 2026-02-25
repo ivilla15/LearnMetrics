@@ -2,7 +2,7 @@ import { requireTeacher, getTeacherEntitlement } from '@/core';
 import { ClassroomSubNav } from '@/modules';
 import { PageHeader, Section } from '@/components';
 import { SchedulesClient } from '@/modules/teacher/schedules';
-import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch';
+import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch.app';
 
 import type { ClassroomSchedulesResponse, ScheduleGate } from '@/types';
 
