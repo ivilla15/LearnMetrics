@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Button, HelpText } from '@/components';
-import type { OperationCode } from '@/types/api/progression';
+import type { OperationCode } from '@/types';
 
 function move<T>(arr: T[], from: number, to: number) {
   const next = arr.slice();

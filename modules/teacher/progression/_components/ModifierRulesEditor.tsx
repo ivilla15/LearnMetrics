@@ -5,14 +5,14 @@ import { HelpText, Input, Button } from '@/components';
 import {
   modifierSchema,
   type ModifierCode,
-  type ModifierRule,
+  type ModifierRuleDTO,
   type OperationCode,
-} from '@/types/api/progression';
+} from '@/types';
 import { clamp } from '@/utils';
 
 const MODIFIERS: ModifierCode[] = [modifierSchema.enum.DECIMAL, modifierSchema.enum.FRACTION];
 
-function ensureRule(mod: ModifierCode, rules: ModifierRule[]): ModifierRule {
+function ensureRule(mod: ModifierCode, rules: ModifierRuleDTO[]): ModifierRuleDTO {
   const existing = rules.find((r) => r.modifier === mod);
   return (
     existing ?? {
@@ -28,8 +28,8 @@ function ensureRule(mod: ModifierCode, rules: ModifierRule[]): ModifierRule {
 export function ModifierRulesEditor(props: {
   enabledOperations: OperationCode[];
   maxNumber: number;
-  rules: ModifierRule[];
-  onChange: (rules: ModifierRule[]) => void;
+  rules: ModifierRuleDTO[];
+  onChange: (rules: ModifierRuleDTO[]) => void;
   disabled: boolean;
 }) {
   const { enabledOperations, maxNumber, rules, onChange, disabled } = props;
@@ -37,7 +37,7 @@ export function ModifierRulesEditor(props: {
   const enabledSet = React.useMemo(() => new Set(enabledOperations), [enabledOperations]);
 
   const normalized = React.useMemo(() => {
-    const next: ModifierRule[] = MODIFIERS.map((m) => ensureRule(m, rules)).map((r) => ({
+    const next: ModifierRuleDTO[] = MODIFIERS.map((m) => ensureRule(m, rules)).map((r) => ({
       ...r,
       operations: r.operations.filter((op) => enabledSet.has(op)),
       minLevel: clamp(r.minLevel, 1, maxNumber),
@@ -45,7 +45,7 @@ export function ModifierRulesEditor(props: {
     return next;
   }, [rules, enabledSet, maxNumber]);
 
-  function updateRule(mod: ModifierCode, updater: (r: ModifierRule) => ModifierRule) {
+  function updateRule(mod: ModifierCode, updater: (r: ModifierRuleDTO) => ModifierRuleDTO) {
     const next = normalized.map((r) => (r.modifier === mod ? updater(r) : r));
     onChange(next);
   }

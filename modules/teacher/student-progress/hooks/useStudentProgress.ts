@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { TeacherStudentProgressDTO } from '@/core/teacher/Progress';
+import type { TeacherStudentProgressDTO } from '@/types';
 import { getApiErrorMessage } from '@/utils/http';
 
 export function useStudentProgress(params: {

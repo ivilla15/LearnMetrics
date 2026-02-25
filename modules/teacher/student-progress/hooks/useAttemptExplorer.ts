@@ -1,14 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import type {
-  AttemptDetail,
-  AttemptExplorerFilter,
-  AttemptExplorerMe,
-  AttemptRow,
-} from '@/types/api/attempts';
-import { parseMeFromApiResponse } from '@/utils/attempts';
-import { getApiErrorMessage } from '@/utils/http';
+import type { AttemptDetail, AttemptExplorerFilter, AttemptExplorerMe, AttemptRow } from '@/types';
+import { parseMeFromApiResponse, getApiErrorMessage } from '@/utils';
 
 export function useAttemptExplorer(baseUrl: string) {
   const [attempts, setAttempts] = React.useState<AttemptRow[]>([]);

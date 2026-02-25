@@ -12,6 +12,7 @@ export * from './api/schedules';
 export * from './api/student';
 export * from './api/question';
 export * from './api/teacher';
+export * from './api/progress';
 
 export * from './ui/filters';
 export * from './ui/selections';

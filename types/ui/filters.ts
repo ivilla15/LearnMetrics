@@ -10,3 +10,17 @@ export const ATTEMPT_EXPLORER_FILTERS = ['ALL', 'MASTERY', 'NOT_MASTERY'] as con
 export type AttemptExplorerFilter = (typeof ATTEMPT_EXPLORER_FILTERS)[number];
 
 export type MinutesOption = 'OFF' | '2' | '4' | '6' | '8';
+
+export const CLASSROOM_PROGRESS_FILTER_KEYS = [
+  'all',
+  'atRisk',
+  'stale14',
+  'missedLastTest',
+  'streak2',
+  'masteryStreak2',
+  'needsSetup',
+  'improving',
+  'regressing',
+] as const;
+
+export type FilterKey = (typeof CLASSROOM_PROGRESS_FILTER_KEYS)[number];

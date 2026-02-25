@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Modal, Button } from '@/components';
 import { cn } from '@/lib';
-import type { AttemptDetailForModal } from '@/types/api/attempts';
+import type { AttemptDetailDTO } from '@/types';
 
 export function AttemptDetailModal({
   open,
@@ -30,7 +30,7 @@ export function AttemptDetailModal({
   studentName?: string | null;
   studentUsername?: string | null;
 
-  detail: AttemptDetailForModal | null;
+  detail: AttemptDetailDTO | null;
   loading: boolean;
   error: string | null;
 

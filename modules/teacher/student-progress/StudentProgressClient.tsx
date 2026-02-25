@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 
-import type { TeacherStudentProgressDTO, MissedFact } from '@/core';
+import type { TeacherStudentProgressDTO, MissedFactDTO } from '@/types';
 import { SummaryCard, MissedFactsCard, PrintHeader, AttemptExplorer } from './_components';
 import { useStudentProgress } from './hooks';
 
@@ -26,7 +26,7 @@ export function StudentProgressClient({ classroomId, studentId, initial }: Props
 
   const s = data.student;
 
-  const missedFacts: MissedFact[] = Array.isArray(data.insights?.topMissedFacts)
+  const missedFacts: MissedFactDTO[] = Array.isArray(data.insights?.topMissedFacts)
     ? data.insights.topMissedFacts
     : [];
 

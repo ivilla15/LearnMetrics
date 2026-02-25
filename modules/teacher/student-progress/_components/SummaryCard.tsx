@@ -18,7 +18,7 @@ import {
 } from '@/components';
 
 import { formatLocal } from '@/lib/date';
-import type { TeacherStudentProgressDTO } from '@/core/teacher/Progress';
+import type { TeacherStudentProgressDTO } from '@/types';
 
 export function SummaryCard(props: {
   classroomId: number;
@@ -45,6 +45,7 @@ export function SummaryCard(props: {
   } = props;
 
   const s = data.student;
+  const practiceSummary = data.practice?.summary ?? null;
 
   return (
     <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
@@ -121,6 +122,17 @@ export function SummaryCard(props: {
           <StatPill label="Last %" value={s.lastPercent === null ? '—' : `${s.lastPercent}%`} />
           <StatPill label="Median % (range)" value={`${s.medianPercentInRange ?? 0}%`} />
         </div>
+
+        {practiceSummary ? (
+          <div className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4">
+            <div className="text-sm font-semibold text-[hsl(var(--fg))]">Practice</div>
+            <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
+              {Math.round((practiceSummary.completedSeconds ?? 0) / 60)} /{' '}
+              {Math.round((practiceSummary.requiredSeconds ?? 0) / 60)} minutes (
+              {practiceSummary.percent ?? 0}%)
+            </div>
+          </div>
+        ) : null}
 
         <div className="flex flex-wrap gap-2">
           {s.flags?.needsSetup ? (

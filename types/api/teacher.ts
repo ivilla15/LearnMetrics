@@ -17,8 +17,8 @@ export type TeacherClassroomOverviewStatsDTO = {
   activeSchedules: number;
 
   nextTest: null | {
-    opensAt: string; // ISO
-    closesAt: string | null; // ISO
+    opensAt: string;
+    closesAt: string | null;
     mode: import('../enums').AssignmentMode;
   };
 

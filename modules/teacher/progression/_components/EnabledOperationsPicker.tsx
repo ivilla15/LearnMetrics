@@ -2,8 +2,7 @@
 
 import * as React from 'react';
 import { HelpText } from '@/components';
-import { ALL_OPS } from '@/types/api/progression';
-import type { OperationCode } from '@/types/api/progression';
+import type { OperationCode } from '@/types';
 
 export function EnabledOperationsPicker(props: {
   enabledOperations: OperationCode[];

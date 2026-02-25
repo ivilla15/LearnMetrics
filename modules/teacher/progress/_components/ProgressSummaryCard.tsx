@@ -29,14 +29,6 @@ type Props = {
   attemptsInRange: number;
   studentsTotal: number;
 
-  focusStudents: Array<{
-    id: number;
-    name: string;
-    username: string;
-    level: number;
-    lastAttemptAt: string | Date | null;
-  }>;
-
   last3Tests: Array<{
     assignmentId: number;
     opensAt: string | Date;
@@ -75,7 +67,6 @@ export function ProgressSummaryCard(props: Props) {
     highestLevel,
     attemptsInRange,
     studentsTotal,
-    focusStudents,
     last3Tests,
     onOpenPicker,
     onOpenAssign,
@@ -85,7 +76,6 @@ export function ProgressSummaryCard(props: Props) {
     onFilterNonMasteryStreak2,
     onClearFilters,
     onScrollToStudents,
-    onGoStudent,
   } = props;
 
   return (
@@ -190,35 +180,6 @@ export function ProgressSummaryCard(props: Props) {
               Filter at-risk
             </Button>
           </div>
-
-          {focusStudents.length === 0 ? (
-            <div className="mt-3 text-sm text-[hsl(var(--muted-fg))]">
-              No urgent flags in this range.
-            </div>
-          ) : (
-            <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-              {focusStudents.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => onGoStudent(s.id)}
-                  className={[
-                    'text-left rounded-[14px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface-2))] px-3 py-3 transition-colors',
-                    'cursor-pointer hover:bg-[hsl(var(--surface-2))]',
-                  ].join(' ')}
-                >
-                  <div className="text-sm font-semibold text-[hsl(var(--fg))]">{s.name}</div>
-                  <div className="text-xs font-mono text-[hsl(var(--muted-fg))]">{s.username}</div>
-                  <div className="mt-2 flex flex-wrap gap-2">
-                    {Badge({ text: `Lvl ${s.level}`, tone: 'muted' })}
-                  </div>
-                  <div className="mt-2 text-xs text-[hsl(var(--muted-fg))]">
-                    Last attempt: {formatLocal(s.lastAttemptAt ?? null)}
-                  </div>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <div className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4">

@@ -12,21 +12,23 @@ import {
   Label,
   Badge,
 } from '@/components';
-
+import type { ClassroomProgressStudentRowDTO, FilterKey } from '@/types';
 import { formatLocal } from '@/lib/date';
-import { pctTone } from '@/types';
+import { CLASSROOM_PROGRESS_FILTER_KEYS, pctTone } from '@/types';
 
-const FILTERS: Array<[FilterKey, string]> = [
-  ['all', 'All'],
-  ['atRisk', 'At-risk'],
-  ['stale14', '14+ days'],
-  ['missedLastTest', 'Missed last test'],
-  ['streak2', '2+ not mastery'],
-  ['masteryStreak2', '2+ mastery'],
-  ['needsSetup', 'Needs setup'],
-  ['improving', 'Improving'],
-  ['regressing', 'Regressing'],
-];
+const FILTER_LABELS: Record<FilterKey, string> = {
+  all: 'All',
+  atRisk: 'At-risk',
+  stale14: '14+ days',
+  missedLastTest: 'Missed last test',
+  streak2: '2+ not mastery',
+  masteryStreak2: '2+ mastery',
+  needsSetup: 'Needs setup',
+  improving: 'Improving',
+  regressing: 'Regressing',
+};
+
+const FILTERS = CLASSROOM_PROGRESS_FILTER_KEYS.map((key) => [key, FILTER_LABELS[key]] as const);
 
 export function StudentsTableCard(props: {
   tableRef: React.RefObject<HTMLDivElement | null>;
@@ -42,7 +44,7 @@ export function StudentsTableCard(props: {
   filter: FilterKey;
   setFilter: (k: FilterKey) => void;
 
-  filtered: StudentRow[];
+  filtered: ClassroomProgressStudentRowDTO[];
 
   hasLastTest: boolean;
 

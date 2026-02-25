@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useToast } from '@/components';
-import type { ClassroomProgressDTO, FactDetailDTO, FilterKey, MissedFact } from '@/types';
+import type { ClassroomProgressDTO, FactDetailDTO, FilterKey, MissedFactDTO } from '@/types';
 
 export function useClassroomProgress(params: {
   classroomId: number;
@@ -14,22 +14,18 @@ export function useClassroomProgress(params: {
   const [data, setData] = React.useState(initial);
   const [loading, setLoading] = React.useState(false);
 
-  // Students-table filters
   const [filter, setFilter] = React.useState<FilterKey>('all');
   const [search, setSearch] = React.useState('');
 
-  // Student picker modal search
   const [pickerSearch, setPickerSearch] = React.useState('');
 
-  // Modals
   const [pickerOpen, setPickerOpen] = React.useState(false);
   const [missedOpen, setMissedOpen] = React.useState(false);
   const [missedDetailOpen, setMissedDetailOpen] = React.useState(false);
   const [assignOpen, setAssignOpen] = React.useState(false);
 
-  // Missed-fact detail
   const [factLoading, setFactLoading] = React.useState(false);
-  const [selectedFact, setSelectedFact] = React.useState<MissedFact | null>(null);
+  const [selectedFact, setSelectedFact] = React.useState<MissedFactDTO | null>(null);
   const [factDetail, setFactDetail] = React.useState<FactDetailDTO | null>(null);
 
   const studentsTableRef = React.useRef<HTMLDivElement | null>(null);
@@ -65,7 +61,7 @@ export function useClassroomProgress(params: {
 
     setFilter('all');
     setSearch('');
-    reload(safe);
+    void reload(safe);
   }
 
   function scrollToStudentsTable() {
@@ -74,20 +70,25 @@ export function useClassroomProgress(params: {
     });
   }
 
-  async function openFactDetail(fact: MissedFact) {
+  async function openFactDetail(fact: MissedFactDTO) {
     setSelectedFact(fact);
     setFactDetail(null);
     setMissedDetailOpen(true);
 
-    if (!fact?.questionId) return;
-
     setFactLoading(true);
     try {
       const days = Number(data?.range?.days) || 30;
-      const res = await fetch(
-        `/api/teacher/classrooms/${classroomId}/progress?questionId=${fact.questionId}&days=${days}`,
-        { cache: 'no-store' },
+
+      const url = new URL(
+        `/api/teacher/classrooms/${classroomId}/progress`,
+        window.location.origin,
       );
+      url.searchParams.set('days', String(days));
+      url.searchParams.set('operation', fact.operation);
+      url.searchParams.set('operandA', String(fact.operandA));
+      url.searchParams.set('operandB', String(fact.operandB));
+
+      const res = await fetch(url.toString(), { cache: 'no-store' });
       const json = await res.json().catch(() => null);
 
       if (!res.ok) {
@@ -110,7 +111,6 @@ export function useClassroomProgress(params: {
 
   // --- Derived data ---
   const students = React.useMemo(() => data.students ?? [], [data.students]);
-  const focusStudents = React.useMemo(() => data.focus?.students ?? [], [data.focus?.students]);
   const last3Tests = React.useMemo(() => data.recent?.last3Tests ?? [], [data.recent?.last3Tests]);
   const missedFacts = React.useMemo(
     () => data.insights?.topMissedFacts ?? [],
@@ -149,9 +149,10 @@ export function useClassroomProgress(params: {
 
   const hasLastTest = last3Tests.length > 0;
 
-  const missedLastTestCount = Number.isFinite(data?.summary?.missedLastTestCount)
-    ? (data.summary!.missedLastTestCount as number)
-    : null;
+  const missedLastTestCount =
+    typeof data?.summary?.missedLastTestCount === 'number'
+      ? data.summary.missedLastTestCount
+      : null;
 
   const masteryStreak2Count = React.useMemo(
     () => students.reduce((acc, s) => acc + ((s.masteryStreak ?? 0) >= 2 ? 1 : 0), 0),
@@ -200,7 +201,6 @@ export function useClassroomProgress(params: {
   const factMaxIncorrect = factRows.reduce((m, r) => Math.max(m, r.incorrectCount ?? 0), 0);
 
   return {
-    // state
     data,
     loading,
     filter,
@@ -216,7 +216,6 @@ export function useClassroomProgress(params: {
     daysText,
     studentsTableRef,
 
-    // setters
     setFilter,
     setSearch,
     setPickerSearch,
@@ -226,16 +225,13 @@ export function useClassroomProgress(params: {
     setAssignOpen,
     setDaysText,
 
-    // actions
     reload,
     applyDays,
     scrollToStudentsTable,
     openFactDetail,
     closeFactDetail,
 
-    // derived
     students,
-    focusStudents,
     last3Tests,
     missedFacts,
     top3Missed,

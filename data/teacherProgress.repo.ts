@@ -342,3 +342,25 @@ export async function getMissedFactsForStudentInRange(params: {
     })
     .slice(0, Math.max(1, limit));
 }
+
+export async function getPracticeAssignmentsForStudentInRange(params: {
+  classroomId: number;
+  studentId: number;
+  startAt: Date;
+  endAt: Date;
+  take?: number;
+}) {
+  const { classroomId, studentId, startAt, endAt, take = 25 } = params;
+
+  return prisma.assignment.findMany({
+    where: {
+      classroomId,
+      targetKind: 'PRACTICE_TIME',
+      opensAt: { gte: startAt, lte: endAt },
+      recipients: { some: { studentId } },
+    },
+    select: { id: true },
+    orderBy: { opensAt: 'desc' },
+    take,
+  });
+}

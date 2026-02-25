@@ -15,8 +15,7 @@ import {
 import { AttemptDetailModal } from './AttemptDetailModal';
 import { AttemptResultsTable } from './AttemptResultsTable';
 import { AttemptExplorerSkeleton } from './AttemptExplorerSkeleton';
-
-import type { AttemptResultsRow, AttemptExplorerFilter } from '@/types/api/attempts';
+import type { AttemptResultsRowDTO, AttemptExplorerFilter } from '@/types';
 import { useAttemptExplorer } from '../hooks';
 
 export function AttemptExplorer({
@@ -78,7 +77,7 @@ export function AttemptExplorer({
 
   const modalOpen = selectedAttemptId !== null;
 
-  const tableRows: AttemptResultsRow[] = attempts.map((a) => {
+  const tableRows: AttemptResultsRowDTO[] = attempts.map((a) => {
     const missed = Math.max(0, a.total - a.score);
     return {
       attemptId: a.attemptId,

@@ -2,24 +2,18 @@
 
 import * as React from 'react';
 
-import {
-  Button,
-  Input,
-  Label,
-  HelpText,
-  Pill,
-  StatusDot,
-  masteryTone,
-  pctTone,
-  missedTone,
-} from '@/components';
+import { Button, Input, Label, HelpText, Pill, StatusDot } from '@/components';
 
 import { formatLocal } from '@/lib/date';
-import type {
-  AttemptResultsFilterOption,
-  AttemptResultsFilterKey,
-  AttemptResultsRow,
-} from '@/types/api/attempts';
+import {
+  masteryTone,
+  missedTone,
+  pctTone,
+  type AttemptExplorerFilter,
+  type AttemptResultsRowDTO,
+} from '@/types';
+
+type FilterOption = { key: AttemptExplorerFilter; label: string };
 
 function safeLower(s: string | undefined | null) {
   return (s ?? '').trim().toLowerCase();
@@ -28,35 +22,30 @@ function safeLower(s: string | undefined | null) {
 export function AttemptResultsTable({
   rows,
   loading,
-
   searchEnabled = true,
   searchLabel = 'Search students',
   searchPlaceholder = 'Name or username…',
-
   filterOptions,
   filter,
   onChangeFilter,
-
   showStudentColumn,
-
   onViewDetails,
-
   helpText,
 }: {
-  rows: AttemptResultsRow[];
+  rows: AttemptResultsRowDTO[];
   loading: boolean;
 
   searchEnabled?: boolean;
   searchLabel?: string;
   searchPlaceholder?: string;
 
-  filterOptions: AttemptResultsFilterOption[];
-  filter: AttemptResultsFilterKey;
-  onChangeFilter: (next: AttemptResultsFilterKey) => void;
+  filterOptions: FilterOption[];
+  filter: AttemptExplorerFilter;
+  onChangeFilter: (next: AttemptExplorerFilter) => void;
 
   showStudentColumn: boolean;
 
-  onViewDetails: (row: AttemptResultsRow) => void;
+  onViewDetails: (row: AttemptResultsRowDTO) => void;
 
   helpText?: React.ReactNode;
 }) {

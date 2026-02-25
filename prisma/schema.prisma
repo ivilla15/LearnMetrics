@@ -22,13 +22,13 @@ enum Type {
 }
 
 enum AssignmentTargetKind {
-  ASSESSMENT     // question-based, one attempt (Attempt + AttemptItems)
-  PRACTICE_TIME  // time-based requirement, tracked via PracticeSession + rollups
+  ASSESSMENT
+  PRACTICE_TIME
 }
 
 enum RecipientRule {
   ALL
-  NOT_MASTERED_DEPENDENCY // includes missed + not-mastery from dependency assignment
+  NOT_MASTERED_DEPENDENCY
 }
 
 enum Operation {
@@ -51,36 +51,28 @@ model Assignment {
   classroomId   Int
   Classroom     Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
 
-  // What this assignment represents
   type          Type                @default(TEST)
   mode          Mode                @default(SCHEDULED)
   targetKind    AssignmentTargetKind @default(ASSESSMENT)
 
-  // Scheduling window
   opensAt       DateTime
   closesAt      DateTime?
   windowMinutes Int      @default(4)
 
-  // Assessment configuration (targetKind = ASSESSMENT)
   numQuestions  Int      @default(12)
 
-  // Operation context (used by ASSESSMENT; optional for PRACTICE_TIME if you want general practice)
   operation     Operation?
 
-  // Practice-time configuration (targetKind = PRACTICE_TIME)
   durationMinutes Int?
 
-  // Schedule-run linking
   scheduleId    Int?
   Schedule      AssignmentSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   runDate       DateTime?
 
-  // Makeups / parent-child relation (optional)
   parentAssignmentId Int?
   ParentAssignment   Assignment?  @relation("AssignmentParent", fields: [parentAssignmentId], references: [id], onDelete: SetNull)
   ChildMakeups       Assignment[] @relation("AssignmentParent")
 
-  // Attempts / targeting
   Attempt      Attempt[]
   recipients   AssignmentRecipient[]
   ScheduleRuns AssignmentScheduleRun[]
@@ -103,29 +95,22 @@ model AssignmentSchedule {
   days             String[]
   opensAtLocalTime String
 
-  // For schedules that create assignments, you still want a “window”
-  // (even PRACTICE_TIME will use closesAt = opensAt + durationMinutes)
   windowMinutes    Int      @default(4)
 
-  // What this schedule creates
   targetKind       AssignmentTargetKind @default(ASSESSMENT)
 
-  // For ASSESSMENT schedules
-  type             Type?        // e.g. TEST, PRACTICE, REMEDIATION
+  type             Type?
   numQuestions     Int          @default(12)
   operation        Operation?
 
-  // For PRACTICE_TIME schedules
   durationMinutes  Int?
 
-  // Dependency scheduling (practice-after-test)
   dependsOnScheduleId Int?
   DependsOnSchedule   AssignmentSchedule? @relation("ScheduleDependency", fields: [dependsOnScheduleId], references: [id], onDelete: SetNull)
   Dependents          AssignmentSchedule[] @relation("ScheduleDependency")
 
   offsetMinutes     Int           @default(0)
 
-  // Recipient selection for dependent schedules
   recipientRule     RecipientRule @default(ALL)
 
   Assignments Assignment[]
@@ -178,7 +163,6 @@ model Attempt {
   startedAt    DateTime @default(now())
   completedAt  DateTime?
 
-  // Snapshot at time (supports multi-operation progression)
   operationAtTime Operation?
   levelAtTime     Int?
   maxNumberAtTime Int?
@@ -198,13 +182,11 @@ model AttemptItem {
   id          Int      @id @default(autoincrement())
   attemptId   Int
 
-  // Snapshot of generated prompt (no Question table)
   operation    Operation
   operandA     Int
   operandB     Int
   correctAnswer Int
 
-  // Student response
   givenAnswer  Int
   isCorrect    Boolean
 
@@ -220,7 +202,6 @@ model PracticeSession {
   endedAt         DateTime?
   durationSeconds Int      @default(0)
 
-  // Snapshot context for analytics and crediting practice-time assignments
   operationAtTime Operation
   levelAtTime     Int
   maxNumberAtTime Int      @default(12)
