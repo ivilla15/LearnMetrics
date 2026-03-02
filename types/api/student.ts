@@ -30,8 +30,9 @@ export type StudentAssignmentStatus = 'NOT_OPEN' | 'CLOSED' | 'READY' | 'ALREADY
 
 export type StudentQuestionDTO = {
   id: number;
-  factorA: number;
-  factorB: number;
+  operandA: number;
+  operandB: number;
+  operation: OperationCode;
 };
 
 export type StudentAssignmentDTO = {

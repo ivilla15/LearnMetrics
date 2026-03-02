@@ -3,8 +3,8 @@ import crypto from 'crypto';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 import { prisma } from '@/data/prisma';
-import { generateSetupCode, hashSetupCode } from '@/core';
 import { expiresAtFromNow } from '@/utils';
+import { generateSetupCode, hashSetupCode } from '@/core/auth';
 
 export async function findStudentById(studentId: number) {
   return prisma.student.findUnique({ where: { id: studentId } });
@@ -23,7 +23,7 @@ export async function findStudentByIdInClassroom(classroomId: number, studentId:
   });
 }
 
-export async function findStudentsWithLatestAttempt(classroomId: number, primaryOperation: string) {
+export async function findStudentsWithLatestAttempt(classroomId: number) {
   const students = await prisma.student.findMany({
     where: { classroomId },
     select: {
@@ -31,7 +31,12 @@ export async function findStudentsWithLatestAttempt(classroomId: number, primary
       name: true,
       username: true,
       mustSetPassword: true,
-      progress: { select: { operation: true, level: true } },
+      progress: {
+        select: {
+          operation: true,
+          level: true,
+        },
+      },
       Attempt: {
         orderBy: [{ completedAt: 'desc' }, { startedAt: 'desc' }],
         take: 1,
@@ -49,9 +54,6 @@ export async function findStudentsWithLatestAttempt(classroomId: number, primary
   });
 
   return students.map((s) => {
-    const row = s.progress.find((p) => p.operation === primaryOperation);
-    const level = row?.level ?? 1;
-
     const latest = s.Attempt[0] ?? null;
     const ts = latest ? (latest.completedAt ?? latest.startedAt).toISOString() : null;
 
@@ -60,7 +62,12 @@ export async function findStudentsWithLatestAttempt(classroomId: number, primary
       name: s.name,
       username: s.username,
       mustSetPassword: s.mustSetPassword,
-      level,
+
+      progress: s.progress.map((p) => ({
+        operation: p.operation,
+        level: p.level,
+      })),
+
       lastAttempt: latest
         ? {
             id: latest.id,

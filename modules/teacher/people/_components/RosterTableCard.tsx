@@ -8,8 +8,8 @@ import type {
   RosterEditingStateDTO,
   RosterStudentRowDTO,
   OperationCode,
+  BulkAddResponseDTO,
 } from '@/types';
-import type { SetupCodeCardDTO } from '@/types';
 
 import { Card, CardContent, useToast } from '@/components';
 import { getApiErrorMessage } from '@/utils';
@@ -25,9 +25,10 @@ export function RosterTableCard(props: {
   busy?: boolean;
 
   enabledOperations: OperationCode[];
-  primaryOperation: OperationCode;
+  operationOrder: OperationCode[];
+  maxNumber: number;
 
-  onBulkAdd: (students: BulkAddStudentInputDTO[]) => Promise<{ setupCodes: SetupCodeCardDTO[] }>;
+  onBulkAdd: (students: BulkAddStudentInputDTO[]) => Promise<BulkAddResponseDTO>;
   onUpdateStudent: (id: number, update: { name: string; username: string }) => Promise<void>;
   onUpdateStudentProgress: (params: {
     studentId: number;
@@ -46,7 +47,8 @@ export function RosterTableCard(props: {
     students,
     busy = false,
     enabledOperations,
-    primaryOperation,
+    operationOrder,
+    maxNumber,
     onBulkAdd,
     onUpdateStudent,
     onUpdateStudentProgress,
@@ -149,16 +151,19 @@ export function RosterTableCard(props: {
     try {
       setBulkError(null);
 
+      console.log('RAW BULK INPUT:', bulkNamesText);
       const payload = parseBulkStudentsText(bulkNamesText, existingUsernames);
       if (!payload.length) {
         setBulkError('Please enter at least one valid "First Last" line.');
         return;
       }
 
-      const dtoPayload: BulkAddStudentInputDTO[] = payload.map((p) => ({
+      const dtoPayload = payload.map((p) => ({
         firstName: p.firstName,
         lastName: p.lastName,
         username: p.username,
+        startingOperation: p.startingOperation,
+        startingLevel: p.startingLevel,
       }));
 
       const result = await onBulkAdd(dtoPayload);
@@ -285,7 +290,8 @@ export function RosterTableCard(props: {
           busy={busy}
           bulkDeleteBusy={bulkDeleteBusy}
           enabledOperations={enabledOperations}
-          primaryOperation={primaryOperation}
+          operationOrder={operationOrder}
+          maxNumber={maxNumber}
           editing={editing}
           setEditing={setEditing}
           selectedIds={selectedIds}

@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { Badge, Button, HelpText, Input } from '@/components';
 import type { RosterStudentRowDTO, RosterEditingStateDTO } from '@/types';
-import { getLevelForOp } from '@/types';
+import { getLevelForOp, OPERATION_LABEL } from '@/types';
 import type { OperationCode } from '@/types/enums';
 
 export function RosterTable(props: {
@@ -14,7 +14,8 @@ export function RosterTable(props: {
   bulkDeleteBusy: boolean;
 
   enabledOperations: OperationCode[];
-  primaryOperation: OperationCode;
+  operationOrder: OperationCode[];
+  maxNumber: number;
 
   editing: RosterEditingStateDTO | null;
   setEditing: React.Dispatch<React.SetStateAction<RosterEditingStateDTO | null>>;
@@ -47,22 +48,54 @@ export function RosterTable(props: {
     onOpenConfirmRemove,
     onOpenConfirmReset,
     enabledOperations,
-    primaryOperation,
+    operationOrder,
+    maxNumber,
     editing,
     setEditing,
     onSaveEditing,
   } = props;
 
+  function getActiveOpAndLevel(params: {
+    progress: Array<{ operation: OperationCode; level: number }>;
+    operationOrder: OperationCode[];
+    enabledOperations: OperationCode[];
+    maxNumber: number;
+  }): { operation: OperationCode; level: number } {
+    const { progress, operationOrder, enabledOperations, maxNumber } = params;
+
+    const order: OperationCode[] =
+      operationOrder.length > 0
+        ? operationOrder
+        : enabledOperations.length > 0
+          ? enabledOperations
+          : (['MUL'] as const);
+
+    const byOp = new Map<OperationCode, number>();
+    for (const row of progress) byOp.set(row.operation, row.level);
+
+    for (const op of order) {
+      const lvl = byOp.get(op) ?? 1;
+      if (lvl < maxNumber) return { operation: op, level: lvl };
+    }
+
+    const lastOp = order[order.length - 1] ?? 'MUL';
+    return { operation: lastOp, level: byOp.get(lastOp) ?? maxNumber };
+  }
+
   function startEditing(student: RosterStudentRowDTO) {
-    const operation = primaryOperation;
-    const level = getLevelForOp(student.progress ?? [], operation);
+    const active = getActiveOpAndLevel({
+      progress: student.progress ?? [],
+      operationOrder,
+      enabledOperations,
+      maxNumber,
+    });
 
     setEditing({
       id: student.id,
       name: student.name,
       username: student.username,
-      operation,
-      level,
+      operation: active.operation,
+      level: active.level,
     });
   }
 
@@ -103,6 +136,7 @@ export function RosterTable(props: {
             <th className="py-3 px-3">Name</th>
             <th className="py-3 px-3">Username</th>
             <th className="py-3 px-3">Status</th>
+            <th className="py-3 px-3 text-center">Operation</th>
             <th className="py-3 px-3 text-center">Level</th>
             <th className="py-3 pl-3 pr-5 text-right">Actions</th>
           </tr>
@@ -111,7 +145,7 @@ export function RosterTable(props: {
         <tbody>
           {students.length === 0 ? (
             <tr>
-              <td colSpan={6} className="py-10 px-5 text-center text-[hsl(var(--muted-fg))]">
+              <td colSpan={7} className="py-10 px-5 text-center text-[hsl(var(--muted-fg))]">
                 No students yet. Use “Add students” to create your roster.
               </td>
             </tr>
@@ -120,6 +154,16 @@ export function RosterTable(props: {
               const isSelected = selectedIds.has(student.id);
               const isEditingRow = editing?.id === student.id;
               const disabledRow = busy || bulkDeleteBusy;
+
+              const active = getActiveOpAndLevel({
+                progress: student.progress ?? [],
+                operationOrder,
+                enabledOperations,
+                maxNumber,
+              });
+
+              const displayOp = isEditingRow && editing ? editing.operation : active.operation;
+              const displayLevel = isEditingRow && editing ? editing.level : active.level;
 
               return (
                 <tr
@@ -172,40 +216,42 @@ export function RosterTable(props: {
 
                   <td className="py-3 px-3 text-center">
                     {isEditingRow && editing ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <select
-                          value={editing.operation}
-                          onChange={(e) => {
-                            const nextOp = e.target.value as OperationCode;
-                            const nextLevel = getLevelForOp(student.progress ?? [], nextOp);
-                            setEditing((prev) =>
-                              prev ? { ...prev, operation: nextOp, level: nextLevel } : prev,
-                            );
-                          }}
-                          disabled={disabledRow}
-                          className="h-10 rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
-                          aria-label="Operation"
-                        >
-                          {enabledOperations.map((op) => (
-                            <option key={op} value={op}>
-                              {op}
-                            </option>
-                          ))}
-                        </select>
-
-                        <Input
-                          inputMode="numeric"
-                          value={String(editing.level)}
-                          onChange={(e) => setEditingField('level', e.target.value)}
-                          className="w-24"
-                          disabled={disabledRow}
-                          aria-label="Level"
-                        />
-                      </div>
+                      <select
+                        value={editing.operation}
+                        onChange={(e) => {
+                          const nextOp = e.target.value as OperationCode;
+                          const nextLevel = getLevelForOp(student.progress ?? [], nextOp);
+                          setEditing((prev) =>
+                            prev ? { ...prev, operation: nextOp, level: nextLevel } : prev,
+                          );
+                        }}
+                        disabled={disabledRow}
+                        className="h-10 rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
+                        aria-label="Operation"
+                      >
+                        {enabledOperations.map((op) => (
+                          <option key={op} value={op}>
+                            {OPERATION_LABEL[op]}
+                          </option>
+                        ))}
+                      </select>
                     ) : (
-                      <span className="text-[hsl(var(--fg))]">
-                        Level {getLevelForOp(student.progress ?? [], primaryOperation)}
-                      </span>
+                      <span className="text-[hsl(var(--fg))]">{OPERATION_LABEL[displayOp]}</span>
+                    )}
+                  </td>
+
+                  <td className="py-3 px-3 text-center">
+                    {isEditingRow && editing ? (
+                      <Input
+                        inputMode="numeric"
+                        value={String(editing.level)}
+                        onChange={(e) => setEditingField('level', e.target.value)}
+                        className="w-24"
+                        disabled={disabledRow}
+                        aria-label="Level"
+                      />
+                    ) : (
+                      <span className="text-[hsl(var(--fg))]">{displayLevel}</span>
                     )}
                   </td>
 

@@ -17,14 +17,16 @@ type Props = {
   initialStudents: RosterStudentRowDTO[];
 
   enabledOperations: OperationCode[];
-  primaryOperation: OperationCode;
+  operationOrder: OperationCode[];
+  maxNumber: number;
 };
 
 export function PeopleClient({
   classroomId,
   initialStudents,
   enabledOperations,
-  primaryOperation,
+  operationOrder,
+  maxNumber,
 }: Props) {
   const toast = useToast();
   const router = useRouter();
@@ -185,9 +187,6 @@ export function PeopleClient({
       }
 
       await refreshRoster();
-      toast('Student removed', 'success');
-    } catch (err) {
-      toast(getApiErrorMessage(err, 'Failed to remove student'), 'error');
     } finally {
       setBusy(false);
     }
@@ -245,7 +244,8 @@ export function PeopleClient({
       students={students}
       busy={busy}
       enabledOperations={enabledOperations}
-      primaryOperation={primaryOperation}
+      operationOrder={operationOrder}
+      maxNumber={maxNumber}
       onBulkAdd={bulkAddStudents}
       onUpdateStudent={updateStudent}
       onUpdateStudentProgress={updateStudentProgress}

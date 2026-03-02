@@ -3,11 +3,14 @@
 import * as React from 'react';
 import { Card, CardContent, Input } from '@/components';
 import { cn } from '@/lib';
+import { opSymbol } from '@/core';
+import { OperationCode } from '@/types';
 
 type Props = {
   index: number;
-  factorA: number;
-  factorB: number;
+  operation: OperationCode;
+  operandA: number;
+  operandB: number;
   value: number | '';
   isAnswered: boolean;
   inputRef?: (el: HTMLInputElement | null) => void;
@@ -17,8 +20,9 @@ type Props = {
 
 export function QuestionCard({
   index,
-  factorA,
-  factorB,
+  operation,
+  operandA,
+  operandB,
   value,
   isAnswered,
   inputRef,
@@ -45,7 +49,7 @@ export function QuestionCard({
         {/* Prompt */}
         <div className="rounded-[var(--radius)] bg-[hsl(var(--surface-2))] px-4 py-4">
           <div className="text-2xl font-semibold tracking-tight text-[hsl(var(--fg))]">
-            {factorA} × {factorB}
+            {operandA} {opSymbol(operation)} {operandB}
           </div>
         </div>
 

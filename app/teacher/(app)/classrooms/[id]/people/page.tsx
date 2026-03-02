@@ -1,10 +1,11 @@
 import * as React from 'react';
 
-import { requireTeacher, getRosterWithLastAttempt, getProgressionSnapshot } from '@/core';
+import { getRosterWithLastAttempt, getProgressionSnapshot } from '@/core';
 import { classroomIdParamSchema } from '@/validation/classrooms.schema';
 
 import { PageHeader, Section } from '@/components';
 import { ClassroomSubNav, PeopleClient } from '@/modules';
+import { requireTeacher } from '@/core/auth';
 
 export default async function Page({
   params,
@@ -54,7 +55,8 @@ export default async function Page({
           classroomId={classroomId}
           initialStudents={roster.students}
           enabledOperations={policy.enabledOperations}
-          primaryOperation={policy.primaryOperation}
+          operationOrder={policy.operationOrder}
+          maxNumber={policy.maxNumber}
         />
       </Section>
     </>

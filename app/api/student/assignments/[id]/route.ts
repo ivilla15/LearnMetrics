@@ -2,14 +2,15 @@ import { prisma } from '@/data/prisma';
 import {
   getProgressionSnapshot,
   getStudentLevelForOperation,
+  getStudentActiveProgress,
   promoteStudentAfterMastery,
-  requireStudent,
   generateQuestions,
   computeAnswerInt,
 } from '@/core';
 import { readJson, handleApiError, type RouteContext } from '@/app/api/_shared';
 import { clampInt, percent, parseId, errorResponse, jsonResponse } from '@/utils';
 import { z } from 'zod';
+import { requireStudent } from '@/core/auth';
 
 const submitBodySchema = z.object({
   answers: z
@@ -50,7 +51,7 @@ function assignmentSeed(assignmentId: number, studentId: number) {
 
 type AssignmentRouteParams = { id: string };
 
-export async function GET(_req: Request, { params }: RouteContext<AssignmentRouteParams>) {
+export async function GET({ params }: RouteContext<AssignmentRouteParams>) {
   try {
     const auth = await requireStudent();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -160,10 +161,15 @@ export async function GET(_req: Request, { params }: RouteContext<AssignmentRout
     }
 
     const snapshot = await getProgressionSnapshot(student.classroomId);
-
-    const operation = assignment.operation ?? snapshot.primaryOperation;
     const maxNumber = clampInt(snapshot.maxNumber, 1, 100);
-    const level = await getStudentLevelForOperation({ studentId: student.id, operation });
+
+    const active = await getStudentActiveProgress({ studentId: student.id, snapshot });
+    const operation = assignment.operation ?? active.operation;
+
+    const level =
+      assignment.operation != null
+        ? await getStudentLevelForOperation({ studentId: student.id, operation })
+        : active.level;
 
     const count = clampInt(assignment.numQuestions, 1, 200);
 
@@ -194,7 +200,7 @@ export async function GET(_req: Request, { params }: RouteContext<AssignmentRout
   }
 }
 
-export async function POST(req: Request, { params }: RouteContext<AssignmentRouteParams>) {
+export async function POST({ params }: RouteContext<AssignmentRouteParams>) {
   try {
     const auth = await requireStudent();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -205,7 +211,7 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
     const assignmentId = parseId(id);
     if (!assignmentId) return errorResponse('Invalid assignment id', 400);
 
-    const body = await readJson(req);
+    const body = await readJson();
     const parsed = submitBodySchema.parse(body);
 
     const assignment = await prisma.assignment.findUnique({
@@ -251,10 +257,16 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
     if (existingAttempt) return errorResponse('You already submitted this assignment', 409);
 
     const snapshot = await getProgressionSnapshot(student.classroomId);
-
-    const operation = assignment.operation ?? snapshot.primaryOperation;
     const maxNumberAtTime = clampInt(snapshot.maxNumber, 1, 100);
-    const levelAtTime = await getStudentLevelForOperation({ studentId: student.id, operation });
+
+    const active = await getStudentActiveProgress({ studentId: student.id, snapshot });
+
+    const operation = assignment.operation ?? active.operation;
+
+    const levelAtTime =
+      assignment.operation != null
+        ? await getStudentLevelForOperation({ studentId: student.id, operation })
+        : active.level;
 
     const total = clampInt(assignment.numQuestions, 1, 200);
 
@@ -266,7 +278,6 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
       count: total,
     });
 
-    // answers keyed by GeneratedQuestionDTO.id
     const answersById = new Map<number, number>();
     for (const a of parsed.answers) {
       const qid = Number(a.questionId);

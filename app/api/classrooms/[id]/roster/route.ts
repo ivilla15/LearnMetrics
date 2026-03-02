@@ -1,11 +1,12 @@
-import { getRosterWithLastAttempt, requireTeacher } from '@/core';
+import { getRosterWithLastAttempt } from '@/core';
 import { classroomIdParamSchema } from '@/validation/classrooms.schema';
 import { jsonResponse, errorResponse } from '@/utils/http';
 import { RouteContext, handleApiError } from '@/app';
 import { prisma } from '@/data/prisma';
 import z from 'zod';
+import { requireTeacher } from '@/core/auth';
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(context: RouteContext) {
   const { id } = await context.params;
 
   try {

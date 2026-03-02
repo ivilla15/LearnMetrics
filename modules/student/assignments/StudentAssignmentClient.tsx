@@ -422,8 +422,9 @@ export default function StudentAssignmentClient({
                   <QuestionCard
                     key={q.id}
                     index={i}
-                    factorA={q.factorA}
-                    factorB={q.factorB}
+                    operation={q.operation}
+                    operandA={q.operandA}
+                    operandB={q.operandB}
                     value={value}
                     isAnswered={done}
                     inputRef={(el) => {
