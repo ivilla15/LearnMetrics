@@ -2,12 +2,12 @@
 
 import * as React from 'react';
 import type { AttemptRowDTO, StudentMeDTO, StudentNextAssignmentDTO } from '@/types';
-import { isAttemptRowDTO, isStudentMeDTO, isStudentNextAssignmentDTO } from '@/types/guards';
+import { isAttemptRowDTO } from '@/types/guards';
 
 type State = {
   loading: boolean;
   me: StudentMeDTO | null;
-  nextAssignment: StudentNextAssignmentDTO;
+  nextAssignment: StudentNextAssignmentDTO | null;
   nextStatus: string | null;
   latestAttempt: AttemptRowDTO | null;
 };
@@ -16,6 +16,33 @@ function unwrapField(json: unknown, field: string): unknown {
   if (!json || typeof json !== 'object') return json;
   const rec = json as Record<string, unknown>;
   return field in rec ? rec[field] : json;
+}
+
+function looksLikeStudentMe(v: unknown): v is StudentMeDTO {
+  if (!v || typeof v !== 'object') return false;
+  const rec = v as Record<string, unknown>;
+
+  return (
+    typeof rec.id === 'number' &&
+    typeof rec.name === 'string' &&
+    typeof rec.username === 'string' &&
+    typeof rec.classroomId === 'number'
+  );
+}
+
+function looksLikeStudentNextAssignment(v: unknown): v is StudentNextAssignmentDTO {
+  if (v === null) return true;
+  if (!v || typeof v !== 'object') return false;
+
+  const rec = v as Record<string, unknown>;
+
+  return (
+    typeof rec.id === 'number' &&
+    typeof rec.type === 'string' &&
+    typeof rec.mode === 'string' &&
+    typeof rec.opensAt === 'string' &&
+    (rec.closesAt === null || typeof rec.closesAt === 'string')
+  );
 }
 
 export function useStudentDashboard() {
@@ -55,10 +82,12 @@ export function useStudentDashboard() {
       if (cancelled) return;
 
       const meCandidate = unwrapField(meJson, 'student');
-      const me = isStudentMeDTO(meCandidate) ? meCandidate : null;
+      const me = looksLikeStudentMe(meCandidate) ? (meCandidate as StudentMeDTO) : null;
 
       const nextCandidate = unwrapField(nextJson, 'assignment');
-      const nextAssignment = isStudentNextAssignmentDTO(nextCandidate) ? nextCandidate : null;
+      const nextAssignment = looksLikeStudentNextAssignment(nextCandidate)
+        ? (nextCandidate as StudentNextAssignmentDTO)
+        : null;
 
       let latestAttempt: AttemptRowDTO | null = null;
       if (attemptsJson && typeof attemptsJson === 'object') {

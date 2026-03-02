@@ -38,9 +38,12 @@ export function useClassroomProgress(params: {
   async function reload(nextDays: number) {
     setLoading(true);
     try {
-      const res = await fetch(`/api/teacher/classrooms/${classroomId}/progress?days=${nextDays}`, {
-        cache: 'no-store',
-      });
+      const res = await fetch(
+        `/api/teacher/classrooms/${classroomId}/assignments?days=${nextDays}`,
+        {
+          cache: 'no-store',
+        },
+      );
       const json = await res.json().catch(() => null);
 
       if (!res.ok) {

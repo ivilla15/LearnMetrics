@@ -19,3 +19,4 @@ export * from './ui/filters';
 export * from './ui/selections';
 export * from './ui/tone';
 export * from './ui/typography';
+export * from './ui/operations';

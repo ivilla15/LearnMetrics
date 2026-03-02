@@ -1,6 +1,6 @@
 import { prisma } from '@/data/prisma';
 import type { Prisma } from '@prisma/client';
-import { createScheduledAssignment, requireTeacher, assertTeacherOwnsClassroom } from '@/core';
+import { createScheduledAssignment, assertTeacherOwnsClassroom } from '@/core';
 import { handleApiError, readJson, type RouteContext } from '@/app';
 import {
   localDayToUtcDate,
@@ -16,6 +16,7 @@ import { createTeacherAssignmentBodySchema } from '@/validation';
 import { addDays } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import { parseId, parseCursor } from '@/utils';
+import { requireTeacher } from '@/core/auth';
 
 type Ctx = RouteContext<{ id: string }>;
 

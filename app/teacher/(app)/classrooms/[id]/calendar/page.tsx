@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { requireTeacher } from '@/core';
+import { requireTeacher } from '@/core/auth';
 
 import { ClassroomSubNav, CalendarClient } from '@/modules';
 import { PageHeader, Section } from '@/components';
@@ -16,7 +16,6 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
     return <div className="p-6 text-sm text-[hsl(var(--danger))]">Invalid classroom id</div>;
   }
 
-  // initial fetch (first page). Client will paginate if needed.
   const baseUrl = await getBaseUrlFromHeaders();
   const cookie = await getCookieHeader();
 

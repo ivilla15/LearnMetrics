@@ -1,9 +1,10 @@
-import { requireTeacher, createScheduledAssignment } from '@/core';
+import { createScheduledAssignment } from '@/core';
 import { classroomIdParamSchema, createManualAssignmentRequestSchema } from '@/validation';
 import { jsonResponse, errorResponse } from '@/utils';
 import { handleApiError, readJson, type RouteContext } from '@/app';
+import { requireTeacher } from '@/core/auth';
 
-export async function POST(request: Request, { params }: RouteContext<{ id: string }>) {
+export async function POST(req: Request, { params }: RouteContext<{ id: string }>) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -11,7 +12,7 @@ export async function POST(request: Request, { params }: RouteContext<{ id: stri
     const { id } = await params;
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
 
-    const raw = await readJson(request);
+    const raw = await readJson(req);
     const parsed = createManualAssignmentRequestSchema.parse(raw);
 
     const opensAt = new Date(parsed.opensAt);

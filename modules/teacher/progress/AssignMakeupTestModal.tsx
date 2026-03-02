@@ -38,7 +38,6 @@ type Props = {
 type AudienceMode = 'MISSED_LAST' | 'ALL' | 'CUSTOM';
 
 function toDatetimeLocalValue(d: Date) {
-  // YYYY-MM-DDTHH:mm
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
     d.getMinutes(),
@@ -187,6 +186,11 @@ export function AssignMakeupTestModal({
           windowMinutes,
           numQuestions,
           studentIds: computedStudentIds,
+
+          mode: 'MANUAL',
+          type: 'TEST',
+          targetKind: 'ASSESSMENT',
+
           ...(questionSetId ? { questionSetId } : {}),
         }),
       });

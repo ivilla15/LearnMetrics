@@ -3,8 +3,8 @@
 import * as React from 'react';
 import { Card, CardContent, Input } from '@/components';
 import { cn } from '@/lib';
-import { opSymbol } from '@/core';
-import { OperationCode } from '@/types';
+import type { OperationCode } from '@/types/enums';
+import { OPERATION_SYMBOL } from '@/types/ui/operations';
 
 type Props = {
   index: number;
@@ -32,7 +32,6 @@ export function QuestionCard({
   return (
     <Card className="shadow-sm">
       <CardContent className="p-5 space-y-4">
-        {/* Top row */}
         <div className="flex items-center justify-between">
           <div className="text-sm font-semibold text-[hsl(var(--fg))]">#{index + 1}</div>
 
@@ -46,14 +45,12 @@ export function QuestionCard({
           </div>
         </div>
 
-        {/* Prompt */}
         <div className="rounded-[var(--radius)] bg-[hsl(var(--surface-2))] px-4 py-4">
           <div className="text-2xl font-semibold tracking-tight text-[hsl(var(--fg))]">
-            {operandA} {opSymbol(operation)} {operandB}
+            {operandA} {OPERATION_SYMBOL[operation]} {operandB}
           </div>
         </div>
 
-        {/* Input */}
         <Input
           ref={inputRef}
           inputMode="numeric"

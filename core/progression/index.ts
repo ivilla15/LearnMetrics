@@ -6,3 +6,4 @@ export * from './ops.service';
 export * from './policySnapshot.service';
 export * from './promotion.service';
 export * from './studentLevels.service';
+export * from './getStudentActiveProgress.service';

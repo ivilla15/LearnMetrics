@@ -4,8 +4,7 @@ import { z } from 'zod';
 
 import { prisma } from '@/data/prisma';
 import { readJson, handleApiError, setTeacherSessionCookie } from '@/app';
-import { createTeacherSession } from '@/core';
-
+import { createTeacherSession } from '@/core/auth';
 const LoginBodySchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),

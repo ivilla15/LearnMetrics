@@ -6,16 +6,13 @@ import { readJson, type RouteContext } from '@/app';
 import { getTeacherClassroomParams } from '@/app/api/_shared/params/teacher';
 import { jsonResponse, errorResponse } from '@/utils/http';
 
-import {
-  requireTeacher,
-  getClassroomSchedulesForTeacher,
-  createAdditionalClassroomSchedule,
-} from '@/core';
+import { getClassroomSchedulesForTeacher, createAdditionalClassroomSchedule } from '@/core';
 
 import { upsertScheduleSchema } from '@/validation/assignmentSchedules.schema';
 import { isTrialLocked } from '@/core/entitlements/isTrialLocked';
+import { requireTeacher } from '@/core/auth';
 
-export async function GET(_request: Request, { params }: RouteContext<{ id: string }>) {
+export async function GET(_req: Request, { params }: RouteContext<{ id: string }>) {
   try {
     const ctx = await getTeacherClassroomParams(params);
     if (!ctx.ok) return ctx.response;
@@ -31,7 +28,7 @@ export async function GET(_request: Request, { params }: RouteContext<{ id: stri
   }
 }
 
-export async function POST(request: Request, { params }: RouteContext<{ id: string }>) {
+export async function POST(req: Request, { params }: RouteContext<{ id: string }>) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -58,7 +55,7 @@ export async function POST(request: Request, { params }: RouteContext<{ id: stri
       }
     }
 
-    const body = await readJson(request);
+    const body = await readJson(req);
     const input = upsertScheduleSchema.parse(body);
 
     const schedule = await createAdditionalClassroomSchedule({

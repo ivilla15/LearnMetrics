@@ -51,7 +51,7 @@ function assignmentSeed(assignmentId: number, studentId: number) {
 
 type AssignmentRouteParams = { id: string };
 
-export async function GET({ params }: RouteContext<AssignmentRouteParams>) {
+export async function GET(req: Request, { params }: RouteContext<AssignmentRouteParams>) {
   try {
     const auth = await requireStudent();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -200,7 +200,7 @@ export async function GET({ params }: RouteContext<AssignmentRouteParams>) {
   }
 }
 
-export async function POST({ params }: RouteContext<AssignmentRouteParams>) {
+export async function POST(req: Request, { params }: RouteContext<AssignmentRouteParams>) {
   try {
     const auth = await requireStudent();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -211,7 +211,7 @@ export async function POST({ params }: RouteContext<AssignmentRouteParams>) {
     const assignmentId = parseId(id);
     if (!assignmentId) return errorResponse('Invalid assignment id', 400);
 
-    const body = await readJson();
+    const body = await readJson(req);
     const parsed = submitBodySchema.parse(body);
 
     const assignment = await prisma.assignment.findUnique({

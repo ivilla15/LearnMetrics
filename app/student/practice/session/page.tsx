@@ -24,9 +24,8 @@ import {
   type GradeResultDTO,
 } from '@/types';
 
-import { generateQuestions, gradeGeneratedQuestions } from '@/core';
-
 import { usePracticeProgress } from '@/modules/student/assignments/hooks/usePracticeProgress';
+import { generateQuestions, gradeGeneratedQuestions } from '@/core/questions';
 
 function PracticeSessionFallback() {
   return (
@@ -332,7 +331,7 @@ function StudentPracticeSessionInner() {
   }, []);
 
   const answeredCount = useMemo(() => {
-    return questions.filter((_, idx) => answers[idx] !== undefined && answers[idx] !== '').length;
+    return questions.filter((q) => answers[q.id] !== undefined && answers[q.id] !== '').length;
   }, [answers, questions]);
 
   const submit = useCallback(() => {
@@ -340,9 +339,15 @@ function StudentPracticeSessionInner() {
 
     setSubmitting(true);
 
+    const answersByIndex: Record<number, number | ''> = {};
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      answersByIndex[i] = q ? (answers[q.id] ?? '') : '';
+    }
+
     const graded = gradeGeneratedQuestions({
       questions,
-      answersByIndex: answers,
+      answersByIndex,
     });
 
     setResult(graded);
@@ -544,21 +549,22 @@ function StudentPracticeSessionInner() {
 
             <div className="grid gap-6 md:grid-cols-2">
               {questions.map((q, i) => {
-                const value = answers[i] ?? '';
+                const value = answers[q.id] ?? '';
                 const done = value !== '';
 
                 return (
                   <QuestionCard
                     key={q.id}
                     index={i}
-                    factorA={q.operandA}
-                    factorB={q.operandB}
+                    operation={q.operation}
+                    operandA={q.operandA}
+                    operandB={q.operandB}
                     value={value}
                     isAnswered={done}
                     inputRef={(el) => {
                       inputRefs.current[q.id] = el;
                     }}
-                    onChange={(next) => setAnswers((prev) => ({ ...prev, [i]: next }))}
+                    onChange={(next) => setAnswers((prev) => ({ ...prev, [q.id]: next }))}
                     onEnter={() => {
                       const nextQ = questions[i + 1];
                       if (nextQ) jumpTo(nextQ.id);
@@ -587,7 +593,7 @@ function StudentPracticeSessionInner() {
               questionButtons={
                 <div className="grid grid-cols-5 gap-2">
                   {questions.map((q, i) => {
-                    const done = answers[i] !== undefined && answers[i] !== '';
+                    const done = answers[q.id] !== undefined && answers[q.id] !== '';
                     return (
                       <button
                         key={q.id}

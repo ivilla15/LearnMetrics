@@ -1,9 +1,10 @@
 import { prisma } from '@/data/prisma';
 import type { Prisma } from '@prisma/client';
-import { requireTeacher, assertTeacherOwnsClassroom } from '@/core';
+import { assertTeacherOwnsClassroom } from '@/core';
 import { errorResponse, jsonResponse, parseId } from '@/utils';
 import { RouteContext, handleApiError, readJson } from '@/app';
 import { updateTeacherAssignmentSchema } from '@/validation';
+import { requireTeacher } from '@/core/auth';
 
 export async function PATCH(req: Request, { params }: RouteContext) {
   try {
@@ -145,7 +146,7 @@ export async function PATCH(req: Request, { params }: RouteContext) {
   }
 }
 
-export async function DELETE(_req: Request, { params }: RouteContext) {
+export async function DELETE(req: Request, { params }: RouteContext) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);

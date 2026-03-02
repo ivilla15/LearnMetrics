@@ -7,3 +7,4 @@ export * from './teacherProgress.repo';
 export * from './prisma';
 export * from './scheduleRuns.repo';
 export * from './practiceSessions.repo';
+export * from './studentProgress';

@@ -23,7 +23,7 @@ function extractSchedule(json: unknown): ScheduleDTO | null {
 }
 
 export async function fetchSchedules(classroomId: number): Promise<ScheduleDTO[]> {
-  const res = await fetch(`/api/teacher/classrooms/${classroomId}/schedules`, {
+  const res = await fetch(`/api/classrooms/${classroomId}/schedules`, {
     cache: 'no-store',
     credentials: 'include',
   });
@@ -45,7 +45,7 @@ export async function createScheduleApi(
   classroomId: number,
   input: UpsertScheduleInput,
 ): Promise<ScheduleDTO> {
-  const res = await fetch(`/api/teacher/classrooms/${classroomId}/schedules`, {
+  const res = await fetch(`/api/classrooms/${classroomId}/schedules`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'content-type': 'application/json' },
@@ -71,7 +71,7 @@ export async function updateScheduleApi(
   scheduleId: number,
   input: UpsertScheduleInput,
 ): Promise<ScheduleDTO> {
-  const res = await fetch(`/api/teacher/classrooms/${classroomId}/schedules/${scheduleId}`, {
+  const res = await fetch(`/api/classrooms/${classroomId}/schedules/${scheduleId}`, {
     method: 'PATCH',
     credentials: 'include',
     headers: { 'content-type': 'application/json' },
@@ -93,7 +93,7 @@ export async function updateScheduleApi(
 }
 
 export async function deleteScheduleApi(classroomId: number, scheduleId: number): Promise<void> {
-  const res = await fetch(`/api/teacher/classrooms/${classroomId}/schedules/${scheduleId}`, {
+  const res = await fetch(`/api/classrooms/${classroomId}/schedules/${scheduleId}`, {
     method: 'DELETE',
     credentials: 'include',
   });
