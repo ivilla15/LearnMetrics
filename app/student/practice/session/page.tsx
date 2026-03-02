@@ -564,7 +564,7 @@ function StudentPracticeSessionInner() {
                     inputRef={(el) => {
                       inputRefs.current[q.id] = el;
                     }}
-                    onChange={(next) => setAnswers((prev) => ({ ...prev, [q.id]: next }))}
+                    onChange={(next) => setAnswers((prev) => ({ ...prev, [i]: next }))}
                     onEnter={() => {
                       const nextQ = questions[i + 1];
                       if (nextQ) jumpTo(nextQ.id);

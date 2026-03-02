@@ -1,7 +1,7 @@
 import { prisma } from '@/data/prisma';
 import { requireStudent } from '@/core/auth/requireStudent';
 import { jsonResponse } from '@/utils/http';
-import { handleApiError } from '@/app/api/_shared';
+import { handleApiError, type RouteContext } from '@/app/api/_shared';
 import { z } from 'zod';
 
 const bodySchema = z.object({
@@ -9,12 +9,14 @@ const bodySchema = z.object({
   deltaSeconds: z.coerce.number().int().min(1).max(60),
 });
 
-export async function POST(req: Request, ctx: { params: Promise<{ id: string }> }) {
+type Params = { id: string };
+
+export async function POST(req: Request, { params }: RouteContext<Params>) {
   try {
     const auth = await requireStudent();
     if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
-    const { id } = await ctx.params;
+    const { id } = await params;
     const assignmentId = Number(id);
     if (!Number.isFinite(assignmentId) || assignmentId <= 0) {
       return jsonResponse({ error: 'Invalid assignment id' }, 400);
@@ -44,9 +46,7 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
         studentId: auth.student.id,
         endedAt: null,
       },
-      data: {
-        durationSeconds: { increment: parsed.deltaSeconds },
-      },
+      data: { durationSeconds: { increment: parsed.deltaSeconds } },
     });
 
     if (updated.count === 0) {
