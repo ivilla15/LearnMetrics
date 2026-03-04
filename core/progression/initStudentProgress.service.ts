@@ -3,7 +3,6 @@ import { NotFoundError } from '@/core/errors';
 import { OPERATION_CODES, type OperationCode } from '@/types/enums';
 import { clampInt } from '@/utils/math';
 import { getPolicyOps } from './ops.service';
-import { distributeLevelAcrossOperations } from './leveling.service';
 
 export async function initializeStudentProgressForNewStudent(params: {
   classroomId: number;
@@ -24,6 +23,7 @@ export async function initializeStudentProgressForNewStudent(params: {
   });
 
   const maxNumber = clampInt(policy.maxNumber ?? 12, 1, 100);
+  const completedLevel = maxNumber + 1;
 
   const startOpRaw = params.startingOperation ?? primaryOperation;
   const startOp: OperationCode = enabledOperations.includes(startOpRaw)
@@ -33,19 +33,9 @@ export async function initializeStudentProgressForNewStudent(params: {
   const startLevelRaw = Number.isFinite(params.startingLevel ?? NaN)
     ? (params.startingLevel as number)
     : 1;
-  const startLevel = Math.max(1, Math.trunc(startLevelRaw));
+  const startLevel = clampInt(Math.trunc(startLevelRaw), 1, completedLevel);
 
   const enabledOrder = operationOrder.length ? operationOrder : enabledOperations;
-
-  const overflowLevels =
-    startLevel > maxNumber
-      ? distributeLevelAcrossOperations({
-          operationOrder: enabledOrder,
-          primaryOp: startOp,
-          maxNumber,
-          levelAmount: startLevel,
-        })
-      : [{ operation: startOp, level: clampInt(startLevel, 1, maxNumber) }];
 
   const map = new Map<OperationCode, number>();
   for (const op of enabledOperations) map.set(op, 1);
@@ -54,17 +44,14 @@ export async function initializeStudentProgressForNewStudent(params: {
   if (startIndex >= 0) {
     for (let i = 0; i < startIndex; i++) {
       const op = enabledOrder[i];
-      if (enabledOperations.includes(op)) map.set(op, maxNumber);
+      if (enabledOperations.includes(op)) map.set(op, completedLevel);
     }
   }
 
-  for (const row of overflowLevels) {
-    if (enabledOperations.includes(row.operation)) {
-      map.set(row.operation, clampInt(row.level, 1, maxNumber));
-    }
+  if (enabledOperations.includes(startOp)) {
+    map.set(startOp, startLevel);
   }
 
-  // ✅ create rows for ALL operations (stable), but enabled ones get mapped values
   const rows = OPERATION_CODES.map((op) => ({
     studentId: params.studentId,
     operation: op,

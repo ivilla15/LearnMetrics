@@ -25,6 +25,27 @@ import { OPERATION_CODES, type OperationCode } from '@/types/enums';
 type OpCode = OperationCode;
 const OPS = OPERATION_CODES;
 
+function maxAvailableForOp(op: OpCode, lvl: number, maxNumber: number): number {
+  const max = Math.max(1, Math.floor(maxNumber));
+  const level = Math.max(1, Math.floor(lvl));
+  const zeroCount = 1;
+
+  switch (op) {
+    case 'MUL':
+    case 'ADD':
+      return max + zeroCount;
+
+    case 'DIV':
+      return Math.floor(max / level) + zeroCount;
+
+    case 'SUB':
+      return Math.max(0, max - level + 1) + zeroCount;
+
+    default:
+      return max + zeroCount;
+  }
+}
+
 function getLevelForOp(progress: StudentMeDTO['progress'], op: OpCode): number | null {
   const list = Array.isArray(progress) ? progress : [];
   const row = list.find((p) => p.operation === op);
@@ -44,6 +65,7 @@ export default function StudentPracticeSetupPage() {
   const [selectedOps, setSelectedOps] = useState<OpCode[]>(['MUL']);
   const [fractions, setFractions] = useState(false);
   const [decimals, setDecimals] = useState(false);
+  const [practiceMaxNumber, setPracticeMaxNumber] = useState<number>(12);
 
   useEffect(() => {
     let cancelled = false;
@@ -60,6 +82,15 @@ export default function StudentPracticeSetupPage() {
         setMe(null);
         setLoading(false);
         return;
+      }
+
+      const cfgRes = await fetch('/api/student/practice');
+      const cfg = await cfgRes.json().catch(() => null);
+
+      if (cfgRes.ok && cfg && typeof cfg.practiceMaxNumber === 'number') {
+        setPracticeMaxNumber(clamp(cfg.practiceMaxNumber, 1, 100));
+      } else {
+        setPracticeMaxNumber(12);
       }
 
       const student = (json?.student ?? json) as StudentMeDTO;
@@ -126,6 +157,11 @@ export default function StudentPracticeSetupPage() {
     return params.toString();
   }, [summary.lvl, summary.c, summary.m, summary.ops, summary.fractions, summary.decimals]);
 
+  const maxAvailable = useMemo(() => {
+    const ops = summary.ops.length ? summary.ops : (['MUL'] as OpCode[]);
+    return Math.max(...ops.map((op) => maxAvailableForOp(op, summary.lvl, practiceMaxNumber)));
+  }, [summary.ops, summary.lvl, practiceMaxNumber]);
+
   const canStart = !loading && !!me;
 
   return (
@@ -170,12 +206,9 @@ export default function StudentPracticeSetupPage() {
                         if (raw === '' || /^\d+$/.test(raw)) setLevelText(raw);
                       }}
                       onBlur={() => {
-                        const n = parseIntSafe(levelText);
-                        setLevelText(
-                          String(
-                            clamp(n ?? (me ? getLevelForOp(me.progress, 'MUL') : null) ?? 3, 1, 12),
-                          ),
-                        );
+                        const n = parseIntSafe(countText);
+                        const hardMax = Math.min(40, maxAvailable);
+                        setCountText(String(clamp(n ?? 30, 6, hardMax)));
                       }}
                     />
                     <HelpText>
@@ -199,7 +232,9 @@ export default function StudentPracticeSetupPage() {
                         setCountText(String(clamp(n ?? 30, 6, 40)));
                       }}
                     />
-                    <HelpText>Recommended: 20–30 questions. Max 40.</HelpText>
+                    <HelpText>
+                      Recommended: 20–30 questions. Max {Math.min(40, maxAvailable)} for this level.
+                    </HelpText>
                   </div>
 
                   <div className="grid gap-2">

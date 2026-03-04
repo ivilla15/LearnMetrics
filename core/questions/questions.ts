@@ -70,6 +70,30 @@ function generateOneOperands(params: {
   }
 }
 
+function maxUniqueQuestionsFor(params: {
+  operation: OperationCode;
+  level: number;
+  maxNumber: number;
+}): number {
+  const max = clampInt(params.maxNumber, 1, 100);
+  const lvl = clampInt(params.level, 1, max);
+
+  const zeroCount = 1;
+
+  switch (params.operation) {
+    case 'MUL':
+    case 'ADD':
+      return max + zeroCount;
+
+    case 'DIV': {
+      return max + zeroCount;
+    }
+
+    case 'SUB':
+      return Math.max(0, max - lvl + 1) + zeroCount;
+  }
+}
+
 export function generateQuestions(params: {
   seed: number;
   operation: OperationCode;
@@ -82,6 +106,19 @@ export function generateQuestions(params: {
   const max = clampInt(params.maxNumber, 1, 100);
   const lvl = clampInt(params.level, 1, max);
   const targetCount = clampInt(params.count, 1, 200);
+
+  const available = maxUniqueQuestionsFor({
+    operation: params.operation,
+    level: lvl,
+    maxNumber: max,
+  });
+
+  if (targetCount > available) {
+    throw new Error(
+      `Requested ${targetCount} unique questions but only ${available} are available for ` +
+        `${params.operation} at level ${lvl} with maxNumber ${max}. Reduce the question count or change level.`,
+    );
+  }
 
   const out: GeneratedQuestionDTO[] = [];
   const used = new Set<string>();

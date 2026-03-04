@@ -17,13 +17,14 @@ export function distributeLevelAcrossOperations(params: {
 
   let remaining = Math.max(0, Math.trunc(params.levelAmount));
   const maxNumber = clampInt(params.maxNumber, 1, 100);
+  const completedLevel = maxNumber + 1;
 
   const out: StudentProgressLiteDTO[] = [];
 
   for (let i = 0; i < n && remaining > 0; i++) {
     const op = order[(idx + i) % n];
-    const take = Math.min(maxNumber, remaining);
-    out.push({ operation: op, level: clampInt(take, 1, maxNumber) });
+    const take = Math.min(completedLevel, remaining);
+    out.push({ operation: op, level: clampInt(take, 1, completedLevel) });
     remaining -= take;
   }
 
