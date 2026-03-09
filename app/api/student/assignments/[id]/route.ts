@@ -8,7 +8,7 @@ import {
   computeAnswerInt,
 } from '@/core';
 import { readJson, handleApiError, type RouteContext } from '@/app/api/_shared';
-import { clampInt, percent, parseId, errorResponse, jsonResponse } from '@/utils';
+import { clampInt, percent, parseId, errorResponse, jsonResponse, getStatus } from '@/utils';
 import { z } from 'zod';
 import { requireStudent } from '@/core/auth';
 
@@ -22,13 +22,6 @@ const submitBodySchema = z.object({
     )
     .min(1),
 });
-
-function getAssignmentStatus(params: { opensAt: Date; closesAt: Date | null; now: Date }) {
-  const { opensAt, closesAt, now } = params;
-  if (now < opensAt) return 'NOT_OPEN' as const;
-  if (closesAt && now > closesAt) return 'CLOSED' as const;
-  return 'OPEN' as const;
-}
 
 function studentCanAccessAssignment(params: {
   assignment: { classroomId: number; recipients: Array<{ studentId: number }> };
@@ -112,7 +105,7 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
     };
 
     const now = new Date();
-    const status = getAssignmentStatus({
+    const status = getStatus({
       opensAt: assignment.opensAt,
       closesAt: assignment.closesAt,
       now,
@@ -241,7 +234,7 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
     }
 
     const now = new Date();
-    const status = getAssignmentStatus({
+    const status = getStatus({
       opensAt: assignment.opensAt,
       closesAt: assignment.closesAt,
       now,

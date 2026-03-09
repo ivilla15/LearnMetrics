@@ -1,6 +1,7 @@
 import type { AssignmentMode, AssignmentType } from '@/types/enums';
 
 export type AssignmentStatusFilter = 'all' | 'open' | 'finished' | 'upcoming';
+export type AssignmentListFilter = 'FINISHED' | 'OPEN' | 'UPCOMING';
 
 export type AssignmentModeFilter = 'all' | AssignmentMode;
 export type AssignmentTypeFilter = 'all' | AssignmentType;

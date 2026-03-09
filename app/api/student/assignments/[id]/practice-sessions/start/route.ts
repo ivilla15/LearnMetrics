@@ -3,6 +3,7 @@ import { requireStudent } from '@/core/auth/requireStudent';
 import { jsonResponse } from '@/utils/http';
 import { handleApiError, type RouteContext } from '@/app/api/_shared';
 import { z } from 'zod';
+import { getStatus } from '@/utils';
 
 const bodySchema = z.object({
   operation: z.enum(['ADD', 'SUB', 'MUL', 'DIV']).optional(),
@@ -22,14 +23,6 @@ function canAccessAssignment(params: {
 
   return assignment.recipients.some((r) => r.studentId === student.id);
 }
-
-function getStatus(params: { opensAt: Date; closesAt: Date | null; now: Date }) {
-  const { opensAt, closesAt, now } = params;
-  if (now < opensAt) return 'NOT_OPEN' as const;
-  if (closesAt && now > closesAt) return 'CLOSED' as const;
-  return 'OPEN' as const;
-}
-
 type Params = { id: string };
 
 export async function POST(req: Request, { params }: RouteContext<Params>) {

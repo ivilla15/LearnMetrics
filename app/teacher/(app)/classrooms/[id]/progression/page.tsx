@@ -33,7 +33,7 @@ export default async function Page({
     return <div className="p-6 text-sm text-[hsl(var(--danger))]">Invalid classroom id</div>;
   }
 
-  const baseUrl = getBaseUrlFromHeaders();
+  const baseUrl = await getBaseUrlFromHeaders();
   const cookie = await getCookieHeader();
 
   const res = await fetch(`${baseUrl}/api/teacher/classrooms/${classroomId}/progression`, {

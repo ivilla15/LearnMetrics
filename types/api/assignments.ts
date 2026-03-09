@@ -3,7 +3,9 @@ import type {
   AssignmentType,
   AssignmentTargetKind,
   OperationCode,
-} from '@/types/enums';
+  AssignmentListFilter,
+  AttemptRowDTO,
+} from '@/types';
 
 export type AssignmentCoreDTO = {
   id: number;
@@ -168,4 +170,36 @@ export type TeacherAttemptDetailResponse = {
   };
 
   items: TeacherAttemptDetailItemDTO[];
+};
+
+export type StudentAssignmentListItemDTO = {
+  assignmentId: number;
+
+  type: AssignmentType;
+  mode: AssignmentMode;
+  targetKind: AssignmentTargetKind;
+
+  operation: OperationCode | null;
+
+  status: AssignmentListFilter;
+
+  opensAt: string;
+  closesAt: string | null;
+
+  windowMinutes: number | null;
+
+  numQuestions: number;
+  durationMinutes: number | null;
+
+  scheduleId: number | null;
+  runDate: string | null;
+
+  // student-specific
+  latestAttempt: AttemptRowDTO | null;
+};
+
+export type StudentAssignmentsListResponse = {
+  classroom: { id: number; name: string; timeZone?: string | null };
+  rows: StudentAssignmentListItemDTO[];
+  nextCursor: string | null;
 };
