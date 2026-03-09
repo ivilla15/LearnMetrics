@@ -2,6 +2,7 @@ export type StudentNavItem = { label: string; href: string };
 
 export const studentNavItems: StudentNavItem[] = [
   { label: 'Dashboard', href: '/student/dashboard' },
+  { label: 'Calendar', href: '/student/calendar' },
   { label: 'Progress', href: '/student/progress' },
   { label: 'Practice', href: '/student/practice' },
   { label: 'Profile', href: '/student/profile' },

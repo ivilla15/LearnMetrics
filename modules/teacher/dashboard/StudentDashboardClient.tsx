@@ -7,7 +7,7 @@ import {
   studentNavItems,
   useStudentDashboard,
   DashboardHeader,
-  DashboardSkeleton,
+  StudentDashboardSkeleton,
   AssignmentsFeed,
 } from '@/modules';
 
@@ -28,11 +28,13 @@ export default function StudentDashboardClient({ currentPath }: Props) {
       <DashboardHeader loading={loading} me={me} />
 
       {loading ? (
-        <DashboardSkeleton />
+        <StudentDashboardSkeleton />
       ) : !me ? (
         <div className="p-6 text-[15px] text-[hsl(var(--muted-fg))]">Not signed in.</div>
       ) : (
-        <AssignmentsFeed />
+        <div className="min-h-140">
+          <AssignmentsFeed />
+        </div>
       )}
     </AppShell>
   );

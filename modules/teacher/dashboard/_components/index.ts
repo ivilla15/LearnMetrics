@@ -1,5 +1,5 @@
 export * from './DashboardHeader';
-export * from './DashboardSkeleton';
+export * from './TeacherDashboardSkeleton';
 
 export * from './AssignmentsFeed';
 export * from './AssignmentsTimeline';

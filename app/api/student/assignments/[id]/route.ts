@@ -142,6 +142,7 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
         {
           status: 'ALREADY_SUBMITTED',
           assignment: assignmentPayload,
+          attemptId: existingAttempt.id,
           result: {
             score: existingAttempt.score,
             total: existingAttempt.total,
@@ -152,7 +153,6 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
         200,
       );
     }
-
     const snapshot = await getProgressionSnapshot(student.classroomId);
     const maxNumber = clampInt(snapshot.maxNumber, 1, 100);
 

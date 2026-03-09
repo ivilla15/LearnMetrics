@@ -87,7 +87,7 @@ export function AssignmentsClient({
         onDeleted={() => {
           toast('Assignment deleted', 'success');
           setConfirmDeleteId(null);
-          router.refresh();
+          void a.reload();
         }}
       />
     </div>

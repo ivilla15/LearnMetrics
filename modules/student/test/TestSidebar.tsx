@@ -49,14 +49,14 @@ export function TestSidebar({
 
       <CardContent className="space-y-4">
         <div className="grid gap-3">
-          <div className="rounded-[var(--radius)] bg-[hsl(var(--surface-2))] p-4">
+          <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4">
             <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Time remaining</div>
             <div className="mt-1 text-2xl font-semibold tracking-tight text-[hsl(var(--fg))]">
               {typeof timeRemainingMs === 'number' ? msToClock(timeRemainingMs) : '—'}
             </div>
           </div>
 
-          <div className="rounded-[var(--radius)] bg-[hsl(var(--surface-2))] p-4">
+          <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4">
             <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Progress</div>
             <div className="mt-1 text-sm font-semibold text-[hsl(var(--fg))]">
               Answered {answeredCount}/{totalCount}

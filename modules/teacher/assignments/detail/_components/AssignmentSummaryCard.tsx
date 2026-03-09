@@ -12,7 +12,11 @@ import {
   Button,
 } from '@/components';
 import { formatLocal } from '@/lib/date';
-import type { TeacherAssignmentAttemptsResponse } from '@/types';
+import {
+  formatAssignmentMode,
+  formatAssignmentType,
+  type TeacherAssignmentAttemptsResponse,
+} from '@/types';
 
 type AssignmentSummary = TeacherAssignmentAttemptsResponse['assignment'];
 
@@ -56,9 +60,8 @@ export function AssignmentSummaryCard(props: {
 
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2">
-          {Pill(assignment?.mode ?? '—', 'muted')}
-          {Pill(assignment?.type ?? '—', 'muted')}
-          {Pill(assignment?.targetKind ?? '—', 'muted')}
+          {Pill(assignment ? formatAssignmentMode(assignment.mode) : '—', 'muted')}
+          {Pill(assignment ? formatAssignmentType(assignment.type) : '—', 'muted')}
           {Pill(formatTargetPill(assignment), 'muted')}
           {assignment?.operation ? Pill(assignment.operation, 'muted') : null}
         </div>

@@ -27,6 +27,10 @@ export async function GET(req: Request) {
   const limit = clampTake(url.searchParams.get('limit'), 20, 50);
   const cursorStr = url.searchParams.get('cursor');
   const cursor = cursorStr ? Number(cursorStr) : null;
+  const scheduleIdStr = url.searchParams.get('scheduleId');
+  const scheduleId = scheduleIdStr ? Number(scheduleIdStr) : null;
+
+  const runDate = url.searchParams.get('runDate');
 
   const now = new Date();
   const student = auth.student;
@@ -43,6 +47,14 @@ export async function GET(req: Request) {
   const whereBase: Prisma.AssignmentWhereInput = {
     classroomId: classroom.id,
   };
+
+  if (scheduleId && Number.isFinite(scheduleId) && scheduleId > 0) {
+    whereBase.scheduleId = scheduleId;
+  }
+
+  if (runDate && /^\d{4}-\d{2}-\d{2}$/.test(runDate)) {
+    whereBase.runDate = new Date(`${runDate}T00:00:00.000Z`);
+  }
 
   // "today" = currently open assignments
   const where: Prisma.AssignmentWhereInput =

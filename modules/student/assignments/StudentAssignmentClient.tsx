@@ -5,10 +5,15 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 
 import { useToast, Card, CardContent, Skeleton, Button, Section } from '@/components';
 import { formatLocal, cn } from '@/lib';
-import { AppPage, QuestionCard, TestSidebar } from '@/modules';
-import { usePracticeProgress } from '@/modules/student/assignments/hooks/usePracticeProgress';
+import {
+  AppPage,
+  QuestionCard,
+  TestSidebar,
+  usePracticeProgress,
+  AttemptDetailModal,
+} from '@/modules';
 import { parseAssignmentId } from '@/utils';
-import type { StudentAssignmentLoadResponse } from '@/types';
+import type { AttemptDetailDTO, StudentAssignmentLoadResponse } from '@/types';
 
 export default function StudentAssignmentClient({
   assignmentIdParam,
@@ -30,6 +35,12 @@ export default function StudentAssignmentClient({
 
   const assignment = data?.assignment ?? null;
   const isPracticeTime = assignment?.targetKind === 'PRACTICE_TIME';
+
+  const [selectedAttemptId, setSelectedAttemptId] = useState<number | null>(null);
+  const [attemptDetail, setAttemptDetail] = useState<AttemptDetailDTO | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [showIncorrectOnly, setShowIncorrectOnly] = useState(true);
 
   const {
     loading: practiceLoading,
@@ -175,6 +186,47 @@ export default function StudentAssignmentClient({
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [data?.status]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAttemptDetail(attemptId: number) {
+      setDetailLoading(true);
+      setDetailError(null);
+
+      try {
+        const res = await fetch(`/api/student/attempts/${attemptId}`, { credentials: 'include' });
+        const json: unknown = await res.json().catch(() => null);
+
+        if (cancelled) return;
+
+        if (!res.ok) {
+          const msg =
+            json && typeof json === 'object' && 'error' in json && typeof json.error === 'string'
+              ? json.error
+              : 'Failed to load attempt details';
+          setAttemptDetail(null);
+          setDetailError(msg);
+          return;
+        }
+
+        const detail = json as AttemptDetailDTO;
+        setAttemptDetail(detail);
+      } catch {
+        if (!cancelled) setDetailError('Failed to load attempt details');
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    }
+
+    if (!selectedAttemptId) return;
+
+    void loadAttemptDetail(selectedAttemptId);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAttemptId]);
+
   if (!assignmentId) {
     return (
       <AppPage title="Test">
@@ -288,7 +340,16 @@ export default function StudentAssignmentClient({
                 {data.result.score}/{data.result.total}
               </div>
               <div className="pt-2">
-                <Button variant="secondary" onClick={() => router.push('/student/progress')}>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (data?.status !== 'ALREADY_SUBMITTED') {
+                      toast('No attempt found', 'error');
+                      return;
+                    }
+                    setSelectedAttemptId(data.attemptId);
+                  }}
+                >
                   View details
                 </Button>
               </div>
@@ -479,6 +540,16 @@ export default function StudentAssignmentClient({
           </aside>
         </div>
       </Section>
+      <AttemptDetailModal
+        open={Boolean(selectedAttemptId)}
+        onClose={() => setSelectedAttemptId(null)}
+        title="Attempt details"
+        detail={attemptDetail}
+        loading={detailLoading}
+        error={detailError}
+        showIncorrectOnly={showIncorrectOnly}
+        onToggleIncorrectOnly={setShowIncorrectOnly}
+      />
     </AppPage>
   );
 }

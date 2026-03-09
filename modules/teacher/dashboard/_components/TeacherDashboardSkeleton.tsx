@@ -2,7 +2,7 @@
 
 import { Section, Card, CardHeader, CardContent, Skeleton } from '@/components';
 
-export function DashboardSkeleton() {
+export function TeacherDashboardSkeleton() {
   return (
     <Section>
       <div className="space-y-6">

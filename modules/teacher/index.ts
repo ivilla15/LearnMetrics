@@ -7,3 +7,4 @@ export * from './progress';
 export * from './calendar';
 export * from './progression';
 export * from './dashboard';
+export * from './student-progress';

@@ -58,12 +58,19 @@ export type AlreadySubmittedResultDTO = {
 };
 
 export type StudentAssignmentLoadResponse =
-  | { status: 'NOT_OPEN' | 'CLOSED'; assignment: StudentAssignmentDTO }
+  | { status: 'NOT_OPEN'; assignment: StudentAssignmentDTO }
+  | { status: 'CLOSED'; assignment: StudentAssignmentDTO }
   | { status: 'READY_PRACTICE_TIME'; assignment: StudentAssignmentDTO }
   | {
       status: 'ALREADY_SUBMITTED';
       assignment: StudentAssignmentDTO;
-      result: AlreadySubmittedResultDTO;
+      attemptId: number;
+      result: {
+        score: number;
+        total: number;
+        percent: number;
+        completedAt: string | null;
+      };
     }
   | {
       status: 'READY';
