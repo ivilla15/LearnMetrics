@@ -108,3 +108,11 @@ export function groupItemsByDay<T extends HasOpensAt>(params: { items: T[]; tz: 
 
   return map;
 }
+
+export function formatWeekdayMonthDay(day: Date) {
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(day);
+}

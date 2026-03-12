@@ -12,13 +12,13 @@ type State = {
   latestAttempt: AttemptRowDTO | null;
 };
 
-function unwrapField(json: unknown, field: string): unknown {
+export function unwrapField(json: unknown, field: string): unknown {
   if (!json || typeof json !== 'object') return json;
   const rec = json as Record<string, unknown>;
   return field in rec ? rec[field] : json;
 }
 
-function looksLikeStudentMe(v: unknown): v is StudentMeDTO {
+export function looksLikeStudentMe(v: unknown): v is StudentMeDTO {
   if (!v || typeof v !== 'object') return false;
   const rec = v as Record<string, unknown>;
 
@@ -30,7 +30,7 @@ function looksLikeStudentMe(v: unknown): v is StudentMeDTO {
   );
 }
 
-function looksLikeStudentNextAssignment(v: unknown): v is StudentNextAssignmentDTO {
+export function looksLikeStudentNextAssignment(v: unknown): v is StudentNextAssignmentDTO {
   if (v === null) return true;
   if (!v || typeof v !== 'object') return false;
 

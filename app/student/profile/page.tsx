@@ -13,8 +13,8 @@ import {
   Section,
   Skeleton,
 } from '@/components';
-import { studentNavItems, AppShell } from '@/modules';
-import { isStudentMeDTO, type StudentMeDTO } from '@/types';
+import { studentNavItems, AppShell, unwrapField, looksLikeStudentMe } from '@/modules';
+import type { StudentMeDTO } from '@/types';
 
 function ProfileSkeleton() {
   return (
@@ -79,12 +79,8 @@ export default function StudentProfilePage() {
         const json = await res.json().catch(() => null);
         if (cancelled) return;
 
-        const candidate =
-          json && typeof json === 'object'
-            ? ((json as { student?: unknown }).student ?? json)
-            : null;
-
-        setMe(isStudentMeDTO(candidate) ? candidate : null);
+        const candidate = unwrapField(json, 'student');
+        setMe(looksLikeStudentMe(candidate) ? candidate : null);
       } catch {
         setMe(null);
       } finally {

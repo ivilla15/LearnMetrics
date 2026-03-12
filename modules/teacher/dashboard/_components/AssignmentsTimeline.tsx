@@ -8,6 +8,7 @@ import { formatAssignmentMode, formatAssignmentType, formatOperation } from '@/t
 import type { StudentAssignmentListItemDTO, CalendarProjectionRowDTO } from '@/types';
 import { Card, CardHeader, Pill, Modal, Button } from '@/components';
 import { AssignmentRowLoadingCard } from '@/modules';
+import { formatWeekdayMonthDay } from '@/utils';
 
 type TimelineItem = StudentAssignmentListItemDTO | CalendarProjectionRowDTO;
 
@@ -47,24 +48,26 @@ function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-function formatMonthDay(day: Date) {
-  return new Intl.DateTimeFormat(undefined, { month: 'long', day: 'numeric' }).format(day);
-}
-
-function formatShortMonthDay(day: Date) {
-  return new Intl.DateTimeFormat(undefined, { month: 'short', day: 'numeric' }).format(day);
-}
-
 function dayHeader(day: Date, now: Date): DayHeader {
   const a = startOfDay(day).getTime();
   const b = startOfDay(now).getTime();
   const diffDays = Math.round((a - b) / (24 * 60 * 60 * 1000));
 
-  if (diffDays === 0) return { title: 'Today', subtitle: formatMonthDay(day) };
-  if (diffDays === 1) return { title: `Tomorrow, ${formatMonthDay(day)}`, subtitle: null };
-  if (diffDays === -1) return { title: `Yesterday, ${formatMonthDay(day)}`, subtitle: null };
+  const fullDate = formatWeekdayMonthDay(day);
 
-  return { title: formatShortMonthDay(day), subtitle: null };
+  if (diffDays === 0) {
+    return { title: 'Today', subtitle: fullDate };
+  }
+
+  if (diffDays === 1) {
+    return { title: 'Tomorrow', subtitle: fullDate };
+  }
+
+  if (diffDays === -1) {
+    return { title: 'Yesterday', subtitle: fullDate };
+  }
+
+  return { title: fullDate, subtitle: null };
 }
 
 function isProjectionRow(row: TimelineItem): row is CalendarProjectionRowDTO {
