@@ -42,7 +42,14 @@ function LoginForm({
       router.push(safeNext(next));
       router.refresh();
     } catch (err) {
-      toast(err instanceof Error ? err.message : 'Login failed', 'error');
+      const message = err instanceof Error ? err.message : '';
+
+      if (message === 'Invalid credentials') {
+        toast('Incorrect email or password. Please try again.', 'error');
+        return;
+      }
+
+      toast('Unable to sign in right now. Please try again.', 'error');
     } finally {
       onBusyChange(false);
     }
