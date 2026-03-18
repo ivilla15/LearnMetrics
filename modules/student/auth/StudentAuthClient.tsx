@@ -32,8 +32,27 @@ function LoginForm({ busy, onBusyChange }: { busy: boolean; onBusyChange: (v: bo
       });
 
       const json = await res.json().catch(() => null);
+
       if (!res.ok) {
-        toast(typeof json?.error === 'string' ? json.error : 'Login failed', 'error');
+        const error = typeof json?.error === 'string' ? json.error : null;
+
+        if (res.status === 401) {
+          toast(
+            'Incorrect username or password. If you need help, ask your teacher to reset your access.',
+            'error',
+          );
+          return;
+        }
+
+        if (res.status === 409 || error === 'ACCOUNT_NOT_ACTIVATED') {
+          toast(
+            'Your account is not activated yet. Use your setup code first or ask your teacher for help.',
+            'error',
+          );
+          return;
+        }
+
+        toast('Unable to sign in right now. Please try again.', 'error');
         return;
       }
 

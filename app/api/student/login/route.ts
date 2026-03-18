@@ -28,13 +28,17 @@ export async function POST(req: Request) {
       },
     });
 
-    const ok = student ? await bcrypt.compare(password, student.passwordHash) : false;
-    if (!student || !ok) {
+    if (!student) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     if (student.mustSetPassword) {
       return NextResponse.json({ error: 'ACCOUNT_NOT_ACTIVATED' }, { status: 409 });
+    }
+
+    const ok = await bcrypt.compare(password, student.passwordHash);
+    if (!ok) {
+      return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
 
     const { token, maxAgeSeconds } = await createStudentSession(student.id);
