@@ -3,20 +3,11 @@ import crypto from 'crypto';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 import { prisma } from '@/data/prisma';
-import { generateSetupCode, hashSetupCode } from '@/core';
-
-import type { StudentRosterRow } from '@/types/roster';
-import type { AttemptSummary } from '@/types/attempts';
-import type { Prisma } from '@prisma/client';
-
-/* -------------------------------------------------------------------------- */
-/* Basic queries                                                               */
-/* -------------------------------------------------------------------------- */
+import { expiresAtFromNow } from '@/utils';
+import { generateSetupCode, hashSetupCode } from '@/core/auth';
 
 export async function findStudentById(studentId: number) {
-  return prisma.student.findUnique({
-    where: { id: studentId },
-  });
+  return prisma.student.findUnique({ where: { id: studentId } });
 }
 
 export async function findStudentByIdInClassroom(classroomId: number, studentId: number) {
@@ -26,71 +17,28 @@ export async function findStudentByIdInClassroom(classroomId: number, studentId:
       id: true,
       name: true,
       username: true,
-      level: true,
       mustSetPassword: true,
       classroomId: true,
     },
   });
 }
 
-/* -------------------------------------------------------------------------- */
-/* Roster with latest attempt                                                  */
-/* -------------------------------------------------------------------------- */
-
-type LatestAttemptRow = Prisma.AttemptGetPayload<{
-  select: {
-    id: true;
-    assignmentId: true;
-    score: true;
-    total: true;
-    completedAt: true;
-  };
-}>;
-
-type StudentWithLatestAttemptRow = Prisma.StudentGetPayload<{
-  select: {
-    id: true;
-    name: true;
-    username: true;
-    level: true;
-    mustSetPassword: true;
-    Attempt: {
-      take: 1;
-      orderBy: { completedAt: 'desc' };
-      select: {
-        id: true;
-        assignmentId: true;
-        score: true;
-        total: true;
-        completedAt: true;
-      };
-    };
-  };
-}>;
-
-function toAttemptSummary(a: LatestAttemptRow): AttemptSummary {
-  return {
-    id: a.id,
-    assignmentId: a.assignmentId,
-    score: a.score,
-    total: a.total,
-    completedAt: a.completedAt.toISOString(),
-  };
-}
-
-export async function findStudentsWithLatestAttempt(
-  classroomId: number,
-): Promise<StudentRosterRow[]> {
-  const students: StudentWithLatestAttemptRow[] = await prisma.student.findMany({
+export async function findStudentsWithLatestAttempt(classroomId: number) {
+  const students = await prisma.student.findMany({
     where: { classroomId },
     select: {
       id: true,
       name: true,
       username: true,
-      level: true,
       mustSetPassword: true,
+      progress: {
+        select: {
+          operation: true,
+          level: true,
+        },
+      },
       Attempt: {
-        orderBy: { completedAt: 'desc' },
+        orderBy: [{ completedAt: 'desc' }, { startedAt: 'desc' }],
         take: 1,
         select: {
           id: true,
@@ -98,62 +46,64 @@ export async function findStudentsWithLatestAttempt(
           score: true,
           total: true,
           completedAt: true,
+          startedAt: true,
         },
       },
     },
     orderBy: { name: 'asc' },
   });
 
-  return students.map((s) => ({
-    id: s.id,
-    name: s.name,
-    username: s.username,
-    level: s.level,
-    mustSetPassword: s.mustSetPassword,
-    lastAttempt: s.Attempt.length ? toAttemptSummary(s.Attempt[0]) : null,
-  }));
-}
+  return students.map((s) => {
+    const latest = s.Attempt[0] ?? null;
+    const ts = latest ? (latest.completedAt ?? latest.startedAt).toISOString() : null;
 
-/* -------------------------------------------------------------------------- */
-/* Bulk create                                                                 */
-/* -------------------------------------------------------------------------- */
+    return {
+      id: s.id,
+      name: s.name,
+      username: s.username,
+      mustSetPassword: s.mustSetPassword,
 
-export type CreateStudentData = {
-  firstName: string;
-  lastName: string;
-  username: string;
-  level: number;
-};
+      progress: s.progress.map((p) => ({
+        operation: p.operation,
+        level: p.level,
+      })),
 
-export type CreatedStudentWithSetupCode = {
-  id: number;
-  name: string;
-  username: string;
-  level: number;
-  setupCode: string;
-  setupCodeExpiresAt: Date;
-};
-
-function expiresAtFromNowDays(days: number) {
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+      lastAttempt: latest
+        ? {
+            id: latest.id,
+            assignmentId: latest.assignmentId,
+            score: latest.score,
+            total: latest.total,
+            completedAt: ts!,
+          }
+        : null,
+    };
+  });
 }
 
 export async function createManyForClassroom(
   classroomId: number,
-  students: CreateStudentData[],
+  students: Array<{ firstName: string; lastName: string; username: string }>,
 ): Promise<{
-  created: CreatedStudentWithSetupCode[];
-  roster: StudentRosterRow[];
+  created: Array<{
+    id: number;
+    name: string;
+    username: string;
+    setupCode: string;
+    setupCodeExpiresAt: Date;
+  }>;
 }> {
-  if (!students.length) {
-    return {
-      created: [],
-      roster: await findStudentsWithLatestAttempt(classroomId),
-    };
-  }
+  if (!students.length) return { created: [] };
 
-  const created: CreatedStudentWithSetupCode[] = [];
-  const setupExpiresAt = expiresAtFromNowDays(7);
+  const created: Array<{
+    id: number;
+    name: string;
+    username: string;
+    setupCode: string;
+    setupCodeExpiresAt: Date;
+  }> = [];
+
+  const setupExpiresAt = expiresAtFromNow(7);
 
   for (const s of students) {
     const name = `${s.firstName} ${s.lastName}`.trim();
@@ -171,64 +121,38 @@ export async function createManyForClassroom(
           classroomId,
           name,
           username: s.username,
-          level: s.level,
-          password: placeholderPasswordHash,
+          passwordHash: placeholderPasswordHash,
           mustSetPassword: true,
           setupCodeHash,
           setupCodeExpiresAt: setupExpiresAt,
         },
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          level: true,
-          setupCodeExpiresAt: true,
-        },
+        select: { id: true, name: true, username: true, setupCodeExpiresAt: true },
       });
 
       created.push({
         id: row.id,
         name: row.name,
         username: row.username,
-        level: row.level,
         setupCode,
         setupCodeExpiresAt: row.setupCodeExpiresAt ?? setupExpiresAt,
       });
     } catch (err) {
-      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') {
-        // duplicate username → skip
-        continue;
-      }
+      if (err instanceof PrismaClientKnownRequestError && err.code === 'P2002') continue;
       throw err;
     }
   }
 
-  const roster = await findStudentsWithLatestAttempt(classroomId);
-  return { created, roster };
+  return { created };
 }
 
-/* -------------------------------------------------------------------------- */
-/* Mutations                                                                   */
-/* -------------------------------------------------------------------------- */
-
-export async function updateById(
-  id: number,
-  data: { name?: string; username?: string; level?: number },
-) {
-  return prisma.student.update({
-    where: { id },
-    data,
-  });
+export async function updateById(id: number, data: { name?: string; username?: string }) {
+  return prisma.student.update({ where: { id }, data });
 }
 
 export async function deleteById(id: number) {
-  return prisma.student.delete({
-    where: { id },
-  });
+  return prisma.student.delete({ where: { id } });
 }
 
 export async function deleteStudentsByClassroomId(classroomId: number) {
-  return prisma.student.deleteMany({
-    where: { classroomId },
-  });
+  return prisma.student.deleteMany({ where: { classroomId } });
 }

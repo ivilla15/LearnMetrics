@@ -1,49 +1,49 @@
-// app/api/teacher/classrooms/[id]/schedule-runs/unskip/route.ts
 import { prisma } from '@/data/prisma';
-import { requireTeacher } from '@/core';
-import { errorResponse, jsonResponse, parseId } from '@/utils';
-import { handleApiError, readJson, type RouteContext } from '@/app';
-import { assertTeacherOwnsClassroom } from '@/core/classrooms';
+import { getTeacherClassroomParams, handleApiError } from '@/app/api/_shared';
+import { jsonResponse, errorResponse } from '@/utils';
+import { readJson, type RouteContext } from '@/app';
+import { unskipScheduleRunSchema } from '@/validation';
 
-export async function POST(req: Request, { params }: RouteContext) {
+export async function POST(request: Request, { params }: RouteContext<{ id: string }>) {
   try {
-    const auth = await requireTeacher();
-    if (!auth.ok) return errorResponse(auth.error, auth.status);
+    const ctx = await getTeacherClassroomParams(params);
+    if (!ctx.ok) return ctx.response;
 
-    const classroomId = parseId((await params).id);
-    if (!classroomId) return errorResponse('Invalid classroom id', 400);
+    const body = await readJson(request);
+    const input = unskipScheduleRunSchema.parse(body);
 
-    await assertTeacherOwnsClassroom(auth.teacher.id, classroomId);
+    const schedule = await prisma.assignmentSchedule.findFirst({
+      where: { id: input.scheduleId, classroomId: ctx.classroomId },
+      select: { id: true },
+    });
+    if (!schedule) return errorResponse('Schedule not found', 404);
 
-    const body = (await readJson(req)) as { scheduleId?: number; runDate?: string };
-
-    const scheduleId = Number(body?.scheduleId);
-    const runDateRaw = body?.runDate;
-
-    if (!Number.isFinite(scheduleId) || scheduleId <= 0) {
-      return errorResponse('Invalid scheduleId', 400);
-    }
-    if (!runDateRaw || isNaN(new Date(runDateRaw).getTime())) {
-      return errorResponse('Invalid runDate', 400);
-    }
-    const runDate = new Date(runDateRaw);
+    const runDate = new Date(input.runDate);
+    if (Number.isNaN(runDate.getTime())) return errorResponse('Invalid runDate', 400);
 
     const existing = await prisma.assignmentScheduleRun.findUnique({
-      where: { scheduleId_runDate: { scheduleId, runDate } },
+      where: { scheduleId_runDate: { scheduleId: input.scheduleId, runDate } },
       select: { id: true, isSkipped: true },
     });
-
-    if (!existing) {
-      return errorResponse('No skip found for that schedule/runDate', 404);
-    }
+    if (!existing) return errorResponse('No schedule run found for that date', 404);
 
     const updated = await prisma.assignmentScheduleRun.update({
       where: { id: existing.id },
       data: { isSkipped: false, skippedAt: null, skipReason: null },
-      select: { id: true, scheduleId: true, runDate: true, isSkipped: true },
+      select: {
+        id: true,
+        scheduleId: true,
+        runDate: true,
+        isSkipped: true,
+        skippedAt: true,
+        skipReason: true,
+      },
     });
 
-    return jsonResponse({ scheduleRun: updated }, 200);
+    return jsonResponse(
+      { scheduleRun: { ...updated, runDate: updated.runDate.toISOString() } },
+      200,
+    );
   } catch (err: unknown) {
     return handleApiError(err);
   }

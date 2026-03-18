@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Modal, Button, HelpText } from '@/components';
-import type { MissedFact } from '@/types';
+import type { MissedFactDTO } from '@/types';
 
 export function MissedFactsTableModal({
   open,
@@ -12,8 +12,8 @@ export function MissedFactsTableModal({
 }: {
   open: boolean;
   onClose: () => void;
-  facts: MissedFact[];
-  onOpenFact: (fact: MissedFact) => void;
+  facts: MissedFactDTO[];
+  onOpenFact: (fact: MissedFactDTO) => void;
 }) {
   return (
     <Modal
@@ -44,7 +44,7 @@ export function MissedFactsTableModal({
             <tbody>
               {facts.map((m) => (
                 <tr
-                  key={`${m.factorA}x${m.factorB}`}
+                  key={`${m.operation}:${m.operandA}x${m.operandB}`}
                   className="border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--surface-2))] cursor-pointer"
                   onClick={() => onOpenFact(m)}
                   role="button"
@@ -57,7 +57,7 @@ export function MissedFactsTableModal({
                   }}
                 >
                   <td className="py-3 pl-4 pr-3 font-medium text-[hsl(var(--fg))]">
-                    {m.factorA} × {m.factorB} = {m.answer}
+                    {m.operandA} × {m.operandB} = {m.correctAnswer}
                   </td>
                   <td className="py-3 px-3 text-right">{m.incorrectCount}</td>
                   <td className="py-3 px-3 text-right">{m.totalCount}</td>

@@ -13,8 +13,8 @@ import {
   Section,
   Skeleton,
 } from '@/components';
-import { studentNavItems, AppShell } from '@/modules';
-import { isMeDTO, MeDTO } from '@/types';
+import { studentNavItems, AppShell, unwrapField, looksLikeStudentMe } from '@/modules';
+import type { StudentMeDTO } from '@/types';
 
 function ProfileSkeleton() {
   return (
@@ -60,7 +60,7 @@ function ProfileSkeleton() {
 export default function StudentProfilePage() {
   const pathname = usePathname();
 
-  const [me, setMe] = useState<MeDTO | null>(null);
+  const [me, setMe] = useState<StudentMeDTO | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -79,12 +79,8 @@ export default function StudentProfilePage() {
         const json = await res.json().catch(() => null);
         if (cancelled) return;
 
-        const candidate =
-          json && typeof json === 'object'
-            ? ((json as { student?: unknown }).student ?? json)
-            : null;
-
-        setMe(isMeDTO(candidate) ? candidate : null);
+        const candidate = unwrapField(json, 'student');
+        setMe(looksLikeStudentMe(candidate) ? candidate : null);
       } catch {
         setMe(null);
       } finally {
@@ -102,7 +98,7 @@ export default function StudentProfilePage() {
     <AppShell navItems={studentNavItems} currentPath={pathname}>
       <PageHeader
         title={loading ? 'Profile' : me ? me.name : 'Profile'}
-        subtitle={loading ? 'Loading your account…' : me ? `Level ${me.level}` : undefined}
+        subtitle={loading ? 'Loading your account…' : undefined}
       />
 
       {loading ? (
@@ -129,13 +125,6 @@ export default function StudentProfilePage() {
                   Name
                 </div>
                 <div className="mt-2 text-[17px] font-semibold">{me.name}</div>
-              </div>
-
-              <div>
-                <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
-                  Level
-                </div>
-                <div className="mt-2 text-[17px] font-semibold">{me.level}</div>
               </div>
 
               <div>

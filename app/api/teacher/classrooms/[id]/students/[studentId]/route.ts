@@ -1,33 +1,82 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '@/data/prisma';
-import { requireTeacher } from '@/core';
-import { jsonError, parseId } from '@/utils';
-import { handleApiError } from '@/app';
-import { assertTeacherOwnsClassroom } from '@/core/classrooms';
+import { z } from 'zod';
+import {
+  updateClassroomStudentById,
+  deleteClassroomStudentById,
+  setTeacherStudentProgressRows,
+  getProgressionSnapshot,
+  distributeLevelAcrossOperations,
+} from '@/core';
+import {
+  handleApiError,
+  readJson,
+  type RouteContext,
+  getTeacherClassroomStudentParams,
+} from '@/app/api/_shared';
+import { jsonResponse } from '@/utils/http';
 
-type RouteCtx = { params: Promise<{ id: string; studentId: string }> };
+const updateStudentSchema = z.object({
+  name: z.string().min(1),
+  username: z.string().min(1),
+  level: z.coerce.number().int().min(1).max(100),
+});
 
-export async function GET(_req: Request, { params }: RouteCtx) {
+type Ctx = RouteContext<{ id: string; studentId: string }>;
+
+export async function PATCH(request: Request, { params }: Ctx) {
   try {
-    const auth = await requireTeacher();
-    if (!auth.ok) return jsonError(auth.error, auth.status);
+    const ctx = await getTeacherClassroomStudentParams(params);
+    if (!ctx.ok) return ctx.response;
 
-    const { id: rawClassroomId, studentId: rawStudentId } = await params;
-    const classroomId = parseId(rawClassroomId);
-    const studentId = parseId(rawStudentId);
+    const body = await readJson(request);
+    const input = updateStudentSchema.parse(body);
 
-    if (!classroomId) return jsonError('Invalid classroom id', 400);
-    if (!studentId) return jsonError('Invalid student id', 400);
+    const snapshot = await getProgressionSnapshot(ctx.classroomId);
 
-    await assertTeacherOwnsClassroom(auth.teacher.id, classroomId);
-
-    const student = await prisma.student.findFirst({
-      where: { id: studentId, classroomId },
-      select: { id: true, name: true, username: true, level: true },
+    const student = await updateClassroomStudentById({
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
+      studentId: ctx.studentIdNum,
+      input: { name: input.name, username: input.username },
     });
-    if (!student) return jsonError('Student not found', 404);
 
-    return NextResponse.json({ student }, { status: 200 });
+    const operationOrder = snapshot.operationOrder.length
+      ? snapshot.operationOrder
+      : snapshot.enabledOperations;
+
+    const levelsToWrite = distributeLevelAcrossOperations({
+      operationOrder,
+      primaryOp: snapshot.primaryOperation,
+      maxNumber: snapshot.maxNumber,
+      levelAmount: input.level,
+    });
+
+    if (levelsToWrite.length > 0) {
+      await setTeacherStudentProgressRows({
+        teacherId: ctx.teacher.id,
+        classroomId: ctx.classroomId,
+        studentId: ctx.studentIdNum,
+        levels: levelsToWrite,
+      });
+    }
+
+    return jsonResponse({ student }, 200);
+  } catch (err: unknown) {
+    return handleApiError(err);
+  }
+}
+
+export async function DELETE(_request: Request, { params }: Ctx) {
+  try {
+    const ctx = await getTeacherClassroomStudentParams(params);
+    if (!ctx.ok) return ctx.response;
+
+    await deleteClassroomStudentById({
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
+      studentId: ctx.studentIdNum,
+    });
+
+    return new Response(null, { status: 204 });
   } catch (err: unknown) {
     return handleApiError(err);
   }

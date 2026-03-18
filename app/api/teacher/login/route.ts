@@ -1,12 +1,10 @@
-// app/api/teacher/login/route.ts
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 
 import { prisma } from '@/data/prisma';
 import { readJson, handleApiError, setTeacherSessionCookie } from '@/app';
-import { createTeacherSession } from '@/core';
-
+import { createTeacherSession } from '@/core/auth';
 const LoginBodySchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
@@ -25,11 +23,11 @@ export async function POST(req: Request) {
         id: true,
         name: true,
         email: true,
-        password: true,
+        passwordHash: true,
       },
     });
 
-    const ok = teacher ? await bcrypt.compare(password, teacher.password) : false;
+    const ok = teacher ? await bcrypt.compare(password, teacher.passwordHash) : false;
     if (!teacher || !ok) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }

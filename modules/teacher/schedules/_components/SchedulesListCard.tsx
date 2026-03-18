@@ -53,7 +53,7 @@ export function SchedulesListCard(props: {
           <div className="mt-3 text-xs text-[hsl(var(--muted-fg))]">
             <span>{gate.message} </span>
             <a
-              href={gate.upgradeHref}
+              href={gate.upgradeUrl}
               className="font-semibold text-[hsl(var(--fg))] underline underline-offset-4"
             >
               Upgrade
@@ -75,8 +75,8 @@ export function SchedulesListCard(props: {
 
         {showTip ? (
           <HelpText>
-            Tip: you can create multiple schedules (e.g., Tue/Thu practice + Fri test). Keep only
-            what you want active.
+            Tip: you can create multiple schedules (for example, Tue and Thu practice plus a Fri
+            test). Keep only what you want active.
           </HelpText>
         ) : null}
       </CardContent>

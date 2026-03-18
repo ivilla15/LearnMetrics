@@ -1,13 +1,13 @@
-import { requireTeacher } from '@/core';
-import * as ProgressRepo from '@/data/teacherProgress.repo';
+import { z } from 'zod';
+import { requireTeacher } from '@/core/auth';
 import { classroomIdParamSchema } from '@/validation';
-import { errorResponse, jsonResponse } from '@/utils';
+import { errorResponse, jsonResponse } from '@/utils/http';
 import { handleApiError, type RouteContext } from '@/app';
-import { assertTeacherOwnsClassroom } from '@/core/classrooms';
-import { getTeacherClassroomProgress } from '@/core/teacher/Progress';
-import { clampInt } from '@/utils/math';
+import type { ClassroomProgressDTO } from '@/types';
 
-export async function GET(req: Request, { params }: RouteContext) {
+import { getClassroomProgress } from '@/core/';
+
+export async function GET(req: Request, { params }: RouteContext<{ id: string }>) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -16,58 +16,22 @@ export async function GET(req: Request, { params }: RouteContext) {
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
 
     const url = new URL(req.url);
+    const days = Number(url.searchParams.get('days') ?? '30') || 30;
+    const primaryOperation = url.searchParams.get('primaryOperation') ?? undefined;
 
-    const rawDays = url.searchParams.get('days') ?? '30';
-    const daysParsed = Number(rawDays);
-    const days = Number.isFinite(daysParsed) ? clampInt(daysParsed, 1, 365) : 30;
-
-    // optional drilldown mode
-    const questionIdRaw = url.searchParams.get('questionId');
-
-    if (questionIdRaw !== null) {
-      const questionIdNum = Number(questionIdRaw);
-      if (!Number.isFinite(questionIdNum) || questionIdNum <= 0) {
-        return errorResponse('Invalid questionId', 400);
-      }
-
-      await assertTeacherOwnsClassroom(auth.teacher.id, classroomId);
-
-      const endAt = new Date();
-      const startAt = new Date(endAt.getTime() - days * 24 * 60 * 60 * 1000);
-
-      const detail = await ProgressRepo.getMissedFactStudentBreakdownInRange({
-        classroomId,
-        startAt,
-        endAt,
-        questionId: questionIdNum,
-      });
-
-      return jsonResponse(
-        {
-          questionId: questionIdNum,
-          days,
-          totalIncorrect: detail.totalIncorrect,
-          totalAttempts: detail.totalCount,
-          students: detail.students.map((s) => ({
-            studentId: s.studentId,
-            name: s.name,
-            username: s.username,
-            incorrectCount: s.incorrectCount,
-            totalCount: s.totalCount,
-          })),
-        },
-        200,
-      );
-    }
-
-    const dto = await getTeacherClassroomProgress({
+    const dto = await getClassroomProgress({
       teacherId: auth.teacher.id,
       classroomId,
       days,
+      primaryOperation: primaryOperation as 'ADD' | 'SUB' | 'MUL' | 'DIV' | undefined,
     });
 
-    return jsonResponse(dto, 200);
+    return jsonResponse(dto as ClassroomProgressDTO, 200);
   } catch (err: unknown) {
-    return handleApiError(err);
+    if (err instanceof z.ZodError) return errorResponse('Invalid request', 400);
+    return handleApiError(err, {
+      defaultMessage: 'Failed to load classroom progress',
+      defaultStatus: 500,
+    });
   }
 }

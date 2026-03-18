@@ -4,7 +4,7 @@ import * as React from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
 
 import { Button, Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components';
-import type { CalendarItemRow } from '@/types';
+import type { CalendarItemRowDTO } from '@/types';
 import { DayTile } from './DayTile';
 import { buildMonthGrid, monthLabel, sameDay } from '@/utils/calendar';
 
@@ -16,8 +16,8 @@ type Props = {
   onToday: () => void;
   onNext: () => void;
 
-  byDay: Map<string, CalendarItemRow[]>;
-  onOpenDetails: (item: CalendarItemRow) => void;
+  byDay: Map<string, CalendarItemRowDTO[]>;
+  onOpenDetails: (item: CalendarItemRowDTO) => void;
 
   onOpenDayMobile: (dayKey: string) => void;
 };

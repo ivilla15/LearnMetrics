@@ -12,7 +12,7 @@ import {
   Skeleton,
   Button,
 } from '@/components';
-import type { MeDTO } from '@/types';
+import type { TeacherMeDTO } from '@/types';
 import { AppShell, BillingCard, teacherNavItems } from '@/modules';
 import { usePathname } from 'next/navigation';
 
@@ -27,7 +27,7 @@ function SettingsSkeleton() {
               <Skeleton className="h-4 w-60" />
             </div>
           </CardHeader>
-          <CardContent className="space-y-4 min-h-[150px]">
+          <CardContent className="space-y-4 min-h-37.5">
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Skeleton className="h-3 w-16" />
@@ -57,7 +57,7 @@ function SettingsSkeleton() {
               <Skeleton className="h-4 w-52" />
             </div>
           </CardHeader>
-          <CardContent className="space-y-2 min-h-[120px]">
+          <CardContent className="space-y-2 min-h-30">
             <Skeleton className="h-10 w-44" />
             <Skeleton className="h-4 w-64" />
           </CardContent>
@@ -68,7 +68,7 @@ function SettingsSkeleton() {
 }
 
 export default function TeacherSettingsPage() {
-  const [me, setMe] = useState<MeDTO | null>(null);
+  const [me, setMe] = useState<TeacherMeDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname() ?? '';
   const [logoutAllLoading, setLogoutAllLoading] = useState(false);
@@ -137,7 +137,7 @@ export default function TeacherSettingsPage() {
                 <CardDescription>Keep your account safe</CardDescription>
               </CardHeader>
 
-              <CardContent className="space-y-3 min-h-[120px]">
+              <CardContent className="space-y-3 min-h-30">
                 <Button
                   variant="destructive"
                   onClick={signOutAllDevices}

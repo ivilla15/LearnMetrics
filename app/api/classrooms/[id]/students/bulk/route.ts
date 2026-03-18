@@ -1,22 +1,14 @@
-import { bulkCreateClassroomStudents, requireTeacher } from '@/core';
-import { classroomIdParamSchema } from '@/validation';
-import { errorResponse, jsonResponse } from '@/utils';
-import { handleApiError, readJson, RouteContext } from '@/app';
 import { z } from 'zod';
 
-const bulkStudentsSchema = z.object({
-  students: z
-    .array(
-      z.object({
-        firstName: z.string().min(1),
-        lastName: z.string().min(1),
-        username: z.string().min(1),
-        level: z.number().int().min(1).max(12),
-      }),
-    )
-    .min(1)
-    .max(200),
-});
+import { requireTeacher, bulkCreateClassroomStudents } from '@/core';
+import { classroomIdParamSchema } from '@/validation';
+import { bulkAddStudentsSchema } from '@/validation/teacher/bulk-students';
+
+import { errorResponse, jsonResponse } from '@/utils/http';
+import { handleApiError, readJson, type RouteContext } from '@/app';
+
+import type { OperationCode } from '@/types/enums';
+import type { BulkAddStudentInputDTO } from '@/types/api/teacherStudents';
 
 export async function POST(request: Request, { params }: RouteContext) {
   try {
@@ -27,17 +19,35 @@ export async function POST(request: Request, { params }: RouteContext) {
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
 
     const body = await readJson(request);
-    const { students } = bulkStudentsSchema.parse(body);
+    const parsed = bulkAddStudentsSchema.parse(body);
+
+    const defaultStartingOperation = parsed.defaultStartingOperation;
+    const defaultStartingLevel = parsed.defaultStartingLevel;
+    const defaultLevel = parsed.defaultLevel ?? 1;
+
+    const studentsToCreate: BulkAddStudentInputDTO[] = parsed.students.map((s) => {
+      const resolvedLevel = s.startingLevel ?? s.level ?? defaultStartingLevel ?? defaultLevel;
+
+      const resolvedOp: OperationCode | undefined = s.startingOperation ?? defaultStartingOperation;
+
+      return {
+        firstName: s.firstName,
+        lastName: s.lastName,
+        username: s.username,
+        startingOperation: resolvedOp,
+        startingLevel: resolvedLevel,
+      };
+    });
 
     const result = await bulkCreateClassroomStudents({
       teacherId: auth.teacher.id,
       classroomId,
-      students,
+      students: studentsToCreate,
     });
 
-    // returns: { students, setupCodes }
     return jsonResponse(result, 201);
   } catch (err: unknown) {
+    if (err instanceof z.ZodError) return errorResponse('Invalid request body', 400);
     return handleApiError(err);
   }
 }

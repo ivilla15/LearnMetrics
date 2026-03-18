@@ -3,9 +3,9 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 
 import { prisma } from '@/data/prisma';
-import { createTeacherSession } from '@/core';
 import { jsonError } from '@/utils';
 import { readJson, handleApiError, setTeacherSessionCookie } from '@/app';
+import { createTeacherSession } from '@/core/auth';
 
 const SignupBodySchema = z.object({
   name: z.string().min(1),
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
       data: {
         name: name.trim(),
         email: normalizedEmail,
-        password: passwordHash,
+        passwordHash,
         updatedAt: now,
         entitlement: {
           create: {

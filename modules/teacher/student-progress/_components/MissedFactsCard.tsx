@@ -2,9 +2,9 @@
 
 import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, MiniBar } from '@/components';
-import type { MissedFact } from '@/core/teacher/Progress';
+import { MissedFactDTO } from '@/types';
 
-export function MissedFactsCard(props: { missedFacts: MissedFact[] }) {
+export function MissedFactsCard(props: { missedFacts: MissedFactDTO[] }) {
   const { missedFacts } = props;
 
   const maxIncorrect = React.useMemo(
@@ -25,13 +25,13 @@ export function MissedFactsCard(props: { missedFacts: MissedFact[] }) {
         ) : (
           missedFacts.map((m) => (
             <div
-              key={m.questionId}
+              key={`${m.operation}:${m.operandA}:${m.operandB}`}
               className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4"
             >
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="text-sm font-semibold text-[hsl(var(--fg))]">
-                    {m.factorA} × {m.factorB} = {m.answer}
+                    {m.operandA} × {m.operandB} = {m.correctAnswer}
                   </div>
                   <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
                     Incorrect {m.incorrectCount}/{m.totalCount} ({m.errorRate}% error)

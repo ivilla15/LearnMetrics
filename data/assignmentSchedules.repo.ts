@@ -1,7 +1,5 @@
-// data/assignmentSchedules.repo.ts
 import { prisma } from '@/data/prisma';
-import { CreateScheduleArgs, UpdateScheduleArgs } from '@/types';
-import type { AssignmentSchedule } from '@prisma/client';
+import type { Prisma, AssignmentSchedule } from '@prisma/client';
 
 export async function findPrimaryScheduleByClassroomId(classroomId: number) {
   return prisma.assignmentSchedule.findFirst({
@@ -26,11 +24,23 @@ export async function findAllActiveSchedulesWithTimezone() {
     select: {
       id: true,
       classroomId: true,
-      opensAtLocalTime: true,
-      windowMinutes: true,
       isActive: true,
       days: true,
+      opensAtLocalTime: true,
+      windowMinutes: true,
+
+      targetKind: true,
+
+      type: true,
       numQuestions: true,
+      operation: true,
+
+      durationMinutes: true,
+
+      dependsOnScheduleId: true,
+      offsetMinutes: true,
+      recipientRule: true,
+
       Classroom: { select: { id: true, teacherId: true, timeZone: true } },
     },
   });
@@ -42,14 +52,17 @@ export async function findScheduleById(scheduleId: number): Promise<AssignmentSc
   });
 }
 
-export async function createSchedule(data: CreateScheduleArgs) {
+export async function createSchedule(data: Prisma.AssignmentScheduleUncheckedCreateInput) {
   return prisma.assignmentSchedule.create({ data });
 }
 
-export async function updateSchedule({ id, ...data }: UpdateScheduleArgs) {
+export async function updateSchedule(params: {
+  id: number;
+  data: Prisma.AssignmentScheduleUncheckedUpdateInput;
+}) {
   return prisma.assignmentSchedule.update({
-    where: { id },
-    data,
+    where: { id: params.id },
+    data: params.data,
   });
 }
 

@@ -1,12 +1,12 @@
 import { prisma } from '@/data/prisma';
 import type { Prisma } from '@prisma/client';
-import { requireTeacher } from '@/core';
+import { assertTeacherOwnsClassroom } from '@/core';
 import { errorResponse, jsonResponse, parseId } from '@/utils';
-import { handleApiError, readJson, type ClassroomAssignmentRouteContext } from '@/app';
-import { assertTeacherOwnsClassroom } from '@/core/classrooms';
+import { RouteContext, handleApiError, readJson } from '@/app';
 import { updateTeacherAssignmentSchema } from '@/validation';
+import { requireTeacher } from '@/core/auth';
 
-export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteContext) {
+export async function PATCH(req: Request, { params }: RouteContext) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -25,8 +25,8 @@ export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteCo
       where: { id: aId, classroomId },
       select: {
         id: true,
-        kind: true,
-        assignmentMode: true,
+        type: true,
+        mode: true,
         opensAt: true,
         closesAt: true,
         windowMinutes: true,
@@ -46,45 +46,71 @@ export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteCo
     const body = await readJson(req);
     const input = updateTeacherAssignmentSchema.parse(body);
 
-    // Build Prisma update data
-    const data: Prisma.AssignmentUpdateInput = {};
+    const data: Prisma.AssignmentUncheckedUpdateInput = {};
+
     if (input.opensAt) data.opensAt = new Date(input.opensAt);
-    if (input.closesAt) data.closesAt = new Date(input.closesAt);
+
+    // closesAt is nullable; allow explicit null when provided
+    if (Object.prototype.hasOwnProperty.call(input, 'closesAt')) {
+      data.closesAt = input.closesAt ? new Date(input.closesAt) : null;
+    }
+
     if (input.windowMinutes !== undefined) data.windowMinutes = input.windowMinutes;
     if (input.numQuestions !== undefined) data.numQuestions = input.numQuestions;
 
-    // Optional: validate opensAt < closesAt when both provided (uncomment if desired)
-    if (data.opensAt && data.closesAt && (data.closesAt as Date) <= (data.opensAt as Date)) {
+    const nextOpensAt = data.opensAt instanceof Date ? data.opensAt : assignment.opensAt;
+
+    const nextClosesAt =
+      data.closesAt instanceof Date
+        ? data.closesAt
+        : data.closesAt === null
+          ? null
+          : (assignment.closesAt ?? null);
+
+    if (nextClosesAt && nextClosesAt.getTime() <= nextOpensAt.getTime()) {
       return errorResponse('closesAt must be after opensAt', 400);
     }
 
-    // If nothing provided
-    if (Object.keys(data).length === 0) {
-      return errorResponse('No fields provided', 400);
-    }
+    const isChangingOpensAt =
+      data.opensAt instanceof Date
+        ? assignment.opensAt.getTime() !== data.opensAt.getTime()
+        : false;
 
-    const nextOpensAt =
-      typeof data.opensAt === 'object' && data.opensAt instanceof Date ? data.opensAt : null;
-
-    const isChangingOpensAt = nextOpensAt
-      ? assignment.opensAt.getTime() !== nextOpensAt.getTime()
-      : false;
-
+    // If rescheduling a scheduled occurrence:
+    // 1) mark original run as skipped (upsert-safe)
+    // 2) detach this assignment from the schedule so it won't be re-created
+    // 3) mark as MAKEUP (explicit semantics)
     if (isChangingOpensAt && assignment.scheduleId && assignment.runDate) {
-      await prisma.assignmentScheduleRun.update({
+      await prisma.assignmentScheduleRun.upsert({
         where: {
           scheduleId_runDate: {
             scheduleId: assignment.scheduleId,
             runDate: assignment.runDate,
           },
         },
-        data: {
+        update: {
+          isSkipped: true,
+          skippedAt: new Date(),
+          skipReason: 'Rescheduled by teacher',
+          assignmentId: null,
+        },
+        create: {
+          scheduleId: assignment.scheduleId,
+          runDate: assignment.runDate,
           isSkipped: true,
           skippedAt: new Date(),
           skipReason: 'Rescheduled by teacher',
           assignmentId: null,
         },
       });
+
+      data.scheduleId = null;
+      data.runDate = null;
+      data.mode = 'MAKEUP';
+    }
+
+    if (Object.keys(data).length === 0) {
+      return errorResponse('No fields provided', 400);
     }
 
     const updated = await prisma.assignment.update({
@@ -92,8 +118,8 @@ export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteCo
       data,
       select: {
         id: true,
-        kind: true,
-        assignmentMode: true,
+        type: true,
+        mode: true,
         opensAt: true,
         closesAt: true,
         windowMinutes: true,
@@ -105,10 +131,10 @@ export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteCo
       {
         assignment: {
           assignmentId: updated.id,
-          kind: updated.kind,
-          assignmentMode: updated.assignmentMode,
+          type: updated.type,
+          mode: updated.mode,
           opensAt: updated.opensAt.toISOString(),
-          closesAt: updated.closesAt.toISOString(),
+          closesAt: updated.closesAt ? updated.closesAt.toISOString() : null,
           windowMinutes: updated.windowMinutes,
           numQuestions: updated.numQuestions ?? 12,
         },
@@ -120,7 +146,7 @@ export async function PATCH(req: Request, { params }: ClassroomAssignmentRouteCo
   }
 }
 
-export async function DELETE(_req: Request, { params }: ClassroomAssignmentRouteContext) {
+export async function DELETE(req: Request, { params }: RouteContext) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -137,7 +163,6 @@ export async function DELETE(_req: Request, { params }: ClassroomAssignmentRoute
 
     const assignment = await prisma.assignment.findFirst({
       where: { id: aId, classroomId },
-      // removed opensAt here (not needed)
       select: { id: true, scheduleId: true, runDate: true },
     });
 
@@ -148,7 +173,6 @@ export async function DELETE(_req: Request, { params }: ClassroomAssignmentRoute
       return errorResponse('Cannot delete an assignment that already has attempts', 409);
     }
 
-    // If this assignment was created by a schedule run, mark the run as skipped (upsert safe)
     if (assignment.scheduleId && assignment.runDate) {
       await prisma.assignmentScheduleRun.upsert({
         where: {
@@ -160,7 +184,6 @@ export async function DELETE(_req: Request, { params }: ClassroomAssignmentRoute
         update: {
           isSkipped: true,
           skippedAt: new Date(),
-          // you already store skipReason elsewhere, but if you have the field add it here:
           skipReason: 'Deleted by teacher',
           assignmentId: null,
         },

@@ -3,18 +3,33 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const cardVariants = cva(
-  'rounded-[var(--radius)] bg-[hsl(var(--card))] text-[hsl(var(--card-fg))]',
+  'rounded-[var(--radius)] bg-[hsl(var(--card))] text-[hsl(var(--card-fg))] transition',
   {
     variants: {
       variant: {
         elevated: 'shadow-[0_4px_10px_rgba(0,0,0,0.08)]',
         muted: 'bg-[hsl(var(--section))] shadow-[0_4px_10px_rgba(0,0,0,0.08)]',
-        outline: 'border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)]',
+        outline: 'border shadow-none bg-transparent',
         flat: 'shadow-none',
       },
+
+      tone: {
+        default: '',
+        primary: 'border-[hsl(var(--brand))]',
+        black: 'border-black',
+        white: 'border-white',
+      },
     },
+
+    compoundVariants: [
+      { variant: 'outline', tone: 'primary', className: 'border-[hsl(var(--brand))]' },
+      { variant: 'outline', tone: 'black', className: 'border-black' },
+      { variant: 'outline', tone: 'white', className: 'border-white' },
+    ],
+
     defaultVariants: {
       variant: 'elevated',
+      tone: 'default',
     },
   },
 );
@@ -23,8 +38,8 @@ export interface CardProps
   extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {}
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant, ...props }, ref) => (
-    <div ref={ref} className={cn(cardVariants({ variant, className }))} {...props} />
+  ({ className, variant, tone, ...props }, ref) => (
+    <div ref={ref} className={cn(cardVariants({ variant, tone, className }))} {...props} />
   ),
 );
 Card.displayName = 'Card';

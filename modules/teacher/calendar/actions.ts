@@ -1,19 +1,47 @@
 'use client';
 
 import { fromZonedTime } from 'date-fns-tz';
-import type { CalendarItemRow, CalendarAssignmentDTO, CalendarProjectionRow } from '@/types';
-import { isProjection, parseNumberOrUndefined } from '@/utils/calendar';
-import { cancelOccurrenceApi } from '@/app/api/_shared/schedules';
+import {
+  type CalendarAssignmentRowDTO,
+  type CalendarItemRowDTO,
+  type CalendarProjectionRowDTO,
+} from '@/types';
+import { parseNumberOrUndefined, isProjection } from '@/utils';
+
+async function skipOccurrenceApi(params: {
+  classroomId: number;
+  scheduleId: number;
+  runDate: string;
+  reason?: string;
+}) {
+  const res = await fetch(`/api/teacher/classrooms/${params.classroomId}/schedule-runs/skip`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({
+      scheduleId: params.scheduleId,
+      runDate: params.runDate,
+      reason: params.reason,
+    }),
+  });
+
+  if (!res.ok) {
+    const json = (await res.json().catch(() => null)) as { error?: unknown } | null;
+    const msg = typeof json?.error === 'string' ? json.error : 'Failed to cancel occurrence';
+    throw new Error(msg);
+  }
+}
 
 export async function saveCalendarItemEdit(params: {
   classroomId: number;
-  item: CalendarItemRow;
+  item: CalendarItemRowDTO;
   tz: string;
 
   editLocalDate: string; // yyyy-MM-dd
   editLocalTime: string; // HH:mm
   editWindowMinutes: string; // text input
   editNumQuestions: string; // text input
+  editDurationMinutes: string;
 }) {
   const { classroomId, item, tz, editLocalDate, editLocalTime } = params;
 
@@ -30,6 +58,11 @@ export async function saveCalendarItemEdit(params: {
     throw new Error('Num questions must be a number between 1 and 60');
   }
 
+  const parsedDuration = parseNumberOrUndefined(params.editDurationMinutes);
+  if (parsedDuration !== undefined && (parsedDuration < 1 || parsedDuration > 1440)) {
+    throw new Error('Duration minutes must be a number between 1 and 1440');
+  }
+
   const windowToUse = parsedWindow ?? item.windowMinutes ?? 4;
   const closesAtUtc = new Date(opensAtUtc.getTime() + windowToUse * 60 * 1000);
 
@@ -38,20 +71,33 @@ export async function saveCalendarItemEdit(params: {
     closesAt: closesAtUtc.toISOString(),
     windowMinutes: windowToUse,
   };
+
   if (nq !== undefined) baseBody.numQuestions = nq;
 
   let res: Response;
 
   if (isProjection(item)) {
-    const proj = item as CalendarProjectionRow;
+    const proj = item as CalendarProjectionRowDTO;
 
     const payload: Record<string, unknown> = {
       ...baseBody,
       scheduleId: proj.scheduleId,
       runDate: proj.runDate,
-      assignmentMode: 'SCHEDULED',
-      kind: 'SCHEDULED_TEST',
+      mode: proj.mode,
+      targetKind: proj.targetKind,
     };
+
+    if (proj.type) payload.type = proj.type;
+    if (proj.operation) payload.operation = proj.operation;
+
+    if (proj.targetKind === 'PRACTICE_TIME') {
+      payload.durationMinutes =
+        parsedDuration !== undefined ? parsedDuration : (proj.durationMinutes ?? 0);
+    } else {
+      if (nq !== undefined) payload.numQuestions = nq;
+      else if (proj.numQuestions != null) payload.numQuestions = proj.numQuestions;
+      if (proj.windowMinutes != null) payload.windowMinutes = proj.windowMinutes;
+    }
 
     res = await fetch(`/api/teacher/classrooms/${classroomId}/assignments`, {
       method: 'POST',
@@ -60,7 +106,15 @@ export async function saveCalendarItemEdit(params: {
       body: JSON.stringify(payload),
     });
   } else {
-    const a = item as CalendarAssignmentDTO;
+    const a = item as CalendarAssignmentRowDTO;
+
+    if (a.targetKind === 'PRACTICE_TIME' && parsedDuration !== undefined) {
+      baseBody.durationMinutes = parsedDuration;
+    }
+
+    if (a.targetKind !== 'PRACTICE_TIME' && nq !== undefined) {
+      baseBody.numQuestions = nq;
+    }
 
     res = await fetch(`/api/teacher/classrooms/${classroomId}/assignments/${a.assignmentId}`, {
       method: 'PATCH',
@@ -79,17 +133,15 @@ export async function saveCalendarItemEdit(params: {
 
 export async function cancelCalendarItemOccurrence(params: {
   classroomId: number;
-  item: CalendarItemRow;
+  item: CalendarItemRowDTO;
 }) {
   const { classroomId, item } = params;
 
-  // Projections always have scheduleId+runDate
   if (isProjection(item)) {
-    await cancelOccurrenceApi(classroomId, item.scheduleId, item.runDate);
+    await skipOccurrenceApi({ classroomId, scheduleId: item.scheduleId, runDate: item.runDate });
     return;
   }
 
-  // Real assignment: only cancel if it came from a schedule
   const scheduleId = item.scheduleId ?? null;
   const runDate = item.runDate ?? null;
 
@@ -97,5 +149,5 @@ export async function cancelCalendarItemOccurrence(params: {
     throw new Error('This assignment is not tied to a schedule occurrence.');
   }
 
-  await cancelOccurrenceApi(classroomId, scheduleId, runDate);
+  await skipOccurrenceApi({ classroomId, scheduleId, runDate });
 }

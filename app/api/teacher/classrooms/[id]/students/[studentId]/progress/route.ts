@@ -1,44 +1,79 @@
-import { requireTeacher } from '@/core';
-import { jsonError, parseId } from '@/utils';
-import { handleApiError } from '@/app';
-import { getTeacherStudentProgress } from '@/core/teacher/Progress';
+import {
+  getProgressionSnapshot,
+  getTeacherStudentProgressRows,
+  requireTeacher,
+  setTeacherStudentProgressRows,
+} from '@/core';
+import { upsertStudentProgressSchema } from '@/validation';
+import {
+  handleApiError,
+  readJson,
+  RouteContext,
+  getTeacherClassroomStudentParams,
+} from '@/app/api/_shared';
+import { jsonResponse, errorResponse } from '@/utils/http';
 
-type RouteCtx = { params: Promise<{ id: string; studentId: string }> };
+export async function GET(
+  _request: Request,
+  { params }: RouteContext<{ id: string; studentId: string }>,
+) {
+  try {
+    const ctx = await getTeacherClassroomStudentParams(params);
+    if (!ctx.ok) return ctx.response;
 
-function clampInt(n: number, min: number, max: number) {
-  return Math.min(Math.max(Math.trunc(n), min), max);
+    const policy = await getProgressionSnapshot(ctx.classroomId);
+
+    const progress = await getTeacherStudentProgressRows({
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
+      studentId: ctx.studentIdNum,
+    });
+
+    return jsonResponse(
+      {
+        studentId: ctx.studentIdNum,
+        policy,
+        progress,
+      },
+      200,
+    );
+  } catch (err: unknown) {
+    return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
+  }
 }
 
-export async function GET(req: Request, { params }: RouteCtx) {
+export async function PUT(
+  request: Request,
+  { params }: RouteContext<{ id: string; studentId: string }>,
+) {
   try {
     const auth = await requireTeacher();
-    if (!auth.ok) return jsonError(auth.error, auth.status);
+    if (!auth.ok) return errorResponse(auth.error, auth.status);
 
-    const { id, studentId } = await params;
+    const ctx = await getTeacherClassroomStudentParams(params);
+    if (!ctx.ok) return ctx.response;
 
-    const classroomId = parseId(id);
-    if (!classroomId) return jsonError('Invalid classroom id', 400);
+    const body = await readJson(request);
+    const input = upsertStudentProgressSchema.parse(body);
 
-    const sid = parseId(studentId);
-    if (!sid) return jsonError('Invalid student id', 400);
+    const policy = await getProgressionSnapshot(ctx.classroomId);
 
-    const url = new URL(req.url);
-    const rawDays = url.searchParams.get('days') ?? '30';
-    const daysParsed = Number(rawDays);
-    const days = Number.isFinite(daysParsed) ? clampInt(daysParsed, 1, 365) : 30;
-
-    const dto = await getTeacherStudentProgress({
-      teacherId: auth.teacher.id,
-      classroomId,
-      studentId: sid,
-      days,
+    const progress = await setTeacherStudentProgressRows({
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
+      studentId: ctx.studentIdNum,
+      levels: input.levels,
     });
 
-    return new Response(JSON.stringify(dto), {
-      status: 200,
-      headers: { 'content-type': 'application/json' },
-    });
+    return jsonResponse(
+      {
+        studentId: ctx.studentIdNum,
+        policy,
+        progress,
+      },
+      200,
+    );
   } catch (err: unknown) {
-    return handleApiError(err);
+    return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }
 }

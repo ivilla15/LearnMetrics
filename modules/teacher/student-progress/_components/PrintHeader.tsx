@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { TeacherStudentProgressDTO } from '@/core/teacher/Progress';
+import type { TeacherStudentProgressDTO } from '@/types';
 
 export function PrintHeader({ data }: { data: TeacherStudentProgressDTO }) {
   const s = data.student;

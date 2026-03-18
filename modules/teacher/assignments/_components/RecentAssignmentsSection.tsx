@@ -2,11 +2,12 @@
 
 import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components';
-import type { TeacherAssignmentListItem } from '@/types';
+import type { TeacherAssignmentListItemDTO } from '@/types';
 import { RecentAssignmentsCards } from './RecentAssignmentsCards';
+
 export function RecentAssignmentsSection(props: {
   classroomId: number;
-  rows: TeacherAssignmentListItem[];
+  rows: TeacherAssignmentListItemDTO[];
   onOpen: (assignmentId: number) => void;
 }) {
   const { classroomId, rows, onOpen } = props;
@@ -15,7 +16,9 @@ export function RecentAssignmentsSection(props: {
     <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
       <CardHeader className="space-y-2">
         <CardTitle>Recent assignments</CardTitle>
-        <CardDescription>Quick snapshot of the most recent tests.</CardDescription>
+        <CardDescription>
+          Quick snapshot of recent tests and practice-time assignments.
+        </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-4">

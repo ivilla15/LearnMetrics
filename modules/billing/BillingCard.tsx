@@ -10,13 +10,13 @@ import {
   Skeleton,
   Button,
 } from '@/components';
-import type { EntitlementDTO, SubscriptionSummary } from '@/types';
+import type { EntitlementDTO, SubscriptionSummaryDTO } from '@/types';
 
 export function BillingCard() {
   const [ent, setEnt] = useState<EntitlementDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const [ctaLoading, setCtaLoading] = useState(false);
-  const [summary, setSummary] = useState<SubscriptionSummary>(null);
+  const [summary, setSummary] = useState<SubscriptionSummaryDTO>(null);
   const [summaryLoading, setSummaryLoading] = useState(true);
 
   useEffect(() => {
@@ -85,7 +85,7 @@ export function BillingCard() {
         <CardDescription>Manage your plan and payments</CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4 min-h-[150px]">
+      <CardContent className="space-y-4 min-h-37.5">
         {loading ? (
           <div className="space-y-2">
             <Skeleton className="h-10 w-40" />

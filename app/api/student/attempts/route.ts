@@ -1,34 +1,29 @@
-import { NextResponse } from 'next/server';
-
 import { prisma } from '@/data/prisma';
 import { requireStudent } from '@/core';
-import { jsonError, parseCursor } from '@/utils';
-import { handleApiError } from '@/app';
-
-type Filter = 'ALL' | 'MASTERY' | 'NOT_MASTERY';
-
-function parseFilter(value: string | null): Filter {
-  const v = (value ?? 'ALL').toUpperCase();
-  if (v === 'MASTERY') return 'MASTERY';
-  if (v === 'NOT_MASTERY') return 'NOT_MASTERY';
-  return 'ALL';
-}
+import { handleApiError } from '@/app/api/_shared';
+import { jsonResponse, errorResponse, percent, parseCursor } from '@/utils';
+import type { AttemptRowDTO, AttemptExplorerFilter, OperationCode } from '@/types';
+import { studentAttemptsQuerySchema } from '@/validation';
 
 export async function GET(req: Request) {
   try {
     const auth = await requireStudent();
-    if (!auth.ok) return jsonError(auth.error, auth.status);
-    const student = auth.student;
+    if (!auth.ok) return errorResponse(auth.error, auth.status);
 
     const url = new URL(req.url);
-    const cursor = parseCursor(url.searchParams.get('cursor'));
-    const filter = parseFilter(url.searchParams.get('filter'));
+    const parsed = studentAttemptsQuerySchema.parse({
+      cursor: url.searchParams.get('cursor') ?? undefined,
+      filter: url.searchParams.get('filter') ?? undefined,
+    });
+
+    const cursor = parseCursor(parsed.cursor ?? null);
+    const filter: AttemptExplorerFilter = parsed.filter;
 
     const limit = 10;
-    const take = limit * 5 + 1; // overfetch so filtering doesn’t empty pages
+    const take = limit * 5 + 1;
 
     const rows = await prisma.attempt.findMany({
-      where: { studentId: student.id },
+      where: { studentId: auth.student.id },
       take,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: { id: 'desc' },
@@ -38,40 +33,45 @@ export async function GET(req: Request) {
         score: true,
         total: true,
         completedAt: true,
+        operationAtTime: true,
         levelAtTime: true,
-        Assignment: { select: { kind: true, assignmentMode: true } },
+        Assignment: { select: { type: true, mode: true } },
       },
     });
 
-    const mapped = rows.map((a) => {
-      const percent = a.total > 0 ? Math.round((a.score / a.total) * 100) : 0;
-      const wasMastery = a.total > 0 && a.score === a.total;
+    const mapped: AttemptRowDTO[] = rows
+      .filter((a) => a.completedAt !== null)
+      .map((a) => {
+        const pct = percent(a.score, a.total);
+        const wasMastery = a.total > 0 && a.score === a.total;
 
-      return {
-        attemptId: a.id,
-        assignmentId: a.assignmentId,
-        completedAt: a.completedAt.toISOString(),
-        assignmentKind: a.Assignment.kind,
-        assignmentMode: a.Assignment.assignmentMode,
-        levelAtTime: a.levelAtTime ?? student.level,
-        score: a.score,
-        total: a.total,
-        percent,
-        wasMastery,
-      };
-    });
+        const op = (a.operationAtTime ?? 'MUL') as OperationCode;
+        const lvl = a.levelAtTime ?? 1;
 
-    let filtered = mapped;
+        return {
+          attemptId: a.id,
+          assignmentId: a.assignmentId,
+          completedAt: a.completedAt!.toISOString(),
+          type: a.Assignment.type,
+          mode: a.Assignment.mode,
+          operation: op,
+          levelAtTime: lvl,
+          score: a.score,
+          total: a.total,
+          percent: pct,
+          wasMastery,
+        };
+      });
+
+    let filtered: AttemptRowDTO[] = mapped;
     if (filter === 'MASTERY') filtered = mapped.filter((r) => r.wasMastery);
     if (filter === 'NOT_MASTERY') filtered = mapped.filter((r) => !r.wasMastery);
 
     const page = filtered.slice(0, limit);
     const hasMore = filtered.length > limit;
+    const nextCursor = hasMore && page.length > 0 ? String(page[page.length - 1].attemptId) : null;
 
-    // Cursor based on the LAST raw row we scanned (good enough for MVP)
-    const nextCursor = hasMore && rows.length > 0 ? String(rows[rows.length - 1].id) : null;
-
-    return NextResponse.json({ rows: page, nextCursor }, { status: 200 });
+    return jsonResponse({ rows: page, nextCursor }, 200);
   } catch (err: unknown) {
     return handleApiError(err);
   }

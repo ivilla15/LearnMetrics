@@ -2,20 +2,21 @@
 
 import * as React from 'react';
 import { formatInTimeZone } from 'date-fns-tz';
+import { startOfMonth, endOfMonth, addMonths } from 'date-fns';
+
 import type {
   CalendarAssignmentsListResponse,
-  CalendarAssignmentDTO,
-  CalendarProjectionRow,
-  CalendarItemRow,
+  CalendarAssignmentRowDTO,
+  CalendarProjectionRowDTO,
+  CalendarItemRowDTO,
 } from '@/types';
-import { startOfMonth, endOfMonth, addMonths } from 'date-fns';
+
 import { dayKeyInTimeZone, getTz, isProjection, monthLabel, toIso } from '@/utils/calendar';
 
 function buildMonthWeeks(anchor: Date): Date[][] {
   const first = startOfMonth(anchor);
   const last = endOfMonth(anchor);
 
-  // Sunday-start grid
   const start = new Date(first);
   start.setDate(first.getDate() - first.getDay());
 
@@ -39,13 +40,37 @@ function buildMonthWeeks(anchor: Date): Date[][] {
   return weeks;
 }
 
+function isWithinMonthByOpensAt(params: { opensAt: string; monthStart: Date; monthEnd: Date }) {
+  const opens = new Date(params.opensAt);
+  return (
+    opens >=
+      new Date(
+        params.monthStart.getFullYear(),
+        params.monthStart.getMonth(),
+        params.monthStart.getDate(),
+        0,
+        0,
+        0,
+      ) &&
+    opens <=
+      new Date(
+        params.monthEnd.getFullYear(),
+        params.monthEnd.getMonth(),
+        params.monthEnd.getDate(),
+        23,
+        59,
+        59,
+      )
+  );
+}
+
 export function useCalendar(initial: CalendarAssignmentsListResponse, classroomId: number) {
   const [month, setMonth] = React.useState<Date>(() => startOfMonth(new Date()));
   const [data, setData] = React.useState<CalendarAssignmentsListResponse>(initial);
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
-  const tz = getTz(data.classroom?.timeZone);
+  const tz = getTz(data.classroom?.timeZone ?? undefined);
 
   const weeks = React.useMemo(() => buildMonthWeeks(month), [month]);
   const inMonth = React.useCallback((d: Date) => d.getMonth() === month.getMonth(), [month]);
@@ -54,13 +79,15 @@ export function useCalendar(initial: CalendarAssignmentsListResponse, classroomI
     async (target: Date) => {
       setLoading(true);
       setError(null);
+
       try {
         const monthStart = startOfMonth(target);
         const monthEnd = endOfMonth(target);
 
-        let projections: CalendarProjectionRow[] = [];
+        let projections: CalendarProjectionRowDTO[] = [];
         let cursor: string | null = null;
-        let allRows: CalendarAssignmentDTO[] = [];
+
+        let allRows: CalendarAssignmentRowDTO[] = [];
         let nextCursor: string | null = null;
 
         for (let i = 0; i < 4; i++) {
@@ -72,7 +99,7 @@ export function useCalendar(initial: CalendarAssignmentsListResponse, classroomI
           url.searchParams.set('limit', '50');
           if (cursor) url.searchParams.set('cursor', cursor);
 
-          const res = await fetch(url.toString(), { cache: 'no-store' });
+          const res = await fetch(url.toString(), { cache: 'no-store', credentials: 'include' });
           const json = (await res
             .json()
             .catch(() => null)) as CalendarAssignmentsListResponse | null;
@@ -89,46 +116,21 @@ export function useCalendar(initial: CalendarAssignmentsListResponse, classroomI
 
           const rows = Array.isArray(json?.rows) ? json!.rows : [];
           allRows = [...allRows, ...rows];
-          nextCursor = json?.nextCursor ?? null;
 
+          nextCursor = json?.nextCursor ?? null;
           if (!nextCursor) break;
+
           cursor = nextCursor;
           if (allRows.length >= 200) break;
         }
 
-        const filteredRows = allRows.filter((a) => {
-          const opens = new Date(a.opensAt);
-          return (
-            opens >=
-              new Date(
-                monthStart.getFullYear(),
-                monthStart.getMonth(),
-                monthStart.getDate(),
-                0,
-                0,
-                0,
-              ) &&
-            opens <=
-              new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate(), 23, 59, 59)
-          );
-        });
+        const filteredRows = allRows.filter((a) =>
+          isWithinMonthByOpensAt({ opensAt: a.opensAt, monthStart, monthEnd }),
+        );
 
-        const filteredProjections = projections.filter((p) => {
-          const opens = new Date(p.opensAt);
-          return (
-            opens >=
-              new Date(
-                monthStart.getFullYear(),
-                monthStart.getMonth(),
-                monthStart.getDate(),
-                0,
-                0,
-                0,
-              ) &&
-            opens <=
-              new Date(monthEnd.getFullYear(), monthEnd.getMonth(), monthEnd.getDate(), 23, 59, 59)
-          );
-        });
+        const filteredProjections = projections.filter((p) =>
+          isWithinMonthByOpensAt({ opensAt: p.opensAt, monthStart, monthEnd }),
+        );
 
         setData((prev) => ({
           classroom: prev.classroom,
@@ -149,7 +151,7 @@ export function useCalendar(initial: CalendarAssignmentsListResponse, classroomI
     void loadAllForMonth(month);
   }, [month, loadAllForMonth]);
 
-  const mergedItems = React.useMemo<CalendarItemRow[]>(() => {
+  const mergedItems = React.useMemo<CalendarItemRowDTO[]>(() => {
     const real = Array.isArray(data?.rows) ? data.rows : [];
     const projections = Array.isArray(data?.projections) ? data.projections : [];
 
@@ -166,7 +168,7 @@ export function useCalendar(initial: CalendarAssignmentsListResponse, classroomI
   }, [data?.rows, data?.projections]);
 
   const byDay = React.useMemo(() => {
-    const map = new Map<string, CalendarItemRow[]>();
+    const map = new Map<string, CalendarItemRowDTO[]>();
 
     for (const it of mergedItems) {
       const key = dayKeyInTimeZone(toIso(it.opensAt), tz);
@@ -185,7 +187,7 @@ export function useCalendar(initial: CalendarAssignmentsListResponse, classroomI
     return map;
   }, [mergedItems, tz]);
 
-  const openDetailsPayloadFor = (item: CalendarItemRow) => {
+  const openDetailsPayloadFor = (item: CalendarItemRowDTO) => {
     const date = formatInTimeZone(toIso(item.opensAt), tz, 'yyyy-MM-dd');
     const time = formatInTimeZone(toIso(item.opensAt), tz, 'HH:mm');
     return { date, time, item };

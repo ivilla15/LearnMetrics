@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { Button, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components';
-import { SetupCodeRow } from '@/types/classroom';
+import type { SetupCodeCardDTO } from '@/types';
 
 export default function PrintCardsClient({ classroomId }: { classroomId: number }) {
-  const [rows, setRows] = useState<SetupCodeRow[]>([]);
+  const [rows, setRows] = useState<SetupCodeCardDTO[]>([]);
   const [classroomName, setClassroomName] = useState<string>('Classroom');
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export default function PrintCardsClient({ classroomId }: { classroomId: number 
             ? parsed
             : null;
 
-        if (codes) setRows(codes as SetupCodeRow[]);
+        if (codes) setRows(codes as SetupCodeCardDTO[]);
       }
     } catch {
       setRows([]);

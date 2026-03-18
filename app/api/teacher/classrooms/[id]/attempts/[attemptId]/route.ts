@@ -1,8 +1,7 @@
-import { requireTeacher } from '@/core';
+import { requireTeacher, getTeacherAttemptDetail } from '@/core';
 import { classroomIdParamSchema } from '@/validation';
 import { errorResponse, jsonResponse, parseId } from '@/utils';
 import { handleApiError } from '@/app';
-import { getTeacherAttemptDetail } from '@/core/teacher/assignments';
 
 type RouteCtx = { params: Promise<{ id: string; attemptId: string }> };
 

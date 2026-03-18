@@ -17,7 +17,6 @@ export * from './LoadingSpinner';
 export * from './Skeleton';
 export * from './Help-Text';
 export * from './Tile';
-export * from './tones';
 
 // Charts & visuals
 export * from './LevelProgressChart';

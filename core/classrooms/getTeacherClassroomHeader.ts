@@ -1,4 +1,4 @@
-import { prisma } from '@/data';
+import { prisma } from '@/data/prisma';
 import { NotFoundError } from '@/core/errors';
 
 export async function getTeacherClassroomHeader(params: {

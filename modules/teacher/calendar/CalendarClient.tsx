@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useToast } from '@/components';
 
-import type { CalendarAssignmentsListResponse, CalendarItemRow } from '@/types';
+import type { CalendarAssignmentsListResponse, CalendarItemRowDTO } from '@/types';
 import { useCalendar } from '@/modules/teacher/calendar/hooks/useCalendar';
 import { MonthGrid } from './_components';
 import { AssignmentDetailsModal } from './_components/AssignmentDetailsModal';
@@ -19,7 +19,7 @@ export function CalendarClient(props: {
 
   const cal = useCalendar(initial, classroomId);
 
-  const [selected, setSelected] = React.useState<CalendarItemRow | null>(null);
+  const [selected, setSelected] = React.useState<CalendarItemRowDTO | null>(null);
   const [detailOpen, setDetailOpen] = React.useState(false);
 
   const [editOpen, setEditOpen] = React.useState(false);
@@ -28,14 +28,17 @@ export function CalendarClient(props: {
   const [editWindowMinutes, setEditWindowMinutes] = React.useState('');
   const [editNumQuestions, setEditNumQuestions] = React.useState('');
   const [editSaving, setEditSaving] = React.useState(false);
+  const [editDurationMinutes, setEditDurationMinutes] = React.useState('');
 
   const selectedIsProjection = !!selected && cal.isProjection(selected);
-  const selectedClosed = selected
-    ? new Date(cal.toIso(selected.closesAt)).getTime() <= Date.now()
-    : false;
+
+  const selectedClosed =
+    selected && selected.closesAt
+      ? new Date(cal.toIso(selected.closesAt)).getTime() <= Date.now()
+      : false;
 
   const openDetails = React.useCallback(
-    (item: CalendarItemRow) => {
+    (item: CalendarItemRowDTO) => {
       const payload = cal.openDetailsPayloadFor(item);
       setSelected(payload.item);
       setEditLocalDate(payload.date);
@@ -43,6 +46,7 @@ export function CalendarClient(props: {
       setEditWindowMinutes(item.windowMinutes == null ? '' : String(item.windowMinutes));
       setEditNumQuestions(String(item.numQuestions ?? 12));
       setDetailOpen(true);
+      setEditDurationMinutes(item.durationMinutes == null ? '' : String(item.durationMinutes));
     },
     [cal],
   );
@@ -62,7 +66,6 @@ export function CalendarClient(props: {
 
     setEditSaving(true);
     try {
-      // Lazy-load to keep CalendarClient lean + avoid pulling tz helpers into this file
       const { saveCalendarItemEdit } = await import('@/modules/teacher/calendar/actions');
 
       await saveCalendarItemEdit({
@@ -73,6 +76,7 @@ export function CalendarClient(props: {
         editLocalTime,
         editWindowMinutes,
         editNumQuestions,
+        editDurationMinutes,
       });
 
       toast('Saved', 'success');
@@ -136,15 +140,18 @@ export function CalendarClient(props: {
         onClose={() => setEditOpen(false)}
         tz={cal.tz}
         isProjection={selectedIsProjection}
+        targetKind={selected?.targetKind ?? 'ASSESSMENT'}
         saving={editSaving}
         dateValue={editLocalDate}
         timeValue={editLocalTime}
         windowMinutesValue={editWindowMinutes}
         numQuestionsValue={editNumQuestions}
+        durationMinutesValue={editDurationMinutes}
         onChangeDate={setEditLocalDate}
         onChangeTime={setEditLocalTime}
         onChangeWindowMinutes={setEditWindowMinutes}
         onChangeNumQuestions={setEditNumQuestions}
+        onChangeDurationMinutes={setEditDurationMinutes}
         onSave={() => void onEditSave()}
       />
     </div>

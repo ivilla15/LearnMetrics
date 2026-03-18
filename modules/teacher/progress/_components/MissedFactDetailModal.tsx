@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { Modal, Button, HelpText, MiniBar } from '@/components';
-import type { FactDetailDTO, MissedFact } from '@/types';
+import type { FactDetailDTO, MissedFactDTO } from '@/types';
 
 export function MissedFactDetailModal({
   open,
@@ -16,7 +16,7 @@ export function MissedFactDetailModal({
 }: {
   open: boolean;
   onClose: () => void;
-  selectedFact: MissedFact | null;
+  selectedFact: MissedFactDTO | null;
   loading: boolean;
   detail: FactDetailDTO | null;
   rows: Array<{
@@ -35,7 +35,7 @@ export function MissedFactDetailModal({
       onClose={onClose}
       title={
         selectedFact
-          ? `Who missed ${selectedFact.factorA} × ${selectedFact.factorB}?`
+          ? `Who missed ${selectedFact.operandA} × ${selectedFact.operandB}?`
           : 'Who missed this fact?'
       }
       description="Per-student counts for this fact within the selected range."

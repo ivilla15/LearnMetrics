@@ -6,27 +6,35 @@ import { useRouter } from 'next/navigation';
 import { useToast } from '@/components';
 import { RosterTableCard } from '@/modules/teacher/people';
 
-import type { BulkAddResponse, RosterStudentRow } from '@/types';
-import { SetupCodeRow } from '@/types/classroom';
-import { NewStudentInput } from '@/utils';
+import type { BulkAddResponseDTO, RosterStudentRowDTO, BulkAddStudentInputDTO } from '@/types';
+import type { OperationCode } from '@/types/enums';
+import type { SetupCodeCardDTO } from '@/types';
+
+import { getApiErrorMessage } from '@/utils';
 
 type Props = {
   classroomId: number;
-  initialStudents: RosterStudentRow[];
+  initialStudents: RosterStudentRowDTO[];
+
+  enabledOperations: OperationCode[];
+  operationOrder: OperationCode[];
+  maxNumber: number;
 };
 
-function getErrorMessage(err: unknown, fallback: string) {
-  return err instanceof Error ? err.message : fallback;
-}
-
-export function PeopleClient({ classroomId, initialStudents }: Props) {
+export function PeopleClient({
+  classroomId,
+  initialStudents,
+  enabledOperations,
+  operationOrder,
+  maxNumber,
+}: Props) {
   const toast = useToast();
   const router = useRouter();
 
-  const [students, setStudents] = React.useState<RosterStudentRow[]>(initialStudents);
+  const [students, setStudents] = React.useState<RosterStudentRowDTO[]>(initialStudents);
   const [busy, setBusy] = React.useState(false);
 
-  async function refreshRoster() {
+  async function refreshRoster(): Promise<RosterStudentRowDTO[]> {
     const res = await fetch(`/api/classrooms/${classroomId}/roster`, {
       credentials: 'include',
       cache: 'no-store',
@@ -43,14 +51,14 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
     }
 
     const studentsArr = (dataUnknown as { students?: unknown } | null)?.students;
-    if (Array.isArray(studentsArr)) {
-      setStudents(studentsArr as RosterStudentRow[]);
-    } else {
-      setStudents([]);
-    }
+    const next = Array.isArray(studentsArr) ? (studentsArr as RosterStudentRowDTO[]) : [];
+    setStudents(next);
+    return next;
   }
 
-  async function bulkAddStudents(newStudents: NewStudentInput[]): Promise<BulkAddResponse> {
+  async function bulkAddStudents(
+    newStudents: BulkAddStudentInputDTO[],
+  ): Promise<BulkAddResponseDTO> {
     const res = await fetch(`/api/classrooms/${classroomId}/students/bulk`, {
       method: 'POST',
       credentials: 'include',
@@ -69,15 +77,19 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
     }
 
     const studentsArr = (dataUnknown as { students?: unknown } | null)?.students;
+
+    let nextStudents: RosterStudentRowDTO[] = [];
+
     if (Array.isArray(studentsArr)) {
-      setStudents(studentsArr as RosterStudentRow[]);
+      nextStudents = studentsArr as RosterStudentRowDTO[];
+      setStudents(nextStudents);
     } else {
-      await refreshRoster();
+      nextStudents = await refreshRoster();
     }
 
     const setupCodesUnknown = (dataUnknown as { setupCodes?: unknown } | null)?.setupCodes;
     const setupCodes = Array.isArray(setupCodesUnknown)
-      ? (setupCodesUnknown as SetupCodeRow[])
+      ? (setupCodesUnknown as SetupCodeCardDTO[])
       : [];
 
     if (setupCodes.length > 0) {
@@ -88,13 +100,10 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
       router.push(`/teacher/classrooms/${classroomId}/print-cards`);
     }
 
-    return { setupCodes };
+    return { setupCodes, students: nextStudents };
   }
 
-  async function updateStudent(
-    id: number,
-    input: { name: string; username: string; level: number },
-  ) {
+  async function updateStudent(id: number, input: { name: string; username: string }) {
     setBusy(true);
     try {
       const res = await fetch(`/api/classrooms/${classroomId}/students/${id}`, {
@@ -116,7 +125,45 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
       await refreshRoster();
       toast('Student updated', 'success');
     } catch (err) {
-      toast(getErrorMessage(err, 'Failed to update student'), 'error');
+      toast(getApiErrorMessage(err, 'Failed to update student'), 'error');
+      throw err;
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function updateStudentProgress(params: {
+    studentId: number;
+    operation: OperationCode;
+    level: number;
+  }) {
+    const { studentId, operation, level } = params;
+
+    setBusy(true);
+    try {
+      const res = await fetch(
+        `/api/teacher/classrooms/${classroomId}/students/${studentId}/progress`,
+        {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ levels: [{ operation, level }] }),
+        },
+      );
+
+      const dataUnknown: unknown = await res.json().catch(() => null);
+      if (!res.ok) {
+        const msg =
+          typeof (dataUnknown as { error?: unknown } | null)?.error === 'string'
+            ? (dataUnknown as { error: string }).error
+            : 'Failed to update progress';
+        throw new Error(msg);
+      }
+
+      await refreshRoster();
+    } catch (err) {
+      toast(getApiErrorMessage(err, 'Failed to update progress'), 'error');
+      throw err;
     } finally {
       setBusy(false);
     }
@@ -140,9 +187,6 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
       }
 
       await refreshRoster();
-      toast('Student removed', 'success');
-    } catch (err) {
-      toast(getErrorMessage(err, 'Failed to remove student'), 'error');
     } finally {
       setBusy(false);
     }
@@ -166,45 +210,28 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
         throw new Error(msg);
       }
 
-      // normalize response into SetupCodeRow
       const body = dataUnknown as Record<string, unknown> | null;
 
-      // try the shape your API returns: { setupCode: SetupCodeRow }
-      let row: SetupCodeRow | null = null;
+      const setupCodeObj =
+        body && typeof body === 'object' && body.setupCode && typeof body.setupCode === 'object'
+          ? (body.setupCode as SetupCodeCardDTO)
+          : null;
 
-      if (body?.setupCode && typeof body.setupCode === 'object') {
-        row = body.setupCode as SetupCodeRow;
-      } else if (Array.isArray(body?.setupCodes) && body.setupCodes.length > 0) {
-        // fallback: { setupCodes: [SetupCodeRow, ...] }
-        const first = (body.setupCodes as unknown[])[0];
-        if (first && typeof first === 'object') row = first as SetupCodeRow;
-      } else if (typeof body?.setupCode === 'string') {
-        // fallback: { setupCode: "ABC123", username?: "joe" }
-        const username = typeof body?.username === 'string' ? (body.username as string) : 'student';
-        row = {
-          studentId,
-          username,
-          setupCode: body.setupCode as string,
-          expiresAt: typeof body?.expiresAt === 'string' ? (body.expiresAt as string) : undefined,
-          name: typeof body?.name === 'string' ? (body.name as string) : undefined,
-        };
-      }
-
-      if (!row || typeof row.setupCode !== 'string') {
+      if (!setupCodeObj || typeof setupCodeObj.setupCode !== 'string') {
         throw new Error('No setup code returned');
       }
 
       sessionStorage.setItem(
         `lm_setupCodes_${classroomId}`,
-        JSON.stringify({ setupCodes: [row], createdAt: new Date().toISOString() }),
+        JSON.stringify({ setupCodes: [setupCodeObj], createdAt: new Date().toISOString() }),
       );
 
-      toast(`New setup code generated for ${row.username}`, 'success');
+      toast(`New setup code generated for ${setupCodeObj.username}`, 'success');
       router.push(`/teacher/classrooms/${classroomId}/print-cards`);
 
-      return row.setupCode;
+      return setupCodeObj.setupCode;
     } catch (err) {
-      toast(getErrorMessage(err, 'Failed to reset access'), 'error');
+      toast(getApiErrorMessage(err, 'Failed to reset access'), 'error');
       throw err;
     } finally {
       setBusy(false);
@@ -216,8 +243,12 @@ export function PeopleClient({ classroomId, initialStudents }: Props) {
       classroomId={classroomId}
       students={students}
       busy={busy}
+      enabledOperations={enabledOperations}
+      operationOrder={operationOrder}
+      maxNumber={maxNumber}
       onBulkAdd={bulkAddStudents}
       onUpdateStudent={updateStudent}
+      onUpdateStudentProgress={updateStudentProgress}
       onDeleteStudent={deleteStudent}
       onResetAccess={resetStudentAccess}
       onGoProgress={(studentId) =>

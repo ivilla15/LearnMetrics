@@ -1,140 +1,120 @@
-// core/students/service.ts
 import * as StudentsRepo from '@/data/students.repo';
 import * as AttemptsRepo from '@/data/attempts.repo';
 import * as SchedulesRepo from '@/data/assignmentSchedules.repo';
 import * as AssignmentsRepo from '@/data/assignments.repo';
+
 import { NotFoundError } from '@/core/errors';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
-import { BulkCreateStudentArgs } from '@/types';
+
+import { initializeStudentProgressForNewStudent } from '@/core/progression/initStudentProgress.service';
+import { getClassroomRosterWithLatestAttempt } from './roster.service';
+
+import type { OperationCode } from '@/types/enums';
+import type {
+  AttemptHistoryItemDTO,
+  StudentHistoryResponse,
+  UpdateStudentArgs,
+  DeleteStudentArgs,
+  DeleteAllStudentsArgs,
+  BulkAddStudentsArgs,
+  BulkAddResponseDTO,
+} from '@/types/api/teacherStudents';
+
+import type { SetupCodeCardDTO } from '@/types/api/roster';
+import { percent } from '@/utils';
 
 // -----------------------------
 // Student history (student + teacher progress pages)
 // -----------------------------
 
-export type AttemptHistoryItem = {
-  attemptId: number;
-  assignmentId: number;
-  classroomId: number;
-  kind: string;
-  score: number;
-  total: number;
-  percent: number;
-  completedAt: string;
-  wasMastery: boolean;
-  opensAt: string;
-  closesAt: string;
-};
-
-export type StudentHistoryDTO = {
-  student: {
-    id: number;
-    name: string;
-    username: string;
-    level: number;
-  };
-  attempts: AttemptHistoryItem[];
-};
-
-export type StudentRosterLastAttempt = {
-  attemptId: number;
-  completedAt: string;
-  percent: number;
-  wasMastery: boolean;
-} | null;
-
-export type StudentRosterRow = {
-  id: number;
-  name: string;
-  username: string;
-  level: number;
-  mustSetPassword?: boolean;
-  lastAttempt: StudentRosterLastAttempt;
-};
-
-export async function getStudentHistory(studentId: number): Promise<StudentHistoryDTO> {
+export async function getStudentHistory(studentId: number): Promise<StudentHistoryResponse> {
   const student = await StudentsRepo.findStudentById(studentId);
   if (!student) throw new NotFoundError('Student not found');
 
   const attempts = await AttemptsRepo.findByStudentWithAssignment(studentId);
 
-  const history: AttemptHistoryItem[] = attempts.map((a) => ({
+  const history: AttemptHistoryItemDTO[] = attempts.map((a) => ({
     attemptId: a.id,
     assignmentId: a.assignmentId,
     classroomId: a.Assignment.classroomId,
-    kind: a.Assignment.kind,
+
+    type: a.Assignment.type,
+    mode: a.Assignment.mode,
+
     score: a.score,
     total: a.total,
-    percent: a.total > 0 ? Math.round((a.score / a.total) * 100) : 0,
-    completedAt: a.completedAt.toISOString(),
+    percent: percent(a.score, a.total),
+    completedAt: (a.completedAt ?? a.startedAt).toISOString(),
     wasMastery: a.total > 0 && a.score === a.total,
+
     opensAt: a.Assignment.opensAt.toISOString(),
-    closesAt: a.Assignment.closesAt.toISOString(),
+    closesAt: a.Assignment.closesAt ? a.Assignment.closesAt.toISOString() : null,
   }));
 
   return {
-    student: {
-      id: student.id,
-      name: student.name,
-      username: student.username,
-      level: student.level,
-    },
+    student: { id: student.id, name: student.name, username: student.username },
     attempts: history,
   };
 }
 
 // -----------------------------
-// Roster + setup codes (teacher dashboard)
+// Roster + setup codes
 // -----------------------------
 
-export type SetupCodeCard = {
-  name: string;
-  username: string;
-  setupCode: string;
-  expiresAt: string;
-};
-
-export type BulkCreateStudentsResult = {
-  students: Awaited<ReturnType<typeof StudentsRepo.findStudentsWithLatestAttempt>>;
-  setupCodes: SetupCodeCard[];
-};
-
 export async function bulkCreateClassroomStudents(
-  args: BulkCreateStudentArgs,
-): Promise<BulkCreateStudentsResult> {
+  args: BulkAddStudentsArgs,
+): Promise<BulkAddResponseDTO> {
   const { teacherId, classroomId, students } = args;
 
   await assertTeacherOwnsClassroom(teacherId, classroomId);
 
-  const { created, roster } = await StudentsRepo.createManyForClassroom(classroomId, students);
-
-  const setupCodes: SetupCodeCard[] = created.map((c) => ({
-    name: c.name,
-    username: c.username,
-    setupCode: c.setupCode,
-    expiresAt: c.setupCodeExpiresAt.toISOString(),
+  const createInputs = students.map((s) => ({
+    firstName: s.firstName,
+    lastName: s.lastName,
+    username: s.username,
   }));
 
-  return { students: roster, setupCodes };
+  const { created } = await StudentsRepo.createManyForClassroom(classroomId, createInputs);
+
+  // Map username -> starting meta (so we can init StudentProgress correctly)
+  const inputByUsername = new Map<string, { op?: OperationCode; level?: number }>();
+  for (const s of students) {
+    inputByUsername.set(s.username, {
+      op: s.startingOperation,
+      level: s.startingLevel,
+    });
+  }
+
+  // Initialize StudentProgress rows for each created student (policy-aware)
+  for (const c of created) {
+    const meta = inputByUsername.get(c.username);
+
+    await initializeStudentProgressForNewStudent({
+      classroomId,
+      studentId: c.id,
+      startingOperation: meta?.op,
+      startingLevel: meta?.level,
+    });
+  }
+
+  const setupCodes: SetupCodeCardDTO[] = created.map((c) => ({
+    studentId: c.id,
+    username: c.username,
+    setupCode: c.setupCode,
+    expiresAt: (c.setupCodeExpiresAt ?? new Date()).toISOString(),
+    name: c.name,
+  }));
+
+  const roster = await StudentsRepo.findStudentsWithLatestAttempt(classroomId);
+
+  return { setupCodes, students: roster };
 }
 
 // -----------------------------
 // Update / delete single student
 // -----------------------------
 
-export type UpdateStudentArgs = {
-  teacherId: number;
-  classroomId: number;
-  studentId: number;
-  input: {
-    name: string;
-    username: string;
-    level: number;
-  };
-};
-
-export async function updateClassroomStudentById(
-  args: UpdateStudentArgs,
-): Promise<StudentRosterRow> {
+export async function updateClassroomStudentById(args: UpdateStudentArgs) {
   const { teacherId, classroomId, studentId, input } = args;
 
   await assertTeacherOwnsClassroom(teacherId, classroomId);
@@ -142,24 +122,14 @@ export async function updateClassroomStudentById(
   const existing = await StudentsRepo.findStudentByIdInClassroom(classroomId, studentId);
   if (!existing) throw new NotFoundError('Student not found');
 
-  await StudentsRepo.updateById(studentId, {
-    name: input.name,
-    username: input.username,
-    level: input.level,
-  });
+  await StudentsRepo.updateById(studentId, { name: input.name, username: input.username });
 
-  const roster = await StudentsRepo.findStudentsWithLatestAttempt(classroomId);
+  const roster = await getClassroomRosterWithLatestAttempt(classroomId);
   const updated = roster.find((s) => s.id === studentId);
   if (!updated) throw new NotFoundError('Student not found after update');
 
-  return updated as unknown as StudentRosterRow;
+  return updated;
 }
-
-export type DeleteStudentArgs = {
-  teacherId: number;
-  classroomId: number;
-  studentId: number;
-};
 
 export async function deleteClassroomStudentById(args: DeleteStudentArgs): Promise<void> {
   const { teacherId, classroomId, studentId } = args;
@@ -176,13 +146,6 @@ export async function deleteClassroomStudentById(args: DeleteStudentArgs): Promi
 // Delete ALL students in classroom (+ optional cascade)
 // -----------------------------
 
-export type DeleteAllStudentsArgs = {
-  teacherId: number;
-  classroomId: number;
-  deleteAssignments: boolean;
-  deleteSchedules: boolean;
-};
-
 export async function deleteAllClassroomStudents(args: DeleteAllStudentsArgs): Promise<void> {
   const { teacherId, classroomId, deleteAssignments, deleteSchedules } = args;
 
@@ -190,11 +153,6 @@ export async function deleteAllClassroomStudents(args: DeleteAllStudentsArgs): P
 
   await StudentsRepo.deleteStudentsByClassroomId(classroomId);
 
-  if (deleteAssignments) {
-    await AssignmentsRepo.deleteAssignmentsByClassroomId(classroomId);
-  }
-
-  if (deleteSchedules) {
-    await SchedulesRepo.deleteSchedulesByClassroomId(classroomId);
-  }
+  if (deleteAssignments) await AssignmentsRepo.deleteAssignmentsByClassroomId(classroomId);
+  if (deleteSchedules) await SchedulesRepo.deleteSchedulesByClassroomId(classroomId);
 }

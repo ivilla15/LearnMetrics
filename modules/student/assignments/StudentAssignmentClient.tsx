@@ -5,13 +5,15 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 
 import { useToast, Card, CardContent, Skeleton, Button, Section } from '@/components';
 import { formatLocal, cn } from '@/lib';
-import { AppPage, QuestionCard, TestSidebar } from '@/modules';
-import type { LoadResponse, AssignmentPayload } from '@/types';
+import {
+  AppPage,
+  QuestionCard,
+  TestSidebar,
+  usePracticeProgress,
+  AttemptDetailModal,
+} from '@/modules';
 import { parseAssignmentId } from '@/utils';
-
-function getAssignment(data: LoadResponse | null): AssignmentPayload | null {
-  return data ? data.assignment : null;
-}
+import type { AttemptDetailDTO, StudentAssignmentLoadResponse } from '@/types';
 
 export default function StudentAssignmentClient({
   assignmentIdParam,
@@ -24,15 +26,29 @@ export default function StudentAssignmentClient({
   const assignmentId = parseAssignmentId(assignmentIdParam);
 
   const [loading, setLoading] = useState(true);
-  const [data, setData] = useState<LoadResponse | null>(null);
+  const [data, setData] = useState<StudentAssignmentLoadResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const [answers, setAnswers] = useState<Record<number, number | ''>>({});
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const autoSubmittedRef = useRef(false);
 
-  const assignment = getAssignment(data);
+  const assignment = data?.assignment ?? null;
+  const isPracticeTime = assignment?.targetKind === 'PRACTICE_TIME';
+
+  const [selectedAttemptId, setSelectedAttemptId] = useState<number | null>(null);
+  const [attemptDetail, setAttemptDetail] = useState<AttemptDetailDTO | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [showIncorrectOnly, setShowIncorrectOnly] = useState(true);
+
+  const {
+    loading: practiceLoading,
+    progress: practiceProgress,
+    refresh: refreshPracticeProgress,
+  } = usePracticeProgress(isPracticeTime && assignmentId ? assignmentId : null);
   const readyQuestions = data?.status === 'READY' ? data.questions : null;
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   function jumpTo(qId: number) {
     const el = inputRefs.current[qId];
@@ -50,17 +66,28 @@ export default function StudentAssignmentClient({
       setLoading(true);
 
       try {
-        const res = await fetch(`/api/student/assignments/${assignmentId}`);
-        const json = (await res.json().catch(() => null)) as LoadResponse | null;
+        const res = await fetch(`/api/student/assignments/${assignmentId}`, {
+          credentials: 'include',
+        });
+
+        const json: unknown = await res.json().catch(() => null);
 
         if (cancelled) return;
 
-        if (!res.ok || !json) {
-          toast('Could not load test', 'error');
+        if (!res.ok) {
+          const msg =
+            json && typeof json === 'object' && 'error' in json && typeof json.error === 'string'
+              ? json.error
+              : 'Could not load test';
+
+          setData(null);
+          setLoadError(msg);
+          toast(msg, 'error');
           return;
         }
 
-        setData(json);
+        setLoadError(null);
+        setData(json as StudentAssignmentLoadResponse);
       } catch {
         if (!cancelled) toast('Could not load test', 'error');
       } finally {
@@ -159,6 +186,47 @@ export default function StudentAssignmentClient({
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, [data?.status]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadAttemptDetail(attemptId: number) {
+      setDetailLoading(true);
+      setDetailError(null);
+
+      try {
+        const res = await fetch(`/api/student/attempts/${attemptId}`, { credentials: 'include' });
+        const json: unknown = await res.json().catch(() => null);
+
+        if (cancelled) return;
+
+        if (!res.ok) {
+          const msg =
+            json && typeof json === 'object' && 'error' in json && typeof json.error === 'string'
+              ? json.error
+              : 'Failed to load attempt details';
+          setAttemptDetail(null);
+          setDetailError(msg);
+          return;
+        }
+
+        const detail = json as AttemptDetailDTO;
+        setAttemptDetail(detail);
+      } catch {
+        if (!cancelled) setDetailError('Failed to load attempt details');
+      } finally {
+        if (!cancelled) setDetailLoading(false);
+      }
+    }
+
+    if (!selectedAttemptId) return;
+
+    void loadAttemptDetail(selectedAttemptId);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedAttemptId]);
+
   if (!assignmentId) {
     return (
       <AppPage title="Test">
@@ -193,8 +261,16 @@ export default function StudentAssignmentClient({
       <AppPage title="Test">
         <Section>
           <Card className="shadow-sm">
-            <CardContent className="py-8 text-sm text-[hsl(var(--muted-fg))]">
-              Unable to load.
+            <CardContent className="py-8 space-y-3">
+              <div className="text-sm text-[hsl(var(--muted-fg))]">
+                {loadError ?? 'Unable to load.'}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="secondary" onClick={() => router.push('/student/dashboard')}>
+                  Back to dashboard
+                </Button>
+                <Button onClick={() => router.refresh()}>Try again</Button>
+              </div>
             </CardContent>
           </Card>
         </Section>
@@ -264,7 +340,16 @@ export default function StudentAssignmentClient({
                 {data.result.score}/{data.result.total}
               </div>
               <div className="pt-2">
-                <Button variant="secondary" onClick={() => router.push('/student/progress')}>
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    if (data?.status !== 'ALREADY_SUBMITTED') {
+                      toast('No attempt found', 'error');
+                      return;
+                    }
+                    setSelectedAttemptId(data.attemptId);
+                  }}
+                >
                   View details
                 </Button>
               </div>
@@ -284,6 +369,95 @@ export default function StudentAssignmentClient({
               Unexpected state.
             </CardContent>
           </Card>
+        </Section>
+      </AppPage>
+    );
+  }
+
+  if (isPracticeTime) {
+    const requiredMin = practiceProgress ? Math.floor(practiceProgress.requiredSeconds / 60) : null;
+    const completedMin = practiceProgress
+      ? Math.floor(practiceProgress.completedSeconds / 60)
+      : null;
+
+    return (
+      <AppPage title="Practice assignment" subtitle="Complete the required practice time.">
+        <Section>
+          <div className="space-y-4">
+            <Card className="shadow-sm">
+              <CardContent className="py-6 space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-[hsl(var(--fg))]">
+                      Practice progress
+                    </div>
+                    <div className="mt-1 text-sm text-[hsl(var(--muted-fg))]">
+                      {practiceLoading
+                        ? 'Loading…'
+                        : practiceProgress && requiredMin !== null && completedMin !== null
+                          ? `${completedMin} / ${requiredMin} minutes`
+                          : '—'}
+                    </div>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => void refreshPracticeProgress()}
+                      disabled={practiceLoading}
+                    >
+                      Refresh
+                    </Button>
+
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        router.push(`/student/practice/session?assignmentId=${assignmentId}`);
+                      }}
+                      disabled={!assignmentId}
+                    >
+                      Start practice
+                    </Button>
+                  </div>
+                </div>
+
+                {practiceProgress ? (
+                  <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-[hsl(var(--surface-2))]">
+                    <div
+                      className="h-full bg-[hsl(var(--brand))]"
+                      style={{ width: `${practiceProgress.percent}%` }}
+                    />
+                  </div>
+                ) : null}
+
+                <div className="text-xs text-[hsl(var(--muted-fg))]">
+                  This assignment updates based on your practice sessions during the assignment
+                  window.
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardContent className="py-6 space-y-2">
+                <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Opens</div>
+                <div className="text-base font-semibold text-[hsl(var(--fg))]">
+                  {formatLocal(assignment.opensAt)}
+                </div>
+
+                {assignment.closesAt ? (
+                  <>
+                    <div className="pt-3 text-xs font-medium text-[hsl(var(--muted-fg))]">
+                      Closes
+                    </div>
+                    <div className="text-base font-semibold text-[hsl(var(--fg))]">
+                      {formatLocal(assignment.closesAt)}
+                    </div>
+                  </>
+                ) : null}
+              </CardContent>
+            </Card>
+          </div>
         </Section>
       </AppPage>
     );
@@ -309,8 +483,9 @@ export default function StudentAssignmentClient({
                   <QuestionCard
                     key={q.id}
                     index={i}
-                    factorA={q.factorA}
-                    factorB={q.factorB}
+                    operation={q.operation}
+                    operandA={q.operandA}
+                    operandB={q.operandB}
                     value={value}
                     isAnswered={done}
                     inputRef={(el) => {
@@ -365,6 +540,16 @@ export default function StudentAssignmentClient({
           </aside>
         </div>
       </Section>
+      <AttemptDetailModal
+        open={Boolean(selectedAttemptId)}
+        onClose={() => setSelectedAttemptId(null)}
+        title="Attempt details"
+        detail={attemptDetail}
+        loading={detailLoading}
+        error={detailError}
+        showIncorrectOnly={showIncorrectOnly}
+        onToggleIncorrectOnly={setShowIncorrectOnly}
+      />
     </AppPage>
   );
 }

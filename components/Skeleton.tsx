@@ -16,7 +16,7 @@ export function Skeleton<T extends React.ElementType = 'span'>({
   return (
     <Tag
       className={cn(
-        'animate-pulse rounded-[var(--radius)] bg-[hsl(var(--muted))] inline-block',
+        'animate-pulse rounded-(--radius) bg-[hsl(var(--muted))] inline-block',
         className,
       )}
       {...props}

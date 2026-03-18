@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 
-import type { TeacherStudentProgressDTO, MissedFact } from '@/core/teacher/Progress';
+import type { TeacherStudentProgressDTO, MissedFactDTO } from '@/types';
 import { SummaryCard, MissedFactsCard, PrintHeader, AttemptExplorer } from './_components';
 import { useStudentProgress } from './hooks';
 
@@ -24,9 +24,7 @@ export function StudentProgressClient({ classroomId, studentId, initial }: Props
     printMode,
   });
 
-  const s = data.student;
-
-  const missedFacts: MissedFact[] = Array.isArray(data.insights?.topMissedFacts)
+  const missedFacts: MissedFactDTO[] = Array.isArray(data.insights?.topMissedFacts)
     ? data.insights.topMissedFacts
     : [];
 
@@ -49,9 +47,6 @@ export function StudentProgressClient({ classroomId, studentId, initial }: Props
 
       <AttemptExplorer
         baseUrl={`/api/teacher/classrooms/${classroomId}/students/${studentId}`}
-        studentId={studentId}
-        studentName={s?.name}
-        studentUsername={s?.username}
         hideControls={printMode}
       />
     </div>

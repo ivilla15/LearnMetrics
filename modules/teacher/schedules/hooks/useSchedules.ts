@@ -1,7 +1,9 @@
 'use client';
 
 import * as React from 'react';
-import type { CreateScheduleArgs, ScheduleDTO, UpdateScheduleArgs } from '@/types';
+import type { ScheduleDTO } from '@/types';
+import type { UpsertScheduleInput } from '@/validation';
+
 import {
   fetchSchedules,
   createScheduleApi,
@@ -9,8 +11,8 @@ import {
   deleteScheduleApi,
 } from '../actions';
 
-function normalizeSchedules(list: ScheduleDTO[]): ScheduleDTO[] {
-  return Array.isArray(list) ? list : [];
+function normalizeSchedules(list: unknown): ScheduleDTO[] {
+  return Array.isArray(list) ? (list as ScheduleDTO[]) : [];
 }
 
 export function useSchedules(classroomId: number, initial?: ScheduleDTO[]) {
@@ -30,10 +32,10 @@ export function useSchedules(classroomId: number, initial?: ScheduleDTO[]) {
   }, [classroomId]);
 
   const createSchedule = React.useCallback(
-    async (input: Omit<CreateScheduleArgs, 'classroomId'>) => {
+    async (input: UpsertScheduleInput) => {
       setLoading(true);
       try {
-        const created = await createScheduleApi({ classroomId, ...input });
+        const created = await createScheduleApi(classroomId, input);
         setSchedules((prev) => [created, ...prev]);
         return created;
       } finally {
@@ -44,10 +46,10 @@ export function useSchedules(classroomId: number, initial?: ScheduleDTO[]) {
   );
 
   const updateSchedule = React.useCallback(
-    async (id: number, input: Omit<UpdateScheduleArgs, 'id'>) => {
+    async (id: number, input: UpsertScheduleInput) => {
       setLoading(true);
       try {
-        const updated = await updateScheduleApi(classroomId, { id, ...input });
+        const updated = await updateScheduleApi(classroomId, id, input);
         setSchedules((prev) => prev.map((s) => (s.id === id ? updated : s)));
         return updated;
       } finally {

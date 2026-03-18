@@ -1,4 +1,3 @@
-// src/data/prisma.ts
 import { PrismaClient } from '@prisma/client';
 
 declare global {
@@ -6,11 +5,10 @@ declare global {
   var prisma: PrismaClient | undefined;
 }
 
-// Reuse a single client in dev (hot reload) and new one in prod
 export const prisma =
   global.prisma ??
   new PrismaClient({
-    log: ['query', 'warn', 'error'], // optional: remove or tweak
+    log: ['query', 'warn', 'error'],
   });
 
 if (process.env.NODE_ENV !== 'production') {

@@ -19,23 +19,14 @@ function isWeekday(value: string): value is Weekday {
   return (WEEKDAYS as readonly string[]).includes(value);
 }
 
-/**
- * Does this schedule run on this calendar day (in the given TZ)?
- */
 export function scheduleRunsOnDate(params: { date: Date; days: string[]; tz?: string }) {
   const { date, days, tz = TZ } = params;
 
-  // Interpret date in TZ for day-of-week matching
   const inTz = toZonedTime(date, tz);
   const dayName = WEEKDAYS[inTz.getDay()];
 
   return Array.isArray(days) && days.includes(dayName);
 }
-
-/**
- * Find the next calendar date (YYYY-MM-DD) that matches the schedule's days.
- * Includes "today" if today matches.
- */
 
 export function getNextScheduledDateForSchedule(
   base: Date = new Date(),
@@ -52,17 +43,12 @@ export function getNextScheduledDateForSchedule(
     }
   }
 
-  // Get base local date in TZ (YYYY-MM-DD)
   const baseLocalDate = formatInTimeZone(base, tz, 'yyyy-MM-dd');
-
-  // Build a "midnight at baseLocalDate in tz" Date (UTC instant)
   const startUtc = fromZonedTime(`${baseLocalDate} 00:00`, tz);
 
-  // Look ahead max 7 days (UTC instants), but interpret each candidate in tz
   for (let i = 0; i < 7; i++) {
     const candidateUtc = addDays(startUtc, i);
-
-    const dayName = formatInTimeZone(candidateUtc, tz, 'EEEE'); // "Monday" etc.
+    const dayName = formatInTimeZone(candidateUtc, tz, 'EEEE');
     if (days.includes(dayName)) {
       return formatInTimeZone(candidateUtc, tz, 'yyyy-MM-dd');
     }
@@ -71,20 +57,14 @@ export function getNextScheduledDateForSchedule(
   throw new Error('Could not resolve next scheduled date');
 }
 
-/**
- * Backwards compatible wrapper:
- * You previously had "next Friday". If you still call getNextScheduledDate(),
- * it will behave like "next Friday" using the new logic.
- */
 export function getNextScheduledDate(base: Date = new Date(), tz: string = TZ): string {
   return getNextScheduledDateForSchedule(base, ['Friday'], tz);
 }
 
-// Combine local TZ date + time → UTC instants + readable TZ ISO strings
 export function localDateTimeToUtcRange(params: {
-  localDate: string; // "YYYY-MM-DD"
-  localTime: string; // "HH:mm"
-  windowMinutes: number; // e.g. 4
+  localDate: string;
+  localTime: string;
+  windowMinutes: number;
   tz?: string;
 }) {
   const { localDate, localTime, windowMinutes, tz = TZ } = params;
@@ -114,7 +94,7 @@ export function expiresAtFromNow(days: number): Date {
 export function isoDay(d: Date | string) {
   const date = typeof d === 'string' ? new Date(d) : d;
   if (!(date instanceof Date) || Number.isNaN(date.getTime())) return 'invalid';
-  return date.toISOString().slice(0, 10); // YYYY-MM-DD
+  return date.toISOString().slice(0, 10);
 }
 
 export function formatTimeAmPm(hhmm: string) {
@@ -129,8 +109,6 @@ export function formatTimeAmPm(hhmm: string) {
 }
 
 export function localDayToUtcDate(localDate: string, tz: string): Date {
-  // midnight at local day -> UTC Date
-  // uses your existing helper that already does fromZonedTime parsing
   const { opensAtUTC } = localDateTimeToUtcRange({
     localDate,
     localTime: '00:00',

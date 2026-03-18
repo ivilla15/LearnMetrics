@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-
-import { prisma } from '@/data';
+import { prisma } from '@/data/prisma';
 import { readJson, setStudentSessionCookie, handleApiError } from '@/app';
 import { createStudentSession } from '@/core';
 
@@ -24,13 +23,12 @@ export async function POST(req: Request) {
         id: true,
         name: true,
         username: true,
-        level: true,
-        password: true,
+        passwordHash: true,
         mustSetPassword: true,
       },
     });
 
-    const ok = student ? await bcrypt.compare(password, student.password) : false;
+    const ok = student ? await bcrypt.compare(password, student.passwordHash) : false;
     if (!student || !ok) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
     }
@@ -48,7 +46,6 @@ export async function POST(req: Request) {
           id: student.id,
           name: student.name,
           username: student.username,
-          level: student.level,
         },
       },
       { status: 200 },

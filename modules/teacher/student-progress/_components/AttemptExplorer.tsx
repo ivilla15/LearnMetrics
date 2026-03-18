@@ -15,8 +15,7 @@ import {
 import { AttemptDetailModal } from './AttemptDetailModal';
 import { AttemptResultsTable } from './AttemptResultsTable';
 import { AttemptExplorerSkeleton } from './AttemptExplorerSkeleton';
-
-import type { AttemptResultsRow, AttemptExplorerFilter } from '@/types/attempts';
+import type { AttemptResultsRowDTO, AttemptExplorerFilter } from '@/types';
 import { useAttemptExplorer } from '../hooks';
 
 export function AttemptExplorer({
@@ -26,10 +25,6 @@ export function AttemptExplorer({
   description = 'Select one to view details.',
   chartTitle = 'Level progression',
   chartDescription = 'Each point shows the level after the test (mastery increases your level).',
-
-  studentId,
-  studentName,
-  studentUsername,
 }: {
   baseUrl: string;
   hideControls?: boolean;
@@ -37,10 +32,6 @@ export function AttemptExplorer({
   description?: string;
   chartTitle?: string;
   chartDescription?: string;
-
-  studentId?: number | null;
-  studentName?: string;
-  studentUsername?: string;
 }) {
   const detailRef = React.useRef<HTMLDivElement | null>(null);
 
@@ -65,8 +56,6 @@ export function AttemptExplorer({
 
     showIncorrectOnly,
     setShowIncorrectOnly,
-
-    me,
   } = useAttemptExplorer(baseUrl);
 
   React.useEffect(() => {
@@ -78,7 +67,7 @@ export function AttemptExplorer({
 
   const modalOpen = selectedAttemptId !== null;
 
-  const tableRows: AttemptResultsRow[] = attempts.map((a) => {
+  const tableRows: AttemptResultsRowDTO[] = attempts.map((a) => {
     const missed = Math.max(0, a.total - a.score);
     return {
       attemptId: a.attemptId,
@@ -91,10 +80,6 @@ export function AttemptExplorer({
       levelAtTime: a.levelAtTime,
     };
   });
-
-  const resolvedStudentId = studentId ?? me?.id ?? null;
-  const resolvedStudentName = studentName ?? me?.name ?? null;
-  const resolvedStudentUsername = studentUsername ?? me?.username ?? null;
 
   return (
     <div className="space-y-6">
@@ -181,9 +166,6 @@ export function AttemptExplorer({
         open={modalOpen && !hideControls}
         onClose={() => setSelectedAttemptId(null)}
         title="Attempt details"
-        studentId={resolvedStudentId}
-        studentName={resolvedStudentName}
-        studentUsername={resolvedStudentUsername}
         detail={attemptDetail}
         loading={detailLoading}
         error={detailError}

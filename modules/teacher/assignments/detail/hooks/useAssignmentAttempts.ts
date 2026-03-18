@@ -24,12 +24,23 @@ export function useAssignmentAttempts(params: {
 
   const counts = React.useMemo(() => {
     const totalStudents = rows.length;
+
+    const isPracticeTime = assignment?.targetKind === 'PRACTICE_TIME';
+    if (isPracticeTime) {
+      return {
+        totalStudents,
+        attemptedCount: 0,
+        masteryCount: 0,
+        missingCount: totalStudents,
+      };
+    }
+
     const attemptedCount = rows.filter((r) => r.attemptId !== null).length;
     const masteryCount = rows.filter((r) => r.wasMastery === true).length;
     const missingCount = rows.filter((r) => r.attemptId === null).length;
-    return { totalStudents, attemptedCount, masteryCount, missingCount };
-  }, [rows]);
 
+    return { totalStudents, attemptedCount, masteryCount, missingCount };
+  }, [rows, assignment?.targetKind]);
   async function reload(next: AssignmentAttemptsFilter) {
     setLoading(true);
     try {

@@ -12,9 +12,5 @@ export async function POST() {
   await prisma.teacherSession.deleteMany({
     where: { teacherId: auth.teacher.id },
   });
-
-  // We intentionally don't try to clear cookies here, because cookie writes
-  // should happen in route handlers (and you're already doing logout via a route).
-  // After this, any existing tokens are invalid, including the current one.
   return NextResponse.json({ ok: true }, { status: 200 });
 }

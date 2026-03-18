@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { prisma } from '@/data';
+import { prisma } from '@/data/prisma';
 import { requireTeacher } from '@/core';
 import { clampClassroomName } from '@/core/classrooms/validation';
 

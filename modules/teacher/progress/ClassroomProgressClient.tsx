@@ -44,7 +44,6 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
         highestLevel={p.data?.summary?.highestLevel ?? '—'}
         attemptsInRange={p.data?.summary?.attemptsInRange ?? 0}
         studentsTotal={p.data?.summary?.studentsTotal ?? p.students.length}
-        focusStudents={p.focusStudents}
         last3Tests={p.last3Tests}
         onOpenPicker={() => {
           p.setPickerSearch('');

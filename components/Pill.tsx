@@ -1,8 +1,6 @@
-import { Tone } from '../types/tone';
+import { Tone, TextSize } from '@/types';
 
-type PillTextSize = 'xs' | 'sm' | 'base' | 'lg' | string;
-
-export function Pill(text: string, tone: Tone, textSize: PillTextSize = 'xs') {
+export function Pill(text: string, tone: Tone, textSize: TextSize = 'xs') {
   const toneCls =
     tone === 'primary'
       ? 'bg-white text-[hsl(var(--brand))] border-[hsl(var(--brand))]'

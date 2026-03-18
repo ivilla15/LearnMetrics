@@ -1,25 +1,31 @@
 'use client';
 
 import * as React from 'react';
-import { Button, Badge, Input, HelpText } from '@/components';
-import type { EditingState, RosterStudentRow } from '@/types';
+import { Badge, Button, HelpText, Input } from '@/components';
+import type { RosterStudentRowDTO, RosterEditingStateDTO } from '@/types';
+import { getLevelForOp, OPERATION_LABEL } from '@/types';
+import type { OperationCode } from '@/types/enums';
 
 export function RosterTable(props: {
   classroomId: number;
-  students: RosterStudentRow[];
+  students: RosterStudentRowDTO[];
 
   busy: boolean;
   bulkDeleteBusy: boolean;
 
-  editing: EditingState | null;
-  setEditing: React.Dispatch<React.SetStateAction<EditingState | null>>;
+  enabledOperations: OperationCode[];
+  operationOrder: OperationCode[];
+  maxNumber: number;
+
+  editing: RosterEditingStateDTO | null;
+  setEditing: React.Dispatch<React.SetStateAction<RosterEditingStateDTO | null>>;
 
   selectedIds: Set<number>;
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<number>>>;
 
   onGoProgress: (studentId: number) => void;
   onOpenConfirmRemove: (studentId: number) => void;
-  onOpenConfirmReset: (student: RosterStudentRow) => void;
+  onOpenConfirmReset: (student: RosterStudentRowDTO) => void;
 
   allSelected: boolean;
   someSelected: boolean;
@@ -27,14 +33,12 @@ export function RosterTable(props: {
   toggleAll: () => void;
   toggleRow: (studentId: number) => void;
 
-  onSaveEditing: (editing: EditingState) => void | Promise<void>;
+  onSaveEditing: (editing: RosterEditingStateDTO) => void | Promise<void>;
 }) {
   const {
     students,
     busy,
     bulkDeleteBusy,
-    editing,
-    setEditing,
     selectedIds,
     allSelected,
     someSelected,
@@ -43,27 +47,73 @@ export function RosterTable(props: {
     onGoProgress,
     onOpenConfirmRemove,
     onOpenConfirmReset,
+    enabledOperations,
+    operationOrder,
+    maxNumber,
+    editing,
+    setEditing,
     onSaveEditing,
   } = props;
 
-  const startEditing = (student: RosterStudentRow) => {
+  function getActiveOpAndLevel(params: {
+    progress: Array<{ operation: OperationCode; level: number }>;
+    operationOrder: OperationCode[];
+    enabledOperations: OperationCode[];
+    maxNumber: number;
+  }): { operation: OperationCode; level: number } {
+    const { progress, operationOrder, enabledOperations, maxNumber } = params;
+
+    const order: OperationCode[] =
+      operationOrder.length > 0
+        ? operationOrder
+        : enabledOperations.length > 0
+          ? enabledOperations
+          : (['MUL'] as const);
+
+    const byOp = new Map<OperationCode, number>();
+    for (const row of progress) byOp.set(row.operation, row.level);
+
+    for (const op of order) {
+      const lvl = byOp.get(op) ?? 1;
+      if (lvl < maxNumber) return { operation: op, level: lvl };
+    }
+
+    const lastOp = order[order.length - 1] ?? 'MUL';
+    return { operation: lastOp, level: byOp.get(lastOp) ?? maxNumber };
+  }
+
+  function startEditing(student: RosterStudentRowDTO) {
+    const active = getActiveOpAndLevel({
+      progress: student.progress ?? [],
+      operationOrder,
+      enabledOperations,
+      maxNumber,
+    });
+
     setEditing({
       id: student.id,
       name: student.name,
       username: student.username,
-      level: student.level,
+      operation: active.operation,
+      level: active.level,
     });
-  };
+  }
 
-  const handleEditingChange = (field: keyof Omit<EditingState, 'id'>, value: string) => {
+  function setEditingField<K extends keyof Omit<RosterEditingStateDTO, 'id'>>(
+    key: K,
+    value: string,
+  ) {
     setEditing((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        [field]: field === 'level' ? Number(value) || 1 : value,
-      };
+
+      if (key === 'level') {
+        const n = Number(value);
+        return { ...prev, level: Number.isFinite(n) && n > 0 ? Math.trunc(n) : 1 };
+      }
+
+      return { ...prev, [key]: value } as RosterEditingStateDTO;
     });
-  };
+  }
 
   return (
     <div className="overflow-x-auto rounded-[28px] overflow-hidden bg-[hsl(var(--surface))] shadow-[0_4px_10px_rgba(0,0,0,0.08)]">
@@ -83,10 +133,10 @@ export function RosterTable(props: {
                 disabled={busy || bulkDeleteBusy}
               />
             </th>
-
             <th className="py-3 px-3">Name</th>
             <th className="py-3 px-3">Username</th>
             <th className="py-3 px-3">Status</th>
+            <th className="py-3 px-3 text-center">Operation</th>
             <th className="py-3 px-3 text-center">Level</th>
             <th className="py-3 pl-3 pr-5 text-right">Actions</th>
           </tr>
@@ -95,19 +145,30 @@ export function RosterTable(props: {
         <tbody>
           {students.length === 0 ? (
             <tr>
-              <td colSpan={6} className="py-10 px-5 text-center text-[hsl(var(--muted-fg))]">
+              <td colSpan={7} className="py-10 px-5 text-center text-[hsl(var(--muted-fg))]">
                 No students yet. Use “Add students” to create your roster.
               </td>
             </tr>
           ) : (
             students.map((student) => {
-              const isEditingRow = editing?.id === student.id;
               const isSelected = selectedIds.has(student.id);
+              const isEditingRow = editing?.id === student.id;
+              const disabledRow = busy || bulkDeleteBusy;
+
+              const active = getActiveOpAndLevel({
+                progress: student.progress ?? [],
+                operationOrder,
+                enabledOperations,
+                maxNumber,
+              });
+
+              const displayOp = isEditingRow && editing ? editing.operation : active.operation;
+              const displayLevel = isEditingRow && editing ? editing.level : active.level;
 
               return (
                 <tr
                   key={student.id}
-                  className="border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--surface-2))] shadow-[0_4px_10px_rgba(0,0,0,0.08)]"
+                  className="border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--surface-2))]"
                 >
                   <td className="py-3 pl-5 pr-3">
                     <input
@@ -115,26 +176,28 @@ export function RosterTable(props: {
                       checked={isSelected}
                       onChange={() => toggleRow(student.id)}
                       aria-label={`Select ${student.name}`}
-                      disabled={busy || bulkDeleteBusy}
+                      disabled={disabledRow}
                     />
                   </td>
 
                   <td className="py-3 px-3">
-                    {isEditingRow ? (
+                    {isEditingRow && editing ? (
                       <Input
                         value={editing.name}
-                        onChange={(e) => handleEditingChange('name', e.target.value)}
+                        onChange={(e) => setEditingField('name', e.target.value)}
+                        disabled={disabledRow}
                       />
                     ) : (
-                      <span className="text-[hsl(var(--fg))]">{student.name}</span>
+                      <span className="text-[hsl(var(--fg))] font-medium">{student.name}</span>
                     )}
                   </td>
 
                   <td className="py-3 px-3">
-                    {isEditingRow ? (
+                    {isEditingRow && editing ? (
                       <Input
                         value={editing.username}
-                        onChange={(e) => handleEditingChange('username', e.target.value)}
+                        onChange={(e) => setEditingField('username', e.target.value)}
+                        disabled={disabledRow}
                       />
                     ) : (
                       <span className="font-mono text-xs text-[hsl(var(--fg))]">
@@ -152,34 +215,61 @@ export function RosterTable(props: {
                   </td>
 
                   <td className="py-3 px-3 text-center">
-                    {isEditingRow ? (
+                    {isEditingRow && editing ? (
+                      <select
+                        value={editing.operation}
+                        onChange={(e) => {
+                          const nextOp = e.target.value as OperationCode;
+                          const nextLevel = getLevelForOp(student.progress ?? [], nextOp);
+                          setEditing((prev) =>
+                            prev ? { ...prev, operation: nextOp, level: nextLevel } : prev,
+                          );
+                        }}
+                        disabled={disabledRow}
+                        className="h-10 rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
+                        aria-label="Operation"
+                      >
+                        {enabledOperations.map((op) => (
+                          <option key={op} value={op}>
+                            {OPERATION_LABEL[op]}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span className="text-[hsl(var(--fg))]">{OPERATION_LABEL[displayOp]}</span>
+                    )}
+                  </td>
+
+                  <td className="py-3 px-3 text-center">
+                    {isEditingRow && editing ? (
                       <Input
                         inputMode="numeric"
                         value={String(editing.level)}
-                        onChange={(e) => handleEditingChange('level', e.target.value)}
+                        onChange={(e) => setEditingField('level', e.target.value)}
+                        className="w-24"
+                        disabled={disabledRow}
+                        aria-label="Level"
                       />
                     ) : (
-                      <span className="text-[hsl(var(--fg))]">{student.level}</span>
+                      <span className="text-[hsl(var(--fg))]">{displayLevel}</span>
                     )}
                   </td>
 
                   <td className="py-3 pl-3 pr-5">
-                    {isEditingRow ? (
+                    {isEditingRow && editing ? (
                       <div className="flex justify-end gap-2">
                         <Button
                           variant="secondary"
                           size="sm"
                           onClick={() => setEditing(null)}
-                          disabled={busy}
+                          disabled={disabledRow}
                         >
                           Cancel
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => {
-                            if (editing) onSaveEditing(editing);
-                          }}
-                          disabled={busy}
+                          onClick={() => void onSaveEditing(editing)}
+                          disabled={disabledRow}
                         >
                           Save
                         </Button>
@@ -190,7 +280,7 @@ export function RosterTable(props: {
                           variant="secondary"
                           size="sm"
                           onClick={() => onGoProgress(student.id)}
-                          disabled={busy}
+                          disabled={disabledRow}
                         >
                           Progress
                         </Button>
@@ -199,7 +289,7 @@ export function RosterTable(props: {
                           variant="secondary"
                           size="sm"
                           onClick={() => onOpenConfirmReset(student)}
-                          disabled={busy}
+                          disabled={disabledRow}
                         >
                           Reset access
                         </Button>
@@ -208,7 +298,7 @@ export function RosterTable(props: {
                           variant="secondary"
                           size="sm"
                           onClick={() => startEditing(student)}
-                          disabled={busy}
+                          disabled={disabledRow}
                         >
                           Edit
                         </Button>
@@ -217,7 +307,7 @@ export function RosterTable(props: {
                           variant="destructive"
                           size="sm"
                           onClick={() => onOpenConfirmRemove(student.id)}
-                          disabled={busy}
+                          disabled={disabledRow}
                         >
                           Remove
                         </Button>

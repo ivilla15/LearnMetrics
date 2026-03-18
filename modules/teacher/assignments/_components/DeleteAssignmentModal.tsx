@@ -20,8 +20,10 @@ export function DeleteAssignmentModal(props: {
 
     setBusy(true);
     setError(null);
+
     try {
       await deleteAssignment({ classroomId, assignmentId });
+      onClose();
       onDeleted();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to delete assignment');

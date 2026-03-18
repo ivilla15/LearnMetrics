@@ -1,4 +1,3 @@
-// core/classrooms/createTeacherClassroom.ts
 import { prisma } from '@/data/prisma';
 
 const TRIAL_DAYS = 30;
@@ -12,7 +11,6 @@ export type CreateTeacherClassroomInput = {
 export async function createTeacherClassroom(input: CreateTeacherClassroomInput) {
   const now = new Date();
 
-  // One transaction so we can't race into creating 2 classrooms on trial
   return prisma.$transaction(async (tx) => {
     // 1) Ensure entitlement exists (auto-create on first use)
     const entitlement = await tx.teacherEntitlement.upsert({

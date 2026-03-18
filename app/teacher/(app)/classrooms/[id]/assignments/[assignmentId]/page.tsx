@@ -4,7 +4,14 @@ import { requireTeacher } from '@/core/auth/requireTeacher';
 
 import { ClassroomSubNav, AssignmentDetailClient } from '@/modules';
 import { PageHeader, Section } from '@/components';
-import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch';
+import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch.app';
+import {
+  AssignmentMode,
+  AssignmentType,
+  formatAssignmentMode,
+  formatAssignmentType,
+} from '@/types';
+import { formatLocal } from '@/lib';
 
 export default async function Page({
   params,
@@ -45,14 +52,22 @@ export default async function Page({
 
   if (!res.ok) throw new Error('Failed to load assignment attempts');
   const dto = await res.json();
+  const a = dto.assignment as {
+    type: AssignmentType;
+    mode: AssignmentMode;
+    opensAt: string;
+    closesAt: string | null;
+  };
 
   const currentPath = `/teacher/classrooms/${classroomId}/assignments`;
 
   return (
     <>
       <PageHeader
-        title={`Assignment ${aid}`}
-        subtitle="Assignment details — who attempted, who mastered, and who is missing."
+        title="Assignment details"
+        subtitle={`${formatAssignmentType(a.type)} • ${formatAssignmentMode(a.mode)} • Opens: ${formatLocal(new Date(a.opensAt).toLocaleString())}${
+          a.closesAt ? ` • Closes: ${formatLocal(new Date(a.closesAt).toLocaleString())}` : ''
+        }`}
       />
 
       <Section className="space-y-4">

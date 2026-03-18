@@ -1,16 +1,49 @@
 'use client';
 
 import * as React from 'react';
-import type { AssignmentStatus, AttemptRow, MeDTO, NextAssignmentDTO } from '@/types';
-import { isAttemptRow, isMeDTO, isNextAssignment } from '@/utils';
+import type { AttemptRowDTO, StudentMeDTO, StudentNextAssignmentDTO } from '@/types';
+import { isAttemptRowDTO } from '@/types/guards';
 
 type State = {
   loading: boolean;
-  me: MeDTO | null;
-  nextAssignment: NextAssignmentDTO;
-  nextStatus: AssignmentStatus;
-  latestAttempt: AttemptRow | null;
+  me: StudentMeDTO | null;
+  nextAssignment: StudentNextAssignmentDTO | null;
+  nextStatus: string | null;
+  latestAttempt: AttemptRowDTO | null;
 };
+
+export function unwrapField(json: unknown, field: string): unknown {
+  if (!json || typeof json !== 'object') return json;
+  const rec = json as Record<string, unknown>;
+  return field in rec ? rec[field] : json;
+}
+
+export function looksLikeStudentMe(v: unknown): v is StudentMeDTO {
+  if (!v || typeof v !== 'object') return false;
+  const rec = v as Record<string, unknown>;
+
+  return (
+    typeof rec.id === 'number' &&
+    typeof rec.name === 'string' &&
+    typeof rec.username === 'string' &&
+    typeof rec.classroomId === 'number'
+  );
+}
+
+export function looksLikeStudentNextAssignment(v: unknown): v is StudentNextAssignmentDTO {
+  if (v === null) return true;
+  if (!v || typeof v !== 'object') return false;
+
+  const rec = v as Record<string, unknown>;
+
+  return (
+    typeof rec.id === 'number' &&
+    typeof rec.type === 'string' &&
+    typeof rec.mode === 'string' &&
+    typeof rec.opensAt === 'string' &&
+    (rec.closesAt === null || typeof rec.closesAt === 'string')
+  );
+}
 
 export function useStudentDashboard() {
   const [state, setState] = React.useState<State>({
@@ -33,39 +66,43 @@ export function useStudentDashboard() {
         fetch('/api/student/attempts?filter=ALL'),
       ]);
 
+      if (cancelled) return;
+
       if (!meRes.ok) {
         if (!cancelled) setState((s) => ({ ...s, loading: false }));
         return;
       }
 
       const meJson: unknown = await meRes.json().catch(() => null);
-      const nextJson: unknown = await nextRes.json().catch(() => null);
-      const attemptsJson: unknown = await attemptsRes.json().catch(() => null);
+      const nextJson: unknown = nextRes.ok ? await nextRes.json().catch(() => null) : null;
+      const attemptsJson: unknown = attemptsRes.ok
+        ? await attemptsRes.json().catch(() => null)
+        : null;
 
       if (cancelled) return;
 
-      const meCandidate =
-        meJson && typeof meJson === 'object'
-          ? ((meJson as { student?: unknown }).student ?? meJson)
-          : null;
+      const meCandidate = unwrapField(meJson, 'student');
+      const me = looksLikeStudentMe(meCandidate) ? (meCandidate as StudentMeDTO) : null;
 
-      const nextCandidate =
-        nextJson && typeof nextJson === 'object'
-          ? ((nextJson as { assignment?: unknown }).assignment ?? nextJson)
-          : null;
+      const nextCandidate = unwrapField(nextJson, 'assignment');
+      const nextAssignment = looksLikeStudentNextAssignment(nextCandidate)
+        ? (nextCandidate as StudentNextAssignmentDTO)
+        : null;
 
-      const rows =
-        attemptsJson && typeof attemptsJson === 'object'
-          ? (attemptsJson as { rows?: unknown[] }).rows
-          : null;
-
-      const parsedAttempts = Array.isArray(rows) ? rows.filter(isAttemptRow) : [];
-      const latestAttempt = parsedAttempts.length ? parsedAttempts[0] : null;
+      let latestAttempt: AttemptRowDTO | null = null;
+      if (attemptsJson && typeof attemptsJson === 'object') {
+        const rec = attemptsJson as Record<string, unknown>;
+        const rows = rec.rows;
+        if (Array.isArray(rows)) {
+          const parsed = rows.filter(isAttemptRowDTO);
+          latestAttempt = parsed.length ? parsed[0] : null;
+        }
+      }
 
       setState({
         loading: false,
-        me: isMeDTO(meCandidate) ? meCandidate : null,
-        nextAssignment: isNextAssignment(nextCandidate) ? nextCandidate : null,
+        me,
+        nextAssignment,
         nextStatus: null,
         latestAttempt,
       });
@@ -92,13 +129,14 @@ export function useStudentDashboard() {
         return;
       }
 
-      setState((s) => ({
-        ...s,
-        nextStatus: ((json as { status?: AssignmentStatus }).status ?? null) as AssignmentStatus,
-      }));
+      const rec = json as Record<string, unknown>;
+      const status = typeof rec.status === 'string' ? rec.status : null;
+
+      setState((s) => ({ ...s, nextStatus: status }));
     }
 
-    const id = state.nextAssignment?.id;
+    const id = state.nextAssignment?.id ?? null;
+
     if (!id) {
       setState((s) => ({ ...s, nextStatus: null }));
       return;
@@ -109,7 +147,7 @@ export function useStudentDashboard() {
     return () => {
       cancelled = true;
     };
-  }, [state.nextAssignment]);
+  }, [state.nextAssignment?.id]);
 
   return state;
 }

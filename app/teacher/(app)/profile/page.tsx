@@ -12,7 +12,7 @@ import {
   Skeleton,
   Button,
 } from '@/components';
-import type { MeDTO } from '@/types';
+import type { TeacherMeDTO } from '@/types';
 import { AppShell, teacherNavItems } from '@/modules';
 import { usePathname } from 'next/navigation';
 
@@ -27,7 +27,7 @@ function ProfileSkeleton() {
           </div>
         </CardHeader>
 
-        <CardContent className="min-h-[180px]">
+        <CardContent className="min-h-45">
           <div className="grid gap-6 md:grid-cols-3 md:items-end">
             <div className="space-y-2">
               <Skeleton className="h-3 w-20" />
@@ -50,7 +50,7 @@ function ProfileSkeleton() {
 }
 
 export default function TeacherProfilePage() {
-  const [me, setMe] = useState<MeDTO | null>(null);
+  const [me, setMe] = useState<TeacherMeDTO | null>(null);
   const [loading, setLoading] = useState(true);
   const pathname = usePathname() ?? '';
 
@@ -104,7 +104,7 @@ export default function TeacherProfilePage() {
               <CardDescription>Your teacher details</CardDescription>
             </CardHeader>
 
-            <CardContent className="min-h-[100px]">
+            <CardContent className="min-h-25">
               <div className="grid gap-6 md:grid-cols-3 md:items-end">
                 <div>
                   <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">

@@ -1,8 +1,9 @@
 import * as React from 'react';
 import { Suspense } from 'react';
 
-import { requireTeacher, getTeacherClassroomHeader } from '@/core';
+import { getTeacherClassroomHeader } from '@/core';
 import { ClassroomShell } from '@/modules';
+import { requireTeacher } from '@/core/auth';
 
 import { ClassroomProgressSection, ProgressSectionSkeleton } from './_components';
 

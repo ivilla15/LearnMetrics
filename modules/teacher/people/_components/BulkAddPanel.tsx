@@ -21,7 +21,8 @@ export function BulkAddPanel(props: {
       <div className="space-y-1">
         <div className="text-sm font-semibold text-[hsl(var(--fg))]">Add multiple students</div>
         <HelpText>
-          One student per line. Optionally append a level after a comma: <code>First Last, 5</code>
+          One student per line. Optionally append a level and starting operation:
+          <code> First Last, 5, DIV</code>
         </HelpText>
       </div>
 
@@ -33,12 +34,12 @@ export function BulkAddPanel(props: {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           className="w-full rounded-(--radius) bg-[hsl(var(--surface))] px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
-          placeholder={`Ada Lovelace\nAlan Turing, 5\nGrace Hopper, 12`}
+          placeholder={`Ada Lovelace\nAlan Turing, 5, DIV\nGrace Hopper, 12, MUL\nKatherine Johnson, 1, ADD`}
         />
         {error ? <div className="text-xs text-[hsl(var(--danger))]">{error}</div> : null}
         <HelpText>
-          Usernames are generated as <span className="font-mono">firstInitial + lastName</span>.
-          Students receive a one-time setup code to choose their password.
+          One student per line. Optional format: <code>First Last, level, operation</code>.
+          Operations: <code>ADD</code>, <code>SUB</code>, <code>MUL</code>, <code>DIV</code>.
         </HelpText>
       </div>
 

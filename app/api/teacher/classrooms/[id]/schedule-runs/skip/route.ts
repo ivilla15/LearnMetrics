@@ -1,81 +1,75 @@
-// app/api/teacher/classrooms/[id]/schedule-runs/skip/route.ts
 import { prisma } from '@/data/prisma';
-import { requireTeacher } from '@/core';
-import { errorResponse, jsonResponse, parseId } from '@/utils';
-import { handleApiError, readJson, type RouteContext } from '@/app';
-import { assertTeacherOwnsClassroom } from '@/core/classrooms';
+import { getTeacherClassroomParams, handleApiError } from '@/app/api/_shared';
+import { jsonResponse, errorResponse } from '@/utils';
+import { readJson, type RouteContext } from '@/app';
+import { skipScheduleRunSchema } from '@/validation';
 
-export async function POST(req: Request, { params }: RouteContext) {
+export async function POST(request: Request, { params }: RouteContext<{ id: string }>) {
   try {
-    const auth = await requireTeacher();
-    if (!auth.ok) return errorResponse(auth.error, auth.status);
+    const ctx = await getTeacherClassroomParams(params);
+    if (!ctx.ok) return ctx.response;
 
-    const classroomId = parseId((await params).id);
-    if (!classroomId) return errorResponse('Invalid classroom id', 400);
+    const body = await readJson(request);
+    const input = skipScheduleRunSchema.parse(body);
 
-    await assertTeacherOwnsClassroom(auth.teacher.id, classroomId);
+    const schedule = await prisma.assignmentSchedule.findFirst({
+      where: { id: input.scheduleId, classroomId: ctx.classroomId },
+      select: { id: true },
+    });
+    if (!schedule) return errorResponse('Schedule not found', 404);
 
-    // typed body to avoid TS '{}' issues
-    const body = (await readJson(req)) as {
-      scheduleId?: number;
-      runDate?: string;
-      reason?: string;
-    };
+    const runDate = new Date(input.runDate);
+    if (Number.isNaN(runDate.getTime())) return errorResponse('Invalid runDate', 400);
 
-    const scheduleId = Number(body?.scheduleId);
-    const runDateRaw = body?.runDate;
-    const reason = typeof body?.reason === 'string' ? body.reason : 'Cancelled by teacher';
-
-    if (!Number.isFinite(scheduleId) || scheduleId <= 0) {
-      return errorResponse('Invalid scheduleId', 400);
-    }
-    if (!runDateRaw || isNaN(new Date(runDateRaw).getTime())) {
-      return errorResponse('Invalid runDate', 400);
-    }
-    const runDate = new Date(runDateRaw);
-
-    // Find existing run if any
     const existingRun = await prisma.assignmentScheduleRun.findUnique({
-      where: { scheduleId_runDate: { scheduleId, runDate } },
-      select: { id: true, assignmentId: true, isSkipped: true },
+      where: { scheduleId_runDate: { scheduleId: input.scheduleId, runDate } },
+      select: { id: true, assignmentId: true },
     });
 
-    // If assignment attached -> ensure no attempts, then delete
     if (existingRun?.assignmentId) {
-      const assignmentId = existingRun.assignmentId;
-      const attempts = await prisma.attempt.count({ where: { assignmentId } });
-      if (attempts > 0) {
+      const attemptsCount = await prisma.attempt.count({
+        where: { assignmentId: existingRun.assignmentId },
+      });
+
+      if (attemptsCount > 0) {
         return errorResponse(
           'Cannot cancel this occurrence because students have already attempted it.',
           409,
         );
       }
 
-      // safe to delete assignment
-      await prisma.assignment.delete({ where: { id: assignmentId } });
+      await prisma.assignment.delete({ where: { id: existingRun.assignmentId } });
     }
 
     const now = new Date();
+
     const run = await prisma.assignmentScheduleRun.upsert({
-      where: { scheduleId_runDate: { scheduleId, runDate } },
+      where: { scheduleId_runDate: { scheduleId: input.scheduleId, runDate } },
       create: {
-        scheduleId,
+        scheduleId: input.scheduleId,
         runDate,
         isSkipped: true,
         skippedAt: now,
-        skipReason: reason,
+        skipReason: input.reason ?? null,
         assignmentId: null,
       },
       update: {
         isSkipped: true,
         skippedAt: now,
-        skipReason: reason,
+        skipReason: input.reason ?? null,
         assignmentId: null,
       },
-      select: { id: true, scheduleId: true, runDate: true, isSkipped: true, skippedAt: true },
+      select: {
+        id: true,
+        scheduleId: true,
+        runDate: true,
+        isSkipped: true,
+        skippedAt: true,
+        skipReason: true,
+      },
     });
 
-    return jsonResponse({ scheduleRun: run }, 200);
+    return jsonResponse({ scheduleRun: { ...run, runDate: run.runDate.toISOString() } }, 200);
   } catch (err: unknown) {
     return handleApiError(err);
   }

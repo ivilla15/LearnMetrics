@@ -2,31 +2,40 @@
 
 import * as React from 'react';
 
-import { parseBulkStudentsText, type NewStudentInput } from '@/utils/student/students';
-import { Card, CardContent, useToast } from '@/components';
+import { parseBulkStudentsText } from '@/utils';
+import type {
+  BulkAddStudentInputDTO,
+  RosterEditingStateDTO,
+  RosterStudentRowDTO,
+  OperationCode,
+  BulkAddResponseDTO,
+} from '@/types';
 
-import type { EditingState, RosterStudentRow } from '@/types';
+import { Card, CardContent, useToast } from '@/components';
+import { getApiErrorMessage } from '@/utils';
 
 import { RosterToolbar } from './RosterToolbar';
 import { BulkAddPanel } from './BulkAddPanel';
 import { RosterTable } from './RosterTable';
 import { ConfirmModals } from './ConfirmModals';
-import { SetupCodeRow } from '@/types/classroom';
-
-function getErrorMessage(err: unknown, fallback: string) {
-  return err instanceof Error ? err.message : fallback;
-}
 
 export function RosterTableCard(props: {
   classroomId: number;
-  students: RosterStudentRow[];
+  students: RosterStudentRowDTO[];
   busy?: boolean;
 
-  onBulkAdd: (students: NewStudentInput[]) => Promise<{ setupCodes: SetupCodeRow[] }>;
-  onUpdateStudent: (
-    id: number,
-    update: { name: string; username: string; level: number },
-  ) => Promise<void>;
+  enabledOperations: OperationCode[];
+  operationOrder: OperationCode[];
+  maxNumber: number;
+
+  onBulkAdd: (students: BulkAddStudentInputDTO[]) => Promise<BulkAddResponseDTO>;
+  onUpdateStudent: (id: number, update: { name: string; username: string }) => Promise<void>;
+  onUpdateStudentProgress: (params: {
+    studentId: number;
+    operation: OperationCode;
+    level: number;
+  }) => Promise<void>;
+
   onDeleteStudent: (id: number) => Promise<void>;
   onResetAccess: (studentId: number) => Promise<string>;
 
@@ -37,8 +46,12 @@ export function RosterTableCard(props: {
     classroomId,
     students,
     busy = false,
+    enabledOperations,
+    operationOrder,
+    maxNumber,
     onBulkAdd,
     onUpdateStudent,
+    onUpdateStudentProgress,
     onDeleteStudent,
     onResetAccess,
     onGoProgress,
@@ -53,7 +66,7 @@ export function RosterTableCard(props: {
   const [bulkError, setBulkError] = React.useState<string | null>(null);
 
   // edit state
-  const [editing, setEditing] = React.useState<EditingState | null>(null);
+  const [editing, setEditing] = React.useState<RosterEditingStateDTO | null>(null);
 
   // selection state
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set());
@@ -61,7 +74,7 @@ export function RosterTableCard(props: {
 
   // confirm modal states
   const [confirmRemoveId, setConfirmRemoveId] = React.useState<number | null>(null);
-  const [confirmResetStudent, setConfirmResetStudent] = React.useState<RosterStudentRow | null>(
+  const [confirmResetStudent, setConfirmResetStudent] = React.useState<RosterStudentRowDTO | null>(
     null,
   );
   const [confirmBulkRemoveOpen, setConfirmBulkRemoveOpen] = React.useState(false);
@@ -138,13 +151,22 @@ export function RosterTableCard(props: {
     try {
       setBulkError(null);
 
+      console.log('RAW BULK INPUT:', bulkNamesText);
       const payload = parseBulkStudentsText(bulkNamesText, existingUsernames);
       if (!payload.length) {
         setBulkError('Please enter at least one valid "First Last" line.');
         return;
       }
 
-      const result = await onBulkAdd(payload);
+      const dtoPayload = payload.map((p) => ({
+        firstName: p.firstName,
+        lastName: p.lastName,
+        username: p.username,
+        startingOperation: p.startingOperation,
+        startingLevel: p.startingLevel,
+      }));
+
+      const result = await onBulkAdd(dtoPayload);
 
       setIsAdding(false);
       setBulkNamesText('');
@@ -154,24 +176,27 @@ export function RosterTableCard(props: {
         toast('Students added, but no setup codes returned.', 'error');
       }
     } catch (err) {
-      const msg = getErrorMessage(err, 'Could not add students.');
+      const msg = getApiErrorMessage(err, 'Could not add students.');
       setBulkError(msg);
       toast(msg, 'error');
     }
   };
 
   // edit handlers
-  const handleSaveEditing = async (next: EditingState) => {
+  const handleSaveEditing = async (next: RosterEditingStateDTO) => {
     try {
-      await onUpdateStudent(next.id, {
-        name: next.name,
-        username: next.username,
+      await onUpdateStudent(next.id, { name: next.name, username: next.username });
+
+      await onUpdateStudentProgress({
+        studentId: next.id,
+        operation: next.operation,
         level: next.level || 1,
       });
+
       toast('Student updated', 'success');
       setEditing(null);
     } catch (err) {
-      toast(getErrorMessage(err, 'Failed to update student'), 'error');
+      toast(getApiErrorMessage(err, 'Failed to update student'), 'error');
     }
   };
 
@@ -188,7 +213,7 @@ export function RosterTableCard(props: {
       });
       toast('Student removed', 'success');
     } catch (err) {
-      toast(getErrorMessage(err, 'Failed to remove student'), 'error');
+      toast(getApiErrorMessage(err, 'Failed to remove student'), 'error');
     } finally {
       setConfirmRemoveId(null);
     }
@@ -214,23 +239,22 @@ export function RosterTableCard(props: {
       clearSelection();
       setConfirmBulkRemoveOpen(false);
     } catch (err) {
-      toast(getErrorMessage(err, 'Some students could not be removed.'), 'error');
+      toast(getApiErrorMessage(err, 'Some students could not be removed.'), 'error');
     } finally {
       setBulkDeleteBusy(false);
     }
   };
 
   // reset access handlers
-  const handleOpenConfirmReset = (student: RosterStudentRow) => setConfirmResetStudent(student);
+  const handleOpenConfirmReset = (student: RosterStudentRowDTO) => setConfirmResetStudent(student);
 
   const handleConfirmReset = async (studentId: number) => {
     try {
       await onResetAccess(studentId);
-      // printing handled by PeopleClient (it navigates), but keeping UX clear
       toast('Setup code generated. Redirecting to print cards…', 'success');
       onPrintCards();
     } catch (err) {
-      toast(getErrorMessage(err, 'Failed to reset access'), 'error');
+      toast(getApiErrorMessage(err, 'Failed to reset access'), 'error');
     } finally {
       setConfirmResetStudent(null);
     }
@@ -265,6 +289,9 @@ export function RosterTableCard(props: {
           students={students}
           busy={busy}
           bulkDeleteBusy={bulkDeleteBusy}
+          enabledOperations={enabledOperations}
+          operationOrder={operationOrder}
+          maxNumber={maxNumber}
           editing={editing}
           setEditing={setEditing}
           selectedIds={selectedIds}

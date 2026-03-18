@@ -1,12 +1,32 @@
-// app/api/_shared/route-types.ts
-export type RouteContext = { params: Promise<{ id: string }> };
-export type ClassroomStudentRouteContext = { params: Promise<{ id: string; studentId: string }> };
-export type RouteParams = {
-  params: Promise<{ id: string; scheduleId: string }>;
+type ParamsRecord = Record<string, string>;
+
+export type RouteContext<TParams extends ParamsRecord = ParamsRecord> = {
+  params: Promise<TParams>;
 };
-export type ClassroomAssignmentRouteContext = {
-  params: Promise<{ id: string; assignmentId: string }>;
-};
-export type StudentAttemptRouteContext = {
-  params: Promise<{ attemptId: string }>;
-};
+
+/* ------------------------------- Common routes ------------------------------ */
+
+// /api/teacher/classrooms/[id]/...
+export type ClassroomRouteContext = RouteContext<{ id: string }>;
+
+// /api/teacher/classrooms/[id]/students/[studentId]
+export type ClassroomStudentRouteContext = RouteContext<{ id: string; studentId: string }>;
+
+// /api/teacher/classrooms/[id]/students/[studentId]/progress
+export type TeacherStudentProgressRouteContext = RouteContext<{ id: string; studentId: string }>;
+
+// /api/student/attempts/[attemptId]
+export type StudentAttemptRouteContext = RouteContext<{ attemptId: string }>;
+
+// /api/teacher/classrooms/[id]/assignments/[assignmentId]
+export type TeacherAssignmentRouteContext = RouteContext<{ id: string; assignmentId: string }>;
+
+// /api/teacher/classrooms/[id]/assignments/[assignmentId]/attempts/[attemptId]
+export type TeacherAssignmentAttemptRouteContext = RouteContext<{
+  id: string;
+  assignmentId: string;
+  attemptId: string;
+}>;
+
+// routes with no dynamic params
+export type EmptyRouteContext = RouteContext<Record<string, never>>;

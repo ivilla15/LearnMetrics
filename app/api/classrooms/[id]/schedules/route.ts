@@ -1,25 +1,25 @@
-import {
-  requireTeacher,
-  getClassroomSchedulesForTeacher,
-  createAdditionalClassroomSchedule,
-} from '@/core';
-import { classroomIdParamSchema, upsertScheduleSchema } from '@/validation';
-import { jsonResponse, errorResponse } from '@/utils';
-import { handleApiError, readJson, RouteContext } from '@/app';
 import { prisma } from '@/data/prisma';
+
+import { handleApiError } from '@/app/api/_shared/handle-error';
+import { readJson, type RouteContext } from '@/app';
+
+import { getTeacherClassroomParams } from '@/app/api/_shared/params/teacher';
+import { jsonResponse, errorResponse } from '@/utils/http';
+
+import { getClassroomSchedulesForTeacher, createAdditionalClassroomSchedule } from '@/core';
+
+import { upsertScheduleSchema } from '@/validation/assignmentSchedules.schema';
 import { isTrialLocked } from '@/core/entitlements/isTrialLocked';
+import { requireTeacher } from '@/core/auth';
 
-export async function GET(_request: Request, context: RouteContext) {
+export async function GET(_req: Request, { params }: RouteContext<{ id: string }>) {
   try {
-    const auth = await requireTeacher();
-    if (!auth.ok) return errorResponse(auth.error, auth.status);
-
-    const { id } = await context.params;
-    const { id: classroomId } = classroomIdParamSchema.parse({ id });
+    const ctx = await getTeacherClassroomParams(params);
+    if (!ctx.ok) return ctx.response;
 
     const schedules = await getClassroomSchedulesForTeacher({
-      teacherId: auth.teacher.id,
-      classroomId,
+      teacherId: ctx.teacher.id,
+      classroomId: ctx.classroomId,
     });
 
     return jsonResponse({ schedules }, 200);
@@ -28,15 +28,14 @@ export async function GET(_request: Request, context: RouteContext) {
   }
 }
 
-export async function POST(request: Request, context: RouteContext) {
+export async function POST(req: Request, { params }: RouteContext<{ id: string }>) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
 
-    const { id } = await context.params;
-    const { id: classroomId } = classroomIdParamSchema.parse({ id });
+    const ctx = await getTeacherClassroomParams(params);
+    if (!ctx.ok) return ctx.response;
 
-    // Entitlement gate (Trial = 1 schedule total per teacher)
     const ent = await prisma.teacherEntitlement.findUnique({
       where: { teacherId: auth.teacher.id },
       select: { plan: true, status: true, trialEndsAt: true },
@@ -56,12 +55,12 @@ export async function POST(request: Request, context: RouteContext) {
       }
     }
 
-    const body = await readJson(request);
+    const body = await readJson(req);
     const input = upsertScheduleSchema.parse(body);
 
     const schedule = await createAdditionalClassroomSchedule({
       teacherId: auth.teacher.id,
-      classroomId,
+      classroomId: ctx.classroomId,
       input,
     });
 

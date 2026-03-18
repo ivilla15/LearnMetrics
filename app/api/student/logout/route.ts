@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-
 import { prisma } from '@/data/prisma';
 import { clearStudentSessionCookie, handleApiError } from '@/app';
 

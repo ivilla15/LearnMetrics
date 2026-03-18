@@ -1,15 +1,9 @@
 import { NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
-
 import { prisma } from '@/data/prisma';
-import { hashSetupCode, constantTimeEqualHex } from '@/core/auth/setupCodes';
-
-import { createStudentSession } from '@/core/auth/studentSessions';
-import { setStudentSessionCookie } from '@/app/api/_shared/student-session-cookies';
-
-import { handleApiError } from '@/app/api/_shared/handle-error';
-import { readJson } from '@/app/api/_shared/read-json';
+import { hashSetupCode, constantTimeEqualHex, createStudentSession } from '@/core';
+import { handleApiError, setStudentSessionCookie, readJson } from '@/app';
 
 const ActivateBodySchema = z.object({
   username: z.string().min(1),
@@ -28,7 +22,6 @@ export async function POST(req: Request) {
         id: true,
         name: true,
         username: true,
-        level: true,
         setupCodeHash: true,
         setupCodeExpiresAt: true,
         mustSetPassword: true,
@@ -69,7 +62,7 @@ export async function POST(req: Request) {
     await prisma.student.update({
       where: { id: student.id },
       data: {
-        password: passwordHash,
+        passwordHash,
         setupCodeHash: null,
         setupCodeExpiresAt: null,
         mustSetPassword: false,
@@ -83,7 +76,6 @@ export async function POST(req: Request) {
           id: student.id,
           name: student.name,
           username: student.username,
-          level: student.level,
         },
       },
       { status: 200 },
