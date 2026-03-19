@@ -1,14 +1,16 @@
-// app/api/billing/webhook/route.ts
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
-import { prisma } from '@/data/prisma';
-import { handleApiError } from '../../_shared';
 import { TeacherPlan } from '@prisma/client';
 
+import { prisma } from '@/data/prisma';
+import { handleApiError } from '../../_shared';
+
 export const runtime = 'nodejs';
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2026-01-28.clover',
 });
+
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
 function normalizeCustomerId(
@@ -27,7 +29,7 @@ function normalizeTeacherPlan(raw?: string | null): TeacherPlan {
     case 'TRIAL':
       return TeacherPlan.TRIAL;
     default:
-      return TeacherPlan.PRO; // safe default
+      return TeacherPlan.PRO;
   }
 }
 
@@ -42,31 +44,44 @@ async function upsertEntitlementForTeacher(
   const planEnum = normalizeTeacherPlan(opts.plan);
   const now = new Date();
 
-  const existing = await prisma.teacherEntitlement.findUnique({ where: { teacherId } });
+  const existing = await prisma.teacherEntitlement.findUnique({
+    where: { teacherId },
+  });
+
+  if (existing?.source === 'INTERNAL') {
+    return existing;
+  }
+
   if (existing) {
     return prisma.teacherEntitlement.update({
       where: { teacherId },
       data: {
         plan: planEnum,
         status: 'ACTIVE',
+        source: 'STRIPE',
         trialEndsAt: null,
+        expiresAt: null,
+        grantReason: null,
         stripeCustomerId: opts.stripeCustomerId ?? existing.stripeCustomerId,
         stripeSubscriptionId: opts.stripeSubscriptionId ?? existing.stripeSubscriptionId,
         updatedAt: now,
       },
     });
-  } else {
-    return prisma.teacherEntitlement.create({
-      data: {
-        teacherId,
-        plan: planEnum,
-        status: 'ACTIVE',
-        trialEndsAt: null,
-        stripeCustomerId: opts.stripeCustomerId ?? undefined,
-        stripeSubscriptionId: opts.stripeSubscriptionId ?? undefined,
-      },
-    });
   }
+
+  return prisma.teacherEntitlement.create({
+    data: {
+      teacherId,
+      plan: planEnum,
+      status: 'ACTIVE',
+      source: 'STRIPE',
+      trialEndsAt: null,
+      expiresAt: null,
+      grantReason: null,
+      stripeCustomerId: opts.stripeCustomerId ?? undefined,
+      stripeSubscriptionId: opts.stripeSubscriptionId ?? undefined,
+    },
+  });
 }
 
 async function markEntitlementCanceledOrExpiredByTeacherId(
@@ -74,11 +89,19 @@ async function markEntitlementCanceledOrExpiredByTeacherId(
   kind: 'CANCELED' | 'EXPIRED',
 ) {
   const now = new Date();
-  const existing = await prisma.teacherEntitlement.findUnique({ where: { teacherId } });
+
+  const existing = await prisma.teacherEntitlement.findUnique({
+    where: { teacherId },
+  });
+
   if (existing) {
     await prisma.teacherEntitlement.update({
       where: { teacherId },
-      data: { status: kind, trialEndsAt: now },
+      data: {
+        status: kind,
+        trialEndsAt: existing.plan === 'TRIAL' ? now : existing.trialEndsAt,
+        expiresAt: now,
+      },
     });
   } else {
     await prisma.teacherEntitlement.create({
@@ -86,7 +109,10 @@ async function markEntitlementCanceledOrExpiredByTeacherId(
         teacherId,
         plan: 'TRIAL',
         status: kind,
+        source: 'TRIAL',
         trialEndsAt: now,
+        expiresAt: now,
+        grantReason: null,
       },
     });
   }
@@ -98,7 +124,7 @@ async function markEntitlementCanceledOrExpiredByTeacherId(
     })
   ).map((c) => c.id);
 
-  if (classroomIds.length) {
+  if (classroomIds.length > 0) {
     await prisma.assignmentSchedule.updateMany({
       where: { classroomId: { in: classroomIds } },
       data: { isActive: false },
@@ -107,23 +133,19 @@ async function markEntitlementCanceledOrExpiredByTeacherId(
 }
 
 async function findTeacherIdFromSubscription(subscription: Stripe.Subscription) {
-  // 1) try metadata.teacherId
   const metaTid = subscription.metadata?.teacherId;
   if (metaTid) {
     const tid = Number(metaTid);
     if (!Number.isNaN(tid)) return tid;
   }
 
-  // 2) try to find entitlement row by stripeSubscriptionId
   const ent = await prisma.teacherEntitlement.findFirst({
     where: { stripeSubscriptionId: subscription.id },
     select: { teacherId: true },
   });
   if (ent) return ent.teacherId;
 
-  // 3) try to find teacher by stripeCustomerId
-  const cust = subscription.customer;
-  const customerId = normalizeCustomerId(cust);
+  const customerId = normalizeCustomerId(subscription.customer);
   if (customerId) {
     const ent2 = await prisma.teacherEntitlement.findFirst({
       where: { stripeCustomerId: customerId },
@@ -145,6 +167,7 @@ export async function POST(req: Request) {
     const buf = await req.arrayBuffer();
     const rawBody = Buffer.from(buf);
     const sig = req.headers.get('stripe-signature') ?? '';
+
     if (!sig) {
       console.warn('No stripe-signature header present');
       return new NextResponse('Missing signature', { status: 400 });
@@ -249,14 +272,17 @@ export async function POST(req: Request) {
         }
 
         const status = subscription.status;
+
         if (status === 'active' || status === 'trialing') {
           const planFromMeta = (subscription.metadata?.plan ?? 'PRO').toUpperCase();
           const stripeCustomerId = normalizeCustomerId(subscription.customer);
+
           await upsertEntitlementForTeacher(teacherId, {
             plan: planFromMeta,
             stripeCustomerId,
             stripeSubscriptionId: subscription.id,
           });
+
           console.info(
             `subscription.updated: set teacher ${teacherId} entitlement ACTIVE (sub ${subscription.id})`,
           );

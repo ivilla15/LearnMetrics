@@ -45,7 +45,10 @@ export async function POST(req: Request) {
           create: {
             plan: 'TRIAL',
             status: 'ACTIVE',
+            source: 'TRIAL',
             trialEndsAt,
+            expiresAt: null,
+            grantReason: null,
           },
         },
       },

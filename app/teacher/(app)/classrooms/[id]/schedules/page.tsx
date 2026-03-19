@@ -1,43 +1,11 @@
-import { getTeacherEntitlement } from '@/core';
+import { buildSchedulesGate, getTeacherEntitlementAccessState } from '@/core';
 import { ClassroomSubNav } from '@/modules';
 import { PageHeader, Section } from '@/components';
 import { SchedulesClient } from '@/modules/teacher/schedules';
 import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch.app';
 import { requireTeacher } from '@/core/auth';
 
-import type { ClassroomSchedulesResponse, ScheduleGate } from '@/types';
-
-function buildScheduleGate(params: {
-  plan: string | null | undefined;
-  status: string | null | undefined;
-  scheduleCount: number;
-}): ScheduleGate {
-  const plan = (params.plan ?? 'TRIAL').toUpperCase();
-  const status = (params.status ?? 'ACTIVE').toUpperCase();
-
-  if (status !== 'ACTIVE') {
-    const canceled = status === 'CANCELED';
-    return {
-      ok: false,
-      message: canceled
-        ? 'Your subscription is canceled. Upgrade to re-enable scheduling.'
-        : 'Your access is no longer active. Upgrade to re-enable scheduling.',
-      upgradeUrl: canceled
-        ? '/billing?reason=canceled&plan=pro'
-        : '/billing?reason=expired&plan=pro',
-    };
-  }
-
-  if (plan === 'TRIAL' && params.scheduleCount >= 1) {
-    return {
-      ok: false,
-      message: 'Trial accounts can create 1 schedule per classroom. Upgrade to add more schedules.',
-      upgradeUrl: '/billing?plan=pro',
-    };
-  }
-
-  return { ok: true, message: '' };
-}
+import type { ClassroomSchedulesResponse } from '@/types';
 
 export default async function Page({ params }: { params: Promise<{ id: string }> }) {
   const auth = await requireTeacher();
@@ -67,12 +35,11 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
   const currentPath = `/teacher/classrooms/${classroomId}/schedules`;
 
-  const ent = await getTeacherEntitlement(auth.teacher.id);
+  const access = await getTeacherEntitlementAccessState(auth.teacher.id);
   const scheduleCount = initialSchedules.length;
 
-  const gate = buildScheduleGate({
-    plan: ent?.plan,
-    status: ent?.status,
+  const gate = buildSchedulesGate({
+    access,
     scheduleCount,
   });
 

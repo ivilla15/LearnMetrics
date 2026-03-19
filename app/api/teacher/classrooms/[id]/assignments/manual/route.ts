@@ -1,4 +1,8 @@
-import { createScheduledAssignment } from '@/core';
+import {
+  buildAssignmentsGate,
+  createScheduledAssignment,
+  getTeacherEntitlementAccessState,
+} from '@/core';
 import { classroomIdParamSchema, createManualAssignmentRequestSchema } from '@/validation';
 import { jsonResponse, errorResponse } from '@/utils';
 import { handleApiError, readJson, type RouteContext } from '@/app';
@@ -11,6 +15,13 @@ export async function POST(req: Request, { params }: RouteContext<{ id: string }
 
     const { id } = await params;
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
+
+    const access = await getTeacherEntitlementAccessState(auth.teacher.id);
+    const gate = buildAssignmentsGate({ access });
+
+    if (!gate.ok) {
+      return errorResponse(gate.message, 402);
+    }
 
     const raw = await readJson(req);
     const parsed = createManualAssignmentRequestSchema.parse(raw);

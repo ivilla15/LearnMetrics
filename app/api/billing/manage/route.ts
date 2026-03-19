@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
+import Stripe from 'stripe';
+
 import { requireTeacher } from '@/core';
 import { prisma } from '@/data/prisma';
+
 import type { EntitlementDTO } from '@/types';
-import Stripe from 'stripe';
 
 export const runtime = 'nodejs';
 
@@ -35,7 +37,10 @@ export async function POST() {
     select: {
       plan: true,
       status: true,
+      source: true,
       trialEndsAt: true,
+      expiresAt: true,
+      grantReason: true,
       stripeCustomerId: true,
       stripeSubscriptionId: true,
     },
@@ -44,7 +49,10 @@ export async function POST() {
   const e: EntitlementDTO = {
     plan: entitlement?.plan ?? 'TRIAL',
     status: entitlement?.status ?? 'ACTIVE',
+    source: entitlement?.source ?? 'TRIAL',
     trialEndsAt: entitlement?.trialEndsAt ? entitlement.trialEndsAt.toISOString() : null,
+    expiresAt: entitlement?.expiresAt ? entitlement.expiresAt.toISOString() : null,
+    grantReason: entitlement?.grantReason ?? null,
     stripeCustomerId: entitlement?.stripeCustomerId ?? null,
     stripeSubscriptionId: entitlement?.stripeSubscriptionId ?? null,
   };
