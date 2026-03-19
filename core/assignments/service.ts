@@ -1,7 +1,7 @@
 import { prisma } from '@/data/prisma';
 import { NotFoundError, ConflictError } from '@/core';
 import { Prisma } from '@prisma/client';
-import { requireTeacherActiveEntitlement } from '@/core/billing/entitlement';
+import { requireTeacherActiveEntitlement } from '@/core';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 import type {
   AssignmentMode,

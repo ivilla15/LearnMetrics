@@ -22,6 +22,9 @@ export type TeacherPlanCode = (typeof TEACHER_PLANS)[number];
 export const ENTITLEMENT_STATUSES = ['ACTIVE', 'EXPIRED', 'CANCELED'] as const;
 export type EntitlementStatusCode = (typeof ENTITLEMENT_STATUSES)[number];
 
+export const ENTITLEMENT_SOURCES = ['TRIAL', 'STRIPE', 'COMP', 'INTERNAL', 'SCHOOL'] as const;
+export type EntitlementSourceCode = (typeof ENTITLEMENT_SOURCES)[number];
+
 export const WEEKDAYS = [
   'Sunday',
   'Monday',

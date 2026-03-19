@@ -13,7 +13,10 @@ export async function GET() {
     select: {
       plan: true,
       status: true,
+      source: true,
       trialEndsAt: true,
+      expiresAt: true,
+      grantReason: true,
       stripeCustomerId: true,
       stripeSubscriptionId: true,
     },
@@ -23,7 +26,10 @@ export async function GET() {
     ? {
         plan: ent.plan,
         status: ent.status,
+        source: ent.source,
         trialEndsAt: ent.trialEndsAt ? ent.trialEndsAt.toISOString() : null,
+        expiresAt: ent.expiresAt ? ent.expiresAt.toISOString() : null,
+        grantReason: ent.grantReason,
         stripeCustomerId: ent.stripeCustomerId,
         stripeSubscriptionId: ent.stripeSubscriptionId,
       }
