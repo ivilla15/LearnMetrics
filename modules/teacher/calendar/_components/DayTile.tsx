@@ -5,7 +5,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 import { Pill } from '@/components';
 import type { CalendarItemRowDTO } from '@/types';
-import { formatAssignmentMode, formatAssignmentType } from '@/types';
+import { formatAssignmentType } from '@/types';
 import { isProjection, toIso } from '@/utils/calendar';
 
 type Props = {
@@ -19,15 +19,9 @@ type Props = {
 };
 
 function itemTitle(item: CalendarItemRowDTO) {
-  if (isProjection(item)) {
-    return item.targetKind === 'PRACTICE_TIME' ? 'Projected practice time' : 'Projected assignment';
-  }
-
-  const typeLabel = formatAssignmentType(item.type);
-  const modeLabel = formatAssignmentMode(item.mode);
-  const isPracticeTime = item.targetKind === 'PRACTICE_TIME';
-
-  return isPracticeTime ? `Practice time · ${modeLabel}` : `${typeLabel} · ${modeLabel}`;
+  if (item.targetKind === 'PRACTICE_TIME') return 'Practice time';
+  if (!item.type) return '—';
+  return formatAssignmentType(item.type);
 }
 
 export function DayTile({ date, tz, inMonth, isToday, items, onOpenDetails, onOpenDay }: Props) {

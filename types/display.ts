@@ -10,7 +10,7 @@ export const ASSIGNMENT_TYPE_LABEL: Record<AssignmentType, string> = {
 export const ASSIGNMENT_MODE_LABEL: Record<AssignmentMode, string> = {
   SCHEDULED: 'Scheduled',
   MAKEUP: 'Makeup',
-  MANUAL: 'Manual',
+  MANUAL: 'Created manually',
 };
 
 export const OPERATION_LABEL: Record<OperationCode, string> = {

@@ -38,7 +38,7 @@ export default async function Page({ params }: { params: Promise<{ id: string }>
 
       <Section className="space-y-4">
         <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
-        <CalendarClient classroomId={classroomId} initial={dto} />
+        <CalendarClient classroomId={classroomId} initial={dto} canManageAssignments={true} />
       </Section>
     </>
   );
