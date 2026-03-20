@@ -5,28 +5,13 @@ import { useRouter } from 'next/navigation';
 import { formatInTimeZone } from 'date-fns-tz';
 import { Modal, Button, HelpText, Pill } from '@/components';
 import type { AssignmentMode, CalendarItemRowDTO } from '@/types';
-import { formatAssignmentMode, formatAssignmentType, formatOperation } from '@/types';
+import {
+  formatAssignmentMode,
+  formatCalendarTargetLine,
+  formatCalendarTypeLabel,
+  formatOperation,
+} from '@/types';
 import { isProjection, toIso } from '@/utils/calendar';
-
-function formatTargetLine(item: CalendarItemRowDTO) {
-  if (isProjection(item)) {
-    if (item.targetKind === 'PRACTICE_TIME') return `${item.durationMinutes ?? 0} minutes`;
-    return `${item.numQuestions ?? 0} questions`;
-  }
-
-  if (item.targetKind === 'PRACTICE_TIME') return `${item.durationMinutes ?? 0} minutes`;
-  return `${item.numQuestions ?? 0} questions`;
-}
-
-function formatTypeLabel(item: CalendarItemRowDTO) {
-  if (isProjection(item)) {
-    if (item.targetKind === 'PRACTICE_TIME') return 'Practice time';
-    return item.type ? formatAssignmentType(item.type) : 'Assignment';
-  }
-
-  if (item.targetKind === 'PRACTICE_TIME') return 'Practice time';
-  return formatAssignmentType(item.type);
-}
 
 function getStudentModeLabel(mode: AssignmentMode): string | null {
   if (mode === 'MAKEUP') return 'Makeup';
@@ -67,7 +52,7 @@ export function AssignmentDetailsModal(props: {
   const title = !item
     ? 'Assignment'
     : (() => {
-        const typeLabel = formatTypeLabel(item);
+        const typeLabel = formatCalendarTypeLabel(item);
 
         if (proj) return typeLabel;
 
@@ -85,7 +70,7 @@ export function AssignmentDetailsModal(props: {
       ? formatAssignmentMode(item.mode) // teachers
       : getStudentModeLabel(item.mode) // students
     : null;
-  const typeLabel = item ? formatTypeLabel(item) : '—';
+  const typeLabel = item ? formatCalendarTypeLabel(item) : '—';
   const opLabel = item?.operation ? formatOperation(item.operation) : null;
 
   const stats = !item || proj || isProjection(item) ? null : (item.stats ?? null);
@@ -164,7 +149,7 @@ export function AssignmentDetailsModal(props: {
           <div className="flex flex-wrap gap-2">
             {Pill(typeLabel, 'muted')}
             {modeLabel ? Pill(modeLabel, 'muted') : null}
-            {Pill(formatTargetLine(item), 'muted')}
+            {Pill(formatCalendarTargetLine(item), 'muted')}
             {Pill(item.windowMinutes ? `${item.windowMinutes} min window` : 'No window', 'muted')}
             {opLabel ? Pill(opLabel, 'muted') : null}
           </div>

@@ -15,6 +15,9 @@ export * from './api/teacher';
 export * from './api/progress';
 export * from './api/teacherStudents';
 
+export * from './display/calendar';
+export * from './display/index';
+
 export * from './ui/filters';
 export * from './ui/selections';
 export * from './ui/tone';

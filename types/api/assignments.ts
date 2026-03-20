@@ -194,7 +194,6 @@ export type StudentAssignmentListItemDTO = {
   scheduleId: number | null;
   runDate: string | null;
 
-  // student-specific
   latestAttempt: AttemptRowDTO | null;
 };
 
@@ -202,4 +201,30 @@ export type StudentAssignmentsListResponse = {
   classroom: { id: number; name: string; timeZone?: string | null };
   rows: StudentAssignmentListItemDTO[];
   nextCursor: string | null;
+};
+
+export type ScheduledOccurrenceDetailsDTO = {
+  scheduleId: number;
+  classroomId: number;
+  classroomTimeZone: string;
+  runDate: string;
+
+  isActive: boolean;
+  isSkipped: boolean;
+  skippedAt: string | null;
+  skipReason: string | null;
+
+  mode: AssignmentMode;
+  targetKind: AssignmentTargetKind;
+  type: AssignmentType | null;
+
+  opensAt: string;
+  closesAt: string | null;
+
+  windowMinutes: number | null;
+  numQuestions: number | null;
+  durationMinutes: number | null;
+  operation: OperationCode | null;
+
+  existingAssignmentId: number | null;
 };
