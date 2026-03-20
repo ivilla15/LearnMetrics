@@ -1,6 +1,13 @@
 import { z } from 'zod';
 
-import { requireTeacher, bulkCreateClassroomStudents } from '@/core';
+import {
+  buildStudentsGate,
+  bulkCreateClassroomStudents,
+  getTeacherEntitlementAccessState,
+  requireTeacher,
+} from '@/core';
+import { prisma } from '@/data/prisma';
+
 import { classroomIdParamSchema } from '@/validation';
 import { bulkAddStudentsSchema } from '@/validation/teacher/bulk-students';
 
@@ -38,6 +45,21 @@ export async function POST(request: Request, { params }: RouteContext) {
         startingLevel: resolvedLevel,
       };
     });
+
+    const access = await getTeacherEntitlementAccessState(auth.teacher.id);
+    const currentStudentCount = await prisma.student.count({
+      where: { classroomId },
+    });
+
+    const gate = buildStudentsGate({
+      access,
+      currentStudentCount,
+      incomingStudentCount: studentsToCreate.length,
+    });
+
+    if (!gate.ok) {
+      return errorResponse(gate.message, 402);
+    }
 
     const result = await bulkCreateClassroomStudents({
       teacherId: auth.teacher.id,

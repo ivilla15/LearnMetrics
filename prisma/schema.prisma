@@ -43,6 +43,14 @@ enum Modifier {
   FRACTION
 }
 
+enum EntitlementSource {
+  TRIAL
+  STRIPE
+  COMP
+  INTERNAL
+  SCHOOL
+}
+
 model Assignment {
   id            Int      @id @default(autoincrement())
   createdAt     DateTime @default(now())
@@ -312,6 +320,9 @@ model TeacherEntitlement {
 
   plan   TeacherPlan       @default(TRIAL)
   status EntitlementStatus @default(ACTIVE)
+  source      EntitlementSource @default(TRIAL)
+  grantReason String?
+  expiresAt   DateTime?
 
   trialEndsAt          DateTime?
   stripeCustomerId     String?

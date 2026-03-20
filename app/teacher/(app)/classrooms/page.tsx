@@ -1,7 +1,15 @@
 import { Suspense } from 'react';
 import { revalidatePath } from 'next/cache';
 
-import { clampClassroomName, createTeacherClassroom, requireTeacher } from '@/core';
+import {
+  buildClassroomsGate,
+  clampClassroomName,
+  createTeacherClassroom,
+  getTeacherEntitlementAccessState,
+  requireTeacher,
+} from '@/core';
+import { prisma } from '@/data/prisma';
+
 import { PageHeader, Section } from '@/components';
 import { NewClassroomButton } from '@/modules';
 import { ClassroomsGridSkeleton, ClassroomsSection } from './_components';
@@ -17,6 +25,20 @@ async function createClassroomAction(formData: FormData) {
 
   const tzRaw = formData.get('timeZone');
   const tz = typeof tzRaw === 'string' && tzRaw.trim() ? tzRaw.trim() : 'America/Los_Angeles';
+
+  const access = await getTeacherEntitlementAccessState(auth.teacher.id);
+  const classroomCount = await prisma.classroom.count({
+    where: { teacherId: auth.teacher.id },
+  });
+
+  const gate = buildClassroomsGate({
+    access,
+    classroomCount,
+  });
+
+  if (!gate.ok) {
+    return;
+  }
 
   await createTeacherClassroom({
     teacherId: auth.teacher.id,
