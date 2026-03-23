@@ -1,5 +1,4 @@
 export * from './SettingsSkeleton';
-export * from './ClassroomOverviewSkeletons';
 export * from './AssignmentsSkeleton';
 export * from './AssignmentDetailSkeleton';
 export * from './PeopleSkeleton';
