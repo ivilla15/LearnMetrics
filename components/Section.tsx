@@ -6,7 +6,7 @@ type SectionPad = 'none' | 'sm' | 'md' | 'lg';
 
 export function Section({
   tone = 'none',
-  pad = 'md',
+  pad = 'none',
   className,
   children,
   ...props

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, StatBox } from '@/components';
+import { Card, CardContent, CardHeader, CardTitle, StatBox } from '@/components';
 import { DropdownMenu } from '@/components/overlays/DropdownMenu';
 import type { TeacherClassroomCardRowDTO } from '@/types';
 
@@ -28,7 +28,6 @@ export function ClassroomCard({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <CardTitle className="truncate">{name}</CardTitle>
-                <CardDescription>ID: {classroom.id}</CardDescription>
               </div>
 
               <div

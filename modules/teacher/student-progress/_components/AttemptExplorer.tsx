@@ -14,7 +14,7 @@ import {
 
 import { AttemptDetailModal } from './AttemptDetailModal';
 import { AttemptResultsTable } from './AttemptResultsTable';
-import { AttemptExplorerSkeleton } from './AttemptExplorerSkeleton';
+import { AttemptExplorerSkeleton } from '../../../skeletons/teacher/AttemptExplorerSkeleton';
 import type { AttemptResultsRowDTO, AttemptExplorerFilter } from '@/types';
 import { useAttemptExplorer } from '../hooks';
 

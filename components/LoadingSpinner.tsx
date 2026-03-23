@@ -1,17 +1,27 @@
 import * as React from 'react';
 import { cn } from '@/lib/utils';
 
+interface LoadingSpinnerProps {
+  label?: string;
+  className?: string;
+  spinnerClassName?: string;
+  height?: string;
+}
+
 export function LoadingSpinner({
   label = 'Loading…',
   className,
   spinnerClassName,
-}: {
-  label?: string;
-  className?: string;
-  spinnerClassName?: string;
-}) {
+  height = 'h-5',
+}: LoadingSpinnerProps) {
   return (
-    <div className={cn('flex items-center gap-2 text-sm text-[hsl(var(--muted-fg))]', className)}>
+    <div
+      className={cn(
+        'flex items-center gap-2 text-sm text-[hsl(var(--muted-fg))]',
+        height,
+        className,
+      )}
+    >
       <span
         aria-hidden
         className={cn(
@@ -20,7 +30,7 @@ export function LoadingSpinner({
           spinnerClassName,
         )}
       />
-      <span>{label}</span>
+      {label && <span>{label}</span>}
     </div>
   );
 }

@@ -6,3 +6,4 @@ export * from './ProgressSummaryCard';
 export * from './ScoreDistributionCard';
 export * from './StudentPickerModal';
 export * from './StudentsTableCard';
+export * from './AssignMakeupTestModal';

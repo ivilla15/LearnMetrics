@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 import { Label, Input, Button, useToast, Pill } from '@/components';
-import { AuthSplitShell, type AuthMode } from '@/modules/auth/_components/AuthSplitShell';
+import { AuthSplitShell, type AuthMode } from '@/modules/shell/AuthSplitShell';
 import { teacherLogin, teacherSignup } from './actions';
 import { LearnMetricsLogo } from '@/modules/marketing/components/LearnMetricsLogo';
 

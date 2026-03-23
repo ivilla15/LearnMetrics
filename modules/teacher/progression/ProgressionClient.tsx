@@ -2,7 +2,15 @@
 
 import * as React from 'react';
 
-import { Card, CardContent, CardHeader, Button, useToast, HelpText } from '@/components';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  Button,
+  useToast,
+  CardDescription,
+  CardTitle,
+} from '@/components';
 import type { ProgressionPolicyDTO, ProgressionPolicyInputDTO } from '@/types/api/progression';
 import { normalizePolicyInput, toInput } from '@/types/api/progression';
 import { fetchProgressionPolicy, saveProgressionPolicy } from './actions';
@@ -66,13 +74,13 @@ export function ProgressionClient({ classroomId, initialPolicy }: Props) {
   }
 
   return (
-    <Card className="rounded-[28px] border-0 shadow-[0_20px_60px_rgba(0,0,0,0.08)]">
-      <CardHeader className="space-y-2">
-        <div className="text-base font-semibold text-[hsl(var(--fg))]">Class progression</div>
-        <HelpText>
+    <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
+      <CardHeader>
+        <CardTitle>Class progression</CardTitle>
+        <CardDescription>
           Choose which operations are enabled, the order students progress through them, and when
           decimals/fractions unlock.
-        </HelpText>
+        </CardDescription>
       </CardHeader>
 
       <CardContent className="space-y-6">

@@ -4,7 +4,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--bg))] disabled:pointer-events-none disabled:opacity-50 active:translate-y-[0.5px]',
+  'inline-flex items-center justify-center gap-2 whitespace-nowrap font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--bg))] disabled:pointer-events-none disabled:opacity-50 active:translate-y-[0.5px]',
   {
     variants: {
       variant: {
@@ -31,9 +31,9 @@ const buttonVariants = cva(
   },
 );
 
-// --- TYPE-SAFE PROPS ---
 type ButtonBaseProps = VariantProps<typeof buttonVariants> & {
   alt?: string;
+  loading?: boolean;
 };
 
 type AsButton = ButtonBaseProps &
@@ -50,30 +50,43 @@ export type ButtonProps = AsButton | AsAnchor;
 
 const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
   (props, ref) => {
-    const { className, variant, size, ...rest } = props;
-    const classes = cn(buttonVariants({ variant, size, className }));
+    const { className, variant, size, loading, children, ...rest } = props;
+
+    const classes = cn(
+      buttonVariants({ variant, size, className }),
+      loading && 'opacity-40 cursor-wait pointer-events-none select-none',
+    );
 
     if (rest.href !== undefined) {
       const { href, ...anchorProps } = rest as AsAnchor;
       return (
         <Link
           {...anchorProps}
-          href={href}
+          href={loading ? '#' : href}
           ref={ref as React.Ref<HTMLAnchorElement>}
           className={classes}
-        />
+          aria-disabled={loading}
+          onClick={(e) => {
+            if (loading) e.preventDefault();
+            anchorProps.onClick?.(e);
+          }}
+        >
+          {children}
+        </Link>
       );
     }
 
-    // TypeScript now knows 'rest' is ButtonHTMLAttributes
     const { type = 'button', ...buttonProps } = rest as AsButton;
     return (
       <button
         {...buttonProps}
         type={type}
+        disabled={loading || buttonProps.disabled}
         ref={ref as React.Ref<HTMLButtonElement>}
         className={classes}
-      />
+      >
+        {children}
+      </button>
     );
   },
 );

@@ -3,12 +3,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 import { StatTile } from '../../../../components/StatTile';
 import type { TeacherClassroomOverviewStatsDTO } from '@/types';
 import { formatAssignmentMode } from '@/types/display';
-
-function percent(numerator: number, denominator: number) {
-  if (!denominator) return '—';
-  const p = Math.round((numerator / denominator) * 100);
-  return `${p}%`;
-}
+import { percent } from '@/utils';
 
 export function ClassroomStatsGrid({ stats }: { stats: TeacherClassroomOverviewStatsDTO }) {
   const tz = stats.classroom.timeZone ?? 'UTC';

@@ -1,6 +1,10 @@
 import * as React from 'react';
-import { CalendarLoadingSkeleton } from '@/modules';
+import { AppPage, CalendarSkeleton } from '@/modules';
 
 export default function Loading() {
-  return <CalendarLoadingSkeleton />;
+  return (
+    <AppPage title="Calendar" subtitle="Your scheduled assignments & upcoming tests." width="wide">
+      <CalendarSkeleton />;
+    </AppPage>
+  );
 }

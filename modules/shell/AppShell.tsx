@@ -50,9 +50,10 @@ export function AppShell({
   }, [menuOpen]);
 
   return (
-    <div className="min-h-screen bg-[hsl(var(--bg))] flex flex-col">
+    /* Changed min-h-screen to h-screen and overflow-hidden to prevent the whole page from stretching */
+    <div className="h-screen bg-[hsl(var(--bg))] flex flex-col overflow-hidden">
       {/* Topbar for mobile */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))] print:hidden md:hidden">
+      <header className="flex-none flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))] print:hidden md:hidden">
         <LearnMetricsLogo variant="icon-white" href="/" />
 
         <div className="flex items-center gap-2">
@@ -77,13 +78,14 @@ export function AppShell({
         </div>
       </header>
 
-      {/* Body */}
-      <div className="flex flex-1 min-h-0">
-        {/* Sidebar (desktop only) */}
-        <aside className="hidden md:flex w-60 bg-[hsl(var(--surface))] shadow-[2px_0_24px_rgba(0,0,0,0.08)] flex-col z-10 print:hidden">
+      {/* Body container - now restricted to remaining height */}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* Sidebar (desktop only) - Fixed height and sticky */}
+        <aside className="hidden md:flex w-60 bg-[hsl(var(--surface))] shadow-[2px_0_24px_rgba(0,0,0,0.08)] flex-col z-10 print:hidden h-full sticky top-0">
           <div
             className="
               h-25
+              flex-none
               flex items-center
               px-6
               bg-[hsl(var(--brand))]
@@ -121,30 +123,31 @@ export function AppShell({
           </nav>
 
           {accountSlot ? (
-            <div className="p-4 border-t border-[hsl(var(--border))]">{accountSlot}</div>
+            <div className="flex-none p-4 border-t border-[hsl(var(--border))]">{accountSlot}</div>
           ) : null}
 
-          {/* ✅ Footer under the sidebar */}
-          <div className="border-t border-[hsl(var(--border))]">
+          {/* Sidebar Footer */}
+          <div className="flex-none border-t border-[hsl(var(--border))]">
             <Footer variant="muted" />
           </div>
         </aside>
 
-        {/* Main content */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-[hsl(var(--bg))]">
-          <div className="w-full">
-            {topSlot ? <div className="w-full">{topSlot}</div> : null}
-            {children}
-          </div>
+        {/* Main content - THE ONLY SCROLLING AREA */}
+        <main className="flex-1 min-w-0 overflow-y-auto bg-[hsl(var(--bg))] h-full scroll-smooth">
+          <div className="w-full min-h-full flex flex-col">
+            {topSlot ? <div className="w-full flex-none">{topSlot}</div> : null}
 
-          {/* ✅ Footer under main content (mobile + no-sidebar widths) */}
-          <div className="md:hidden border-t border-[hsl(var(--border))]">
-            <Footer variant="muted" />
+            <div className="flex-1">{children}</div>
+
+            {/* Footer under main content (only visible on mobile) */}
+            <div className="md:hidden border-t border-[hsl(var(--border))] flex-none">
+              <Footer variant="muted" />
+            </div>
           </div>
         </main>
       </div>
 
-      {/* Mobile menu modal */}
+      {/* Mobile menu modal - stays fixed as before */}
       {menuOpen ? (
         <div
           role="dialog"
