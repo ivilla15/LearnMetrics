@@ -1,4 +1,3 @@
-// app/billing/cancel/page.tsx
 import {
   Section,
   Card,

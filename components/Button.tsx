@@ -1,3 +1,5 @@
+'use client';
+
 import * as React from 'react';
 import Link from 'next/link';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -32,7 +34,6 @@ const buttonVariants = cva(
 );
 
 type ButtonBaseProps = VariantProps<typeof buttonVariants> & {
-  alt?: string;
   loading?: boolean;
 };
 
@@ -58,7 +59,8 @@ const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonPro
     );
 
     if (rest.href !== undefined) {
-      const { href, ...anchorProps } = rest as AsAnchor;
+      const { href, onClick, ...anchorProps } = rest as AsAnchor;
+
       return (
         <Link
           {...anchorProps}
@@ -67,8 +69,11 @@ const Button = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonPro
           className={classes}
           aria-disabled={loading}
           onClick={(e) => {
-            if (loading) e.preventDefault();
-            anchorProps.onClick?.(e);
+            if (loading) {
+              e.preventDefault();
+              return;
+            }
+            onClick?.(e);
           }}
         >
           {children}
