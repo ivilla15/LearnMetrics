@@ -14,6 +14,7 @@ export function EditAssignmentModal(props: {
   targetKind: AssignmentTargetKind;
 
   saving: boolean;
+  canManageAssignments: boolean;
 
   dateValue: string;
   timeValue: string;
@@ -39,6 +40,7 @@ export function EditAssignmentModal(props: {
     tz,
     isProjection,
     saving,
+    canManageAssignments,
     dateValue,
     timeValue,
     windowMinutesValue,
@@ -54,6 +56,7 @@ export function EditAssignmentModal(props: {
   } = props;
 
   const isPracticeTime = targetKind === 'PRACTICE_TIME';
+  const inputsDisabled = saving || !canManageAssignments;
 
   return (
     <Modal
@@ -65,11 +68,21 @@ export function EditAssignmentModal(props: {
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose} disabled={saving}>
-            Cancel
+            {canManageAssignments ? 'Cancel' : 'Close'}
           </Button>
-          <Button variant="primary" onClick={onSave} disabled={saving}>
-            {saving ? 'Saving…' : 'Save'}
-          </Button>
+
+          {canManageAssignments ? (
+            <Button
+              variant="primary"
+              onClick={() => {
+                if (!canManageAssignments) return;
+                onSave();
+              }}
+              disabled={saving}
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          ) : null}
         </div>
       }
     >
@@ -81,7 +94,8 @@ export function EditAssignmentModal(props: {
               type="date"
               value={dateValue}
               onChange={(e) => onChangeDate(e.target.value)}
-              className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
+              disabled={inputsDisabled}
+              className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
 
@@ -91,7 +105,8 @@ export function EditAssignmentModal(props: {
               type="time"
               value={timeValue}
               onChange={(e) => onChangeTime(e.target.value)}
-              className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
+              disabled={inputsDisabled}
+              className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
             />
           </div>
 
@@ -103,7 +118,8 @@ export function EditAssignmentModal(props: {
                 value={durationMinutesValue}
                 onChange={(e) => onChangeDurationMinutes(e.target.value)}
                 placeholder="10"
-                className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
+                disabled={inputsDisabled}
+                className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
               />
             </div>
           ) : (
@@ -115,7 +131,8 @@ export function EditAssignmentModal(props: {
                   value={windowMinutesValue}
                   onChange={(e) => onChangeWindowMinutes(e.target.value)}
                   placeholder="4"
-                  className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
+                  disabled={inputsDisabled}
+                  className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
 
@@ -128,7 +145,8 @@ export function EditAssignmentModal(props: {
                   value={numQuestionsValue}
                   onChange={(e) => onChangeNumQuestions(e.target.value)}
                   placeholder="12"
-                  className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
+                  disabled={inputsDisabled}
+                  className="h-10 w-full rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm disabled:cursor-not-allowed disabled:opacity-60"
                 />
               </div>
             </>
@@ -136,9 +154,11 @@ export function EditAssignmentModal(props: {
         </div>
 
         <HelpText>
-          {isProjection
-            ? 'Saving will create the real assignment for this schedule run.'
-            : 'Editing is blocked once an assignment has attempts, and after the close time.'}
+          {!canManageAssignments
+            ? 'You can view assignment timing details here, but only teachers can edit them.'
+            : isProjection
+              ? 'Saving will create the real assignment for this schedule run.'
+              : 'Editing is blocked once an assignment has attempts, and after the close time.'}
         </HelpText>
       </div>
     </Modal>

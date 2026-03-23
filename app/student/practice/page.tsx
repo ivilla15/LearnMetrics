@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
-import { AppPage } from '@/modules';
+import { AppPage, PracticeSetupSkeleton } from '@/modules';
 import {
   Card,
   CardContent,
@@ -14,7 +14,6 @@ import {
   Label,
   HelpText,
   Input,
-  Skeleton,
   Section,
 } from '@/components';
 
@@ -182,14 +181,7 @@ export default function StudentPracticeSetupPage() {
 
             <CardContent className="space-y-5">
               {loading ? (
-                <div className="space-y-4">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-11 w-full" />
-                  <Skeleton className="h-4 w-48" />
-                  <Skeleton className="h-11 w-full" />
-                  <Skeleton className="h-4 w-44" />
-                  <Skeleton className="h-11 w-full" />
-                </div>
+                <PracticeSetupSkeleton />
               ) : !me ? (
                 <div className="text-sm text-[hsl(var(--muted-fg))]">Not signed in.</div>
               ) : (

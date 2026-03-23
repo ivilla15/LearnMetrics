@@ -1,17 +1,8 @@
 import * as React from 'react';
-
+import { Suspense } from 'react';
 import { requireTeacher } from '@/core/auth/requireTeacher';
-
-import { ClassroomSubNav, AssignmentDetailClient } from '@/modules';
-import { PageHeader, Section } from '@/components';
-import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch.app';
-import {
-  AssignmentMode,
-  AssignmentType,
-  formatAssignmentMode,
-  formatAssignmentType,
-} from '@/types';
-import { formatLocal } from '@/lib';
+import { AssignmentDetailSkeleton, ClassroomShell } from '@/modules';
+import { AssignmentDetailSection } from '@/modules/teacher/assignments/detail/AssignmentDetailSection';
 
 export default async function Page({
   params,
@@ -24,56 +15,13 @@ export default async function Page({
   const { id, assignmentId } = await params;
   const classroomId = Number(id);
   const aid = Number(assignmentId);
-
-  if (!Number.isFinite(classroomId) || classroomId <= 0) {
-    return <div className="p-6 text-sm text-[hsl(var(--danger))]">Invalid classroom id</div>;
-  }
-  if (!Number.isFinite(aid) || aid <= 0) {
-    return (
-      <div
-        className="
-    p-6 text-sm text-[hsl(var(--danger))]"
-      >
-        Invalid assignment id
-      </div>
-    );
-  }
-
-  const baseUrl = await getBaseUrlFromHeaders();
-  const cookie = await getCookieHeader();
-
-  const res = await fetch(
-    `${baseUrl}/api/teacher/classrooms/${classroomId}/assignments/${aid}/attempts?filter=ALL`,
-    {
-      cache: 'no-store',
-      headers: { cookie },
-    },
-  );
-
-  if (!res.ok) throw new Error('Failed to load assignment attempts');
-  const dto = await res.json();
-  const a = dto.assignment as {
-    type: AssignmentType;
-    mode: AssignmentMode;
-    opensAt: string;
-    closesAt: string | null;
-  };
-
   const currentPath = `/teacher/classrooms/${classroomId}/assignments`;
 
   return (
-    <>
-      <PageHeader
-        title="Assignment details"
-        subtitle={`${formatAssignmentType(a.type)} • ${formatAssignmentMode(a.mode)} • Opens: ${formatLocal(new Date(a.opensAt).toLocaleString())}${
-          a.closesAt ? ` • Closes: ${formatLocal(new Date(a.closesAt).toLocaleString())}` : ''
-        }`}
-      />
-
-      <Section className="space-y-4">
-        <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
-        <AssignmentDetailClient classroomId={classroomId} assignmentId={aid} initial={dto} />
-      </Section>
-    </>
+    <ClassroomShell classroomId={classroomId} teacherId={auth.teacher.id} currentPath={currentPath}>
+      <Suspense fallback={<AssignmentDetailSkeleton />}>
+        <AssignmentDetailSection classroomId={classroomId} assignmentId={aid} />
+      </Suspense>
+    </ClassroomShell>
   );
 }

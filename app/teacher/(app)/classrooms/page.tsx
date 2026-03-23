@@ -11,8 +11,8 @@ import {
 import { prisma } from '@/data/prisma';
 
 import { PageHeader, Section } from '@/components';
-import { NewClassroomButton } from '@/modules';
-import { ClassroomsGridSkeleton, ClassroomsSection } from './_components';
+import { NewClassroomButton, ClassroomsGridSkeleton } from '@/modules';
+import { ClassroomsSection } from '@/modules/teacher/classroom/_components/ClassroomsSection';
 
 async function createClassroomAction(formData: FormData) {
   'use server';

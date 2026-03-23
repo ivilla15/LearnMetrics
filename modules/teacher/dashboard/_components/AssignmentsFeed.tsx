@@ -9,7 +9,6 @@ export function AssignmentsFeed() {
   const all = useStudentAssignmentsFeed('all');
 
   const sentinelRef = React.useRef<HTMLDivElement | null>(null);
-
   const containerRef = React.useRef<HTMLDivElement | null>(null);
 
   const loadOlderPreserveScroll = React.useCallback(async () => {
@@ -50,21 +49,20 @@ export function AssignmentsFeed() {
   return (
     <Section>
       <div ref={containerRef} className="space-y-4">
+        {/* We keep the sentinel at the top for infinite scrolling up if needed */}
         <div ref={sentinelRef} />
-
-        {all.loadingOlder ? (
-          <div className="text-sm text-[hsl(var(--muted-fg))]">Loading more…</div>
-        ) : null}
 
         <AssignmentsTimeline
           rows={all.rows}
-          loading={all.loading}
+          loading={all.loading} // Pass the "all" loading state down
           loadingOlder={all.loadingOlder}
           hasMore={!!all.nextCursor}
         />
 
-        {!all.nextCursor && all.rows.length > 0 ? (
-          <div className="text-sm text-[hsl(var(--muted-fg))]">You’re all caught up.</div>
+        {!all.loading && !all.nextCursor && all.rows.length > 0 ? (
+          <div className="py-8 text-center text-sm text-[hsl(var(--muted-fg))]">
+            You’re all caught up.
+          </div>
         ) : null}
       </div>
     </Section>

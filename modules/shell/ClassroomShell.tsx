@@ -1,42 +1,38 @@
 import * as React from 'react';
+import { Suspense } from 'react';
+import { LoadingSpinner } from '@/components';
+import { ClassroomShellClient } from './ClassroomShellClient';
+import { getTeacherClassroomHeader } from '@/core/classrooms/getTeacherClassroomHeader';
 
-import { ClassroomSubNav } from '@/modules';
-import { PageHeader, Section } from '@/components';
-
-type ClassroomShellProps = {
+type Props = {
   classroomId: number;
-  classroomName: string;
+  teacherId: number;
   currentPath: string;
-
-  topSlot?: React.ReactNode;
   actions?: React.ReactNode;
-
   children: React.ReactNode;
 };
 
-export function ClassroomShell({
-  classroomId,
-  classroomName,
-  currentPath,
-  actions,
-  topSlot,
-  children,
-}: ClassroomShellProps) {
-  return (
-    <>
-      {topSlot ? <div>{topSlot}</div> : null}
+async function ClassroomTitle({ id, teacherId }: { id: number; teacherId: number }) {
+  try {
+    const header = await getTeacherClassroomHeader({ classroomId: id, teacherId });
+    return <>{header.name || `Classroom ${id}`}</>;
+  } catch {
+    return <>Classroom {id}</>;
+  }
+}
 
-      <PageHeader
-        title={classroomName?.trim() ? classroomName : `Classroom ${classroomId}`}
-        subtitle="Manage this class."
-        actions={actions}
-      />
-
-      <Section>
-        <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
-      </Section>
-
-      <Section>{children}</Section>
-    </>
+export function ClassroomShell(props: Props) {
+  const titleSlot = (
+    <Suspense
+      fallback={
+        <div className="flex items-center gap-2">
+          <LoadingSpinner label="" height="h-8" />
+        </div>
+      }
+    >
+      <ClassroomTitle id={props.classroomId} teacherId={props.teacherId} />
+    </Suspense>
   );
+
+  return <ClassroomShellClient {...props} title={titleSlot} />;
 }

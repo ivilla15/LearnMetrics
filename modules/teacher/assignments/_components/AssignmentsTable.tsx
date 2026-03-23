@@ -9,16 +9,8 @@ import {
   formatAssignmentType,
   formatAssignmentMode,
   formatOperation,
+  formatCalendarTargetLine,
 } from '@/types';
-
-function formatTargetLine(
-  a: Pick<TeacherAssignmentListItemDTO, 'targetKind' | 'numQuestions' | 'durationMinutes'>,
-) {
-  if (a.targetKind === 'PRACTICE_TIME') {
-    return a.durationMinutes ? `${a.durationMinutes} min` : 'Practice time';
-  }
-  return `${a.numQuestions ?? 12} questions`;
-}
 
 export function AssignmentsTable({
   rows,
@@ -77,7 +69,7 @@ export function AssignmentsTable({
                       </div>
 
                       <div className="text-xs text-[hsl(var(--muted-fg))]">
-                        {formatTargetLine(a)}
+                        {formatCalendarTargetLine(a)}
                         {a.operation ? ` · ${formatOperation(a.operation)}` : null}
                       </div>
                     </div>

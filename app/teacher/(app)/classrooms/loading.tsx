@@ -1,6 +1,5 @@
 import { PageHeader, Section } from '@/components';
-import { ClassroomsGridSkeleton } from './_components/ClassroomsSkeletons';
-
+import { ClassroomsGridSkeleton } from '@/modules';
 export default function Loading() {
   return (
     <>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import {
   PageHeader,
   Section,
@@ -14,33 +15,40 @@ import {
 } from '@/components';
 import type { TeacherMeDTO } from '@/types';
 import { AppShell, teacherNavItems } from '@/modules';
-import { usePathname } from 'next/navigation';
 
 function ProfileSkeleton() {
   return (
     <Section>
       <Card>
         <CardHeader>
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-28" />
-            <Skeleton className="h-4 w-52" />
-          </div>
+          <CardTitle>Account</CardTitle>
+          <CardDescription>Your teacher details</CardDescription>
         </CardHeader>
 
-        <CardContent className="min-h-45">
+        <CardContent className="min-h-25">
           <div className="grid gap-6 md:grid-cols-3 md:items-end">
-            <div className="space-y-2">
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-6 w-56" />
+            <div>
+              <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+                Name
+              </div>
+              <div className="mt-3">
+                <Skeleton className="h-2 w-48" />
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-6 w-40" />
+            <div>
+              <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+                Email
+              </div>
+              <div className="mt-3">
+                <Skeleton className="h-2 w-56" />
+              </div>
             </div>
 
             <div className="flex md:justify-end">
-              <Skeleton className="h-10 w-40" />
+              <Button variant="destructive" disabled className="opacity-50">
+                Reset Password
+              </Button>
             </div>
           </div>
         </CardContent>
@@ -56,23 +64,17 @@ export default function TeacherProfilePage() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
       setLoading(true);
-
       const res = await fetch('/api/teacher/me');
-      if (!res.ok) {
-        if (!cancelled) setLoading(false);
-        return;
-      }
-
       const json = await res.json().catch(() => null);
       if (cancelled) return;
 
-      setMe(json?.teacher ?? json ?? null);
+      if (res.ok) {
+        setMe(json?.teacher ?? json ?? null);
+      }
       setLoading(false);
     }
-
     void load();
     return () => {
       cancelled = true;
@@ -81,10 +83,7 @@ export default function TeacherProfilePage() {
 
   return (
     <AppShell navItems={teacherNavItems} currentPath={pathname} width="full">
-      <PageHeader
-        title={loading ? 'Profile' : me ? me.name : 'Profile'}
-        subtitle={loading ? 'Loading your account…' : me ? 'View your account info' : undefined}
-      />
+      <PageHeader title="Profile" subtitle={'View your account info'} />
 
       {loading ? (
         <ProfileSkeleton />

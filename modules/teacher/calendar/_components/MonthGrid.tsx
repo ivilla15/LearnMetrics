@@ -57,14 +57,12 @@ export function MonthGrid({
             </Button>
           </div>
         </div>
-
-        {loading ? <div className="text-xs text-[hsl(var(--muted-fg))]">Loading month…</div> : null}
       </CardHeader>
 
       <CardContent className="space-y-3">
         {/* Desktop grid */}
         <div className="hidden md:block">
-          <div className="grid grid-cols-7 gap-2 text-xs font-semibold text-[hsl(var(--muted-fg))]">
+          <div className="grid grid-cols-7 gap-2 text-xs font-semibold text-[hsl(var(--muted-fg))] mb-2">
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((d) => (
               <div key={d} className="px-2">
                 {d}
@@ -87,6 +85,7 @@ export function MonthGrid({
                   inMonth={inMonth}
                   isToday={isToday}
                   items={items}
+                  loading={loading} // Now passing loading state here
                   onOpenDetails={onOpenDetails}
                 />
               );
@@ -110,10 +109,11 @@ export function MonthGrid({
                   <button
                     key={key}
                     type="button"
+                    disabled={loading}
                     onClick={() => onOpenDayMobile(key)}
                     className={[
-                      'w-full rounded-[18px] bg-[hsl(var(--surface))] shadow-[0_4px_10px_rgba(0,0,0,0.08)] p-3 text-left',
-                      'hover:bg-[hsl(var(--surface-2))] transition-colors',
+                      'w-full rounded-[18px] bg-[hsl(var(--surface))] shadow-[0_4px_10px_rgba(0,0,0,0.08)] p-3 text-left transition-colors',
+                      loading ? 'opacity-70 grayscale-[0.5]' : 'hover:bg-[hsl(var(--surface-2))]',
                       isToday ? 'ring-2 ring-[hsl(var(--brand)/0.35)]' : '',
                     ].join(' ')}
                   >
@@ -122,7 +122,11 @@ export function MonthGrid({
                         {formatInTimeZone(d, tz, 'EEE, MMM d')}
                       </div>
                       <div className="text-xs text-[hsl(var(--muted-fg))]">
-                        {items.length} item{items.length === 1 ? '' : 's'}
+                        {loading ? (
+                          <div className="h-3 w-12 animate-pulse rounded bg-[hsl(var(--surface-2))]" />
+                        ) : (
+                          `${items.length} item${items.length === 1 ? '' : 's'}`
+                        )}
                       </div>
                     </div>
                   </button>

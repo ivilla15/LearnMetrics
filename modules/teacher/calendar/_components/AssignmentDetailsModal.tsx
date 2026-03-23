@@ -1,30 +1,21 @@
 'use client';
 
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { formatInTimeZone } from 'date-fns-tz';
 import { Modal, Button, HelpText, Pill } from '@/components';
-import type { CalendarItemRowDTO } from '@/types';
-import { formatAssignmentMode, formatAssignmentType, formatOperation } from '@/types';
+import type { AssignmentMode, CalendarItemRowDTO } from '@/types';
+import {
+  formatAssignmentMode,
+  formatCalendarTargetLine,
+  formatCalendarTypeLabel,
+  formatOperation,
+} from '@/types';
 import { isProjection, toIso } from '@/utils/calendar';
 
-function formatTargetLine(item: CalendarItemRowDTO) {
-  if (isProjection(item)) {
-    if (item.targetKind === 'PRACTICE_TIME') return `${item.durationMinutes ?? 0} minutes`;
-    return `${item.numQuestions ?? 0} questions`;
-  }
-
-  if (item.targetKind === 'PRACTICE_TIME') return `${item.durationMinutes ?? 0} minutes`;
-  return `${item.numQuestions ?? 0} questions`;
-}
-
-function formatTypeLabel(item: CalendarItemRowDTO) {
-  if (isProjection(item)) {
-    if (item.targetKind === 'PRACTICE_TIME') return 'Practice time';
-    return item.type ? formatAssignmentType(item.type) : 'Assignment';
-  }
-
-  if (item.targetKind === 'PRACTICE_TIME') return 'Practice time';
-  return formatAssignmentType(item.type);
+function getStudentModeLabel(mode: AssignmentMode): string | null {
+  if (mode === 'MAKEUP') return 'Makeup';
+  return null;
 }
 
 export function AssignmentDetailsModal(props: {
@@ -39,6 +30,9 @@ export function AssignmentDetailsModal(props: {
 
   onOpenEdit: () => void;
   onCancelOccurrence: () => Promise<void> | void;
+
+  canManageAssignments: boolean;
+  getDetailsUrl: (item: CalendarItemRowDTO) => string | null;
 }) {
   const {
     open,
@@ -49,24 +43,56 @@ export function AssignmentDetailsModal(props: {
     isClosed,
     onOpenEdit,
     onCancelOccurrence,
+    canManageAssignments,
+    getDetailsUrl,
   } = props;
+
+  const router = useRouter();
 
   const title = !item
     ? 'Assignment'
-    : proj
-      ? 'Scheduled occurrence'
-      : item.kind === 'assignment'
-        ? `Assignment #${item.assignmentId}`
-        : 'Scheduled occurrence';
+    : (() => {
+        const typeLabel = formatCalendarTypeLabel(item);
 
+        if (proj) return typeLabel;
+
+        if (item.kind === 'assignment') {
+          return canManageAssignments ? `${typeLabel} #${item.assignmentId}` : typeLabel;
+        }
+
+        return typeLabel;
+      })();
   const opensIso = item ? toIso(item.opensAt) : null;
   const closesIso = item && item.closesAt ? toIso(item.closesAt) : null;
 
-  const modeLabel = item ? formatAssignmentMode(item.mode) : '—';
-  const typeLabel = item ? formatTypeLabel(item) : '—';
+  const modeLabel = item
+    ? canManageAssignments
+      ? formatAssignmentMode(item.mode) // teachers
+      : getStudentModeLabel(item.mode) // students
+    : null;
+  const typeLabel = item ? formatCalendarTypeLabel(item) : '—';
   const opLabel = item?.operation ? formatOperation(item.operation) : null;
 
   const stats = !item || proj || isProjection(item) ? null : (item.stats ?? null);
+
+  const canCancelOccurrence = !!item && (proj || (!!item.scheduleId && !!item.runDate));
+
+  const detailsUrl = item ? getDetailsUrl(item) : null;
+
+  const now = Date.now();
+
+  const isOpenNow =
+    !canManageAssignments &&
+    !!opensIso &&
+    !!closesIso &&
+    new Date(opensIso).getTime() <= now &&
+    now < new Date(closesIso).getTime();
+
+  const primaryActionLabel = canManageAssignments
+    ? 'View details'
+    : isOpenNow
+      ? 'Open test'
+      : 'View details';
 
   return (
     <Modal
@@ -77,25 +103,41 @@ export function AssignmentDetailsModal(props: {
       size="lg"
       footer={
         item ? (
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={onClose}>
-              Close
-            </Button>
-
-            <Button variant="secondary" onClick={onOpenEdit} disabled={isClosed}>
-              Edit date/time
-            </Button>
-
-            {/* Cancel: projections always cancellable, real assignments only if schedule-backed */}
-            {proj ? (
-              <Button variant="destructive" onClick={() => void onCancelOccurrence()}>
-                Cancel occurrence
+          <div className="flex justify-between gap-2">
+            {/* LEFT: primary action */}
+            {detailsUrl ? (
+              <Button
+                variant="primary"
+                onClick={() => {
+                  router.push(detailsUrl);
+                }}
+              >
+                {primaryActionLabel}
               </Button>
-            ) : item.scheduleId && item.runDate ? (
-              <Button variant="destructive" onClick={() => void onCancelOccurrence()}>
-                Cancel occurrence
+            ) : (
+              <div />
+            )}
+
+            {/* RIGHT: existing actions */}
+            <div className="flex gap-2">
+              <Button variant="secondary" onClick={onClose}>
+                Close
               </Button>
-            ) : null}
+
+              {canManageAssignments ? (
+                <>
+                  <Button variant="secondary" onClick={onOpenEdit} disabled={isClosed}>
+                    Edit
+                  </Button>
+
+                  {canCancelOccurrence ? (
+                    <Button variant="destructive" onClick={() => void onCancelOccurrence()}>
+                      Cancel
+                    </Button>
+                  ) : null}
+                </>
+              ) : null}
+            </div>
           </div>
         ) : null
       }
@@ -106,8 +148,8 @@ export function AssignmentDetailsModal(props: {
         <div className="space-y-4">
           <div className="flex flex-wrap gap-2">
             {Pill(typeLabel, 'muted')}
-            {Pill(modeLabel, 'muted')}
-            {Pill(formatTargetLine(item), 'muted')}
+            {modeLabel ? Pill(modeLabel, 'muted') : null}
+            {Pill(formatCalendarTargetLine(item), 'muted')}
             {Pill(item.windowMinutes ? `${item.windowMinutes} min window` : 'No window', 'muted')}
             {opLabel ? Pill(opLabel, 'muted') : null}
           </div>
@@ -132,16 +174,16 @@ export function AssignmentDetailsModal(props: {
             </div>
           ) : null}
 
-          {proj ? (
+          {proj && canManageAssignments ? (
             <HelpText>
               This is a scheduled occurrence. Saving edits will create the real assignment.
             </HelpText>
-          ) : (
+          ) : canManageAssignments ? (
             <HelpText>
               Editing is blocked after the close time. Some changes may also be blocked once
               attempts exist.
             </HelpText>
-          )}
+          ) : null}
         </div>
       )}
     </Modal>

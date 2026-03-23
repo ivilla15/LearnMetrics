@@ -9,7 +9,9 @@ import type {
   AssignmentTargetKind,
   OperationCode,
 } from '@/types/enums';
-import type { AssignmentCoreDTO } from '@/types';
+import type { AssignmentCoreDTO, ScheduledOccurrenceDetailsDTO } from '@/types';
+import { addMinutes } from 'date-fns';
+import { fromZonedTime } from 'date-fns-tz';
 
 function toIso(d: Date | null | undefined): string | null {
   return d ? d.toISOString() : null;
@@ -311,5 +313,166 @@ export async function getLatestAssignmentForClassroom(
     durationMinutes: latest.durationMinutes ?? null,
     scheduleId: latest.scheduleId ?? null,
     runDate: toIso(latest.runDate),
+  };
+}
+
+function parseRunDateStart(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
+}
+
+function buildOccurrenceTimes(params: {
+  runDate: string;
+  opensAtLocalTime: string;
+  timeZone: string;
+  windowMinutes: number;
+}) {
+  const runDateParts = parseRunDateStart(params.runDate);
+  if (!runDateParts) return null;
+
+  const [hoursRaw, minutesRaw] = params.opensAtLocalTime.split(':');
+  const hours = Number(hoursRaw);
+  const minutes = Number(minutesRaw);
+
+  if (
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return null;
+  }
+
+  const localDateTime = new Date(
+    runDateParts.year,
+    runDateParts.month - 1,
+    runDateParts.day,
+    hours,
+    minutes,
+    0,
+    0,
+  );
+
+  const opensAt = fromZonedTime(localDateTime, params.timeZone);
+  const closesAt = addMinutes(opensAt, params.windowMinutes);
+
+  return {
+    opensAt: opensAt.toISOString(),
+    closesAt: closesAt.toISOString(),
+  };
+}
+
+export async function getScheduledOccurrenceDetails(params: {
+  classroomId: number;
+  scheduleId: number;
+  runDate: string;
+}): Promise<ScheduledOccurrenceDetailsDTO | null> {
+  const { classroomId, scheduleId, runDate } = params;
+
+  const parsedRunDate = new Date(runDate);
+  if (Number.isNaN(parsedRunDate.getTime())) return null;
+
+  const schedule = await prisma.assignmentSchedule.findFirst({
+    where: {
+      id: scheduleId,
+      classroomId,
+    },
+    select: {
+      id: true,
+      classroomId: true,
+      isActive: true,
+      opensAtLocalTime: true,
+      windowMinutes: true,
+      targetKind: true,
+      type: true,
+      numQuestions: true,
+      durationMinutes: true,
+      operation: true,
+      Classroom: {
+        select: {
+          timeZone: true,
+        },
+      },
+    },
+  });
+
+  if (!schedule) return null;
+
+  const timeZone = schedule.Classroom.timeZone || 'America/Los_Angeles';
+
+  const occurrenceTimes = buildOccurrenceTimes({
+    runDate,
+    opensAtLocalTime: schedule.opensAtLocalTime,
+    timeZone,
+    windowMinutes: schedule.windowMinutes,
+  });
+
+  if (!occurrenceTimes) return null;
+
+  const run = await prisma.assignmentScheduleRun.findUnique({
+    where: {
+      scheduleId_runDate: {
+        scheduleId,
+        runDate: parsedRunDate,
+      },
+    },
+    select: {
+      assignmentId: true,
+      isSkipped: true,
+      skippedAt: true,
+      skipReason: true,
+    },
+  });
+
+  let existingAssignmentId = run?.assignmentId ?? null;
+
+  if (!existingAssignmentId) {
+    const existingAssignment = await prisma.assignment.findFirst({
+      where: {
+        classroomId,
+        scheduleId,
+        runDate: parsedRunDate,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    existingAssignmentId = existingAssignment?.id ?? null;
+  }
+
+  return {
+    scheduleId: schedule.id,
+    classroomId: schedule.classroomId,
+    classroomTimeZone: timeZone,
+    runDate,
+
+    isActive: schedule.isActive,
+    isSkipped: run?.isSkipped ?? false,
+    skippedAt: run?.skippedAt ? run.skippedAt.toISOString() : null,
+    skipReason: run?.skipReason ?? null,
+
+    mode: 'SCHEDULED',
+    targetKind: schedule.targetKind,
+    type: schedule.type,
+
+    opensAt: occurrenceTimes.opensAt,
+    closesAt: occurrenceTimes.closesAt,
+
+    windowMinutes: schedule.targetKind === 'PRACTICE_TIME' ? null : schedule.windowMinutes,
+    numQuestions: schedule.targetKind === 'PRACTICE_TIME' ? null : schedule.numQuestions,
+    durationMinutes:
+      schedule.targetKind === 'PRACTICE_TIME' ? (schedule.durationMinutes ?? null) : null,
+    operation: schedule.operation,
+
+    existingAssignmentId,
   };
 }

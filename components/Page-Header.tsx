@@ -3,9 +3,9 @@ import { cn } from '@/lib/utils';
 
 type PageHeaderTone = 'default' | 'subtle';
 
-interface PageHeaderProps extends React.HTMLAttributes<HTMLElement> {
-  title: string;
-  subtitle?: string;
+interface PageHeaderProps extends Omit<React.HTMLAttributes<HTMLElement>, 'title'> {
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
   actions?: React.ReactNode;
   tone?: PageHeaderTone;
 }

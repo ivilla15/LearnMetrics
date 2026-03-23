@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { requireStudent } from '@/core/auth';
-import { CalendarClient as TeacherCalendarClient } from '@/modules/teacher/calendar/CalendarClient';
+import { CalendarClient } from '@/modules/teacher/calendar/CalendarClient';
 import { getBaseUrlFromHeaders, getCookieHeader } from '@/utils/serverFetch.app';
 import { AppPage } from '@/modules';
 
@@ -24,7 +24,7 @@ export default async function Page() {
 
   return (
     <AppPage title="Calendar" subtitle="Your scheduled assignments & upcoming tests." width="wide">
-      <TeacherCalendarClient classroomId={dto.classroom.id} initial={dto} />
+      <CalendarClient classroomId={dto.classroom.id} initial={dto} canManageAssignments={false} />
     </AppPage>
   );
 }

@@ -5,7 +5,7 @@ import { formatInTimeZone } from 'date-fns-tz';
 
 import { Pill } from '@/components';
 import type { CalendarItemRowDTO } from '@/types';
-import { formatAssignmentMode, formatAssignmentType } from '@/types';
+import { formatAssignmentType } from '@/types';
 import { isProjection, toIso } from '@/utils/calendar';
 
 type Props = {
@@ -14,23 +14,27 @@ type Props = {
   inMonth: boolean;
   isToday: boolean;
   items: CalendarItemRowDTO[];
+  loading?: boolean;
   onOpenDetails: (item: CalendarItemRowDTO) => void;
   onOpenDay?: () => void;
 };
 
 function itemTitle(item: CalendarItemRowDTO) {
-  if (isProjection(item)) {
-    return item.targetKind === 'PRACTICE_TIME' ? 'Projected practice time' : 'Projected assignment';
-  }
-
-  const typeLabel = formatAssignmentType(item.type);
-  const modeLabel = formatAssignmentMode(item.mode);
-  const isPracticeTime = item.targetKind === 'PRACTICE_TIME';
-
-  return isPracticeTime ? `Practice time · ${modeLabel}` : `${typeLabel} · ${modeLabel}`;
+  if (item.targetKind === 'PRACTICE_TIME') return 'Practice time';
+  if (!item.type) return '—';
+  return formatAssignmentType(item.type);
 }
 
-export function DayTile({ date, tz, inMonth, isToday, items, onOpenDetails, onOpenDay }: Props) {
+export function DayTile({
+  date,
+  tz,
+  inMonth,
+  isToday,
+  items,
+  loading,
+  onOpenDetails,
+  onOpenDay,
+}: Props) {
   const firstTwo = items.slice(0, 2);
   const extra = items.length - firstTwo.length;
 
@@ -58,36 +62,45 @@ export function DayTile({ date, tz, inMonth, isToday, items, onOpenDetails, onOp
       </div>
 
       <div className="mt-2 space-y-1">
-        {firstTwo.map((item) => {
-          const proj = isProjection(item);
-          const key = proj ? `p:${item.scheduleId}:${item.runDate}` : `a:${item.assignmentId}`;
+        {loading ? (
+          <>
+            <div className="h-6 w-full animate-pulse rounded-xl bg-[hsl(var(--surface-2))]" />
+            <div className="h-6 w-4/5 animate-pulse rounded-xl bg-[hsl(var(--surface-2))]" />
+          </>
+        ) : (
+          <>
+            {firstTwo.map((item) => {
+              const proj = isProjection(item);
+              const key = proj ? `p:${item.scheduleId}:${item.runDate}` : `a:${item.assignmentId}`;
 
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => onOpenDetails(item)}
-              className="w-full text-left rounded-xl bg-[hsl(var(--surface-2))] px-2 py-1 text-xs hover:bg-[hsl(var(--brand)/0.10)] transition-colors"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <span className="font-medium text-[hsl(var(--fg))] truncate">
-                  {itemTitle(item)}
-                </span>
-                <span className="text-[10px] text-[hsl(var(--muted-fg))]">
-                  {formatInTimeZone(toIso(item.opensAt), tz, 'h:mm a')}
-                </span>
-              </div>
-            </button>
-          );
-        })}
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => onOpenDetails(item)}
+                  className="w-full text-left rounded-xl bg-[hsl(var(--surface-2))] px-2 py-1 text-xs hover:bg-[hsl(var(--brand)/0.10)] transition-colors"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="font-medium text-[hsl(var(--fg))] truncate">
+                      {itemTitle(item)}
+                    </span>
+                    <span className="text-[10px] text-[hsl(var(--muted-fg))]">
+                      {formatInTimeZone(toIso(item.opensAt), tz, 'h:mm a')}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
 
-        {extra > 0 ? (
-          <div className="text-[11px] text-[hsl(var(--muted-fg))] px-1">+{extra} more</div>
-        ) : null}
+            {extra > 0 ? (
+              <div className="text-[11px] text-[hsl(var(--muted-fg))] px-1">+{extra} more</div>
+            ) : null}
 
-        {items.length === 0 ? (
-          <div className="text-[11px] text-[hsl(var(--muted-fg))] px-1">—</div>
-        ) : null}
+            {items.length === 0 ? (
+              <div className="text-[11px] text-[hsl(var(--muted-fg))] px-1">—</div>
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );

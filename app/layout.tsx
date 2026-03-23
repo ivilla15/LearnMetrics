@@ -2,6 +2,7 @@ import './global.css';
 import { ToastProvider } from '@/components/ToastProvider';
 import type { Metadata } from 'next';
 import { Analytics } from '@vercel/analytics/next';
+import NextTopLoader from 'nextjs-toploader';
 
 export const metadata: Metadata = {
   title: {
@@ -62,6 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className="min-h-screen overflow-x-hidden bg-[hsl(var(--bg))]">
+        <NextTopLoader color="hsl(var(--brand))" showSpinner={false} height={2.5} shadow={false} />
         <Analytics />
         <ToastProvider>{children}</ToastProvider>
       </body>

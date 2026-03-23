@@ -16,69 +16,71 @@ import {
 import { studentNavItems, AppShell, unwrapField, looksLikeStudentMe } from '@/modules';
 import type { StudentMeDTO } from '@/types';
 
+/**
+ * Enhanced Skeleton that shows static UI labels immediately.
+ */
 function ProfileSkeleton() {
   return (
-    <>
-      <Section>
-        <Card>
-          <CardHeader>
-            <div className="space-y-2">
-              <Skeleton className="h-5 w-28" />
-              <Skeleton className="h-4 w-52" />
-            </div>
-          </CardHeader>
+    <Section>
+      <Card>
+        <CardHeader>
+          <CardTitle>Account</CardTitle>
+          <CardDescription>Your student details</CardDescription>
+        </CardHeader>
 
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-6 w-56" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-6 w-40" />
-              </div>
+        <CardContent className="grid gap-6 sm:grid-cols-2">
+          {/* Name Section */}
+          <div>
+            <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+              Name
             </div>
+            <div className="mt-2">
+              <Skeleton className="h-5 w-1/4 animate-pulse rounded-md bg-[hsl(var(--surface-2))]" />
+            </div>
+          </div>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-6 w-48" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-6 w-28" />
-              </div>
+          {/* Username Section */}
+          <div>
+            <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+              Username
             </div>
-          </CardContent>
-        </Card>
-      </Section>
-    </>
+            <div className="mt-2">
+              <Skeleton className="h-5 w-1/4 animate-pulse rounded-md bg-[hsl(var(--surface-2))]" />
+            </div>
+          </div>
+
+          {/* Static Help Text */}
+          <div className="sm:col-span-2">
+            <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+              Help / reset access
+            </div>
+            <div className="mt-2 text-[15px] font-semibold text-[hsl(var(--fg))]">
+              If you lost your password, request a reset with your teacher.
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </Section>
   );
 }
 
 export default function StudentProfilePage() {
   const pathname = usePathname();
-
   const [me, setMe] = useState<StudentMeDTO | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
       setLoading(true);
-
       try {
         const res = await fetch('/api/student/me');
         if (!res.ok) {
           if (!cancelled) setLoading(false);
           return;
         }
-
         const json = await res.json().catch(() => null);
         if (cancelled) return;
-
         const candidate = unwrapField(json, 'student');
         setMe(looksLikeStudentMe(candidate) ? candidate : null);
       } catch {
@@ -87,7 +89,6 @@ export default function StudentProfilePage() {
         if (!cancelled) setLoading(false);
       }
     }
-
     void load();
     return () => {
       cancelled = true;
@@ -96,10 +97,12 @@ export default function StudentProfilePage() {
 
   return (
     <AppShell navItems={studentNavItems} currentPath={pathname}>
-      <PageHeader
-        title={loading ? 'Profile' : me ? me.name : 'Profile'}
-        subtitle={loading ? 'Loading your account…' : undefined}
-      />
+      {/* 
+         Static PageHeader for a better experience. 
+         We don't need to show 'Loading...' in the subtitle anymore 
+         because the Skeleton below tells the story.
+      */}
+      <PageHeader title="Profile" />
 
       {loading ? (
         <ProfileSkeleton />
@@ -124,24 +127,26 @@ export default function StudentProfilePage() {
                 <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
                   Name
                 </div>
-                <div className="mt-2 text-[17px] font-semibold">{me.name}</div>
+                <div className="mt-2 text-[17px] font-semibold text-[hsl(var(--fg))]">
+                  {me.name}
+                </div>
               </div>
 
               <div>
                 <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
                   Username
                 </div>
-                <div className="mt-2 text-[17px] font-semibold">{me.username}</div>
+                <div className="mt-2 text-[17px] font-semibold text-[hsl(var(--fg))]">
+                  {me.username}
+                </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <div>
-                  <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
-                    Help / reset access
-                  </div>
-                  <div className="mt-2 text-[17px] font-semibold">
-                    If you lost your password, request a reset with your teacher.
-                  </div>
+              <div className="sm:col-span-2">
+                <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+                  Help / reset access
+                </div>
+                <div className="mt-2 text-[15px] font-semibold text-[hsl(var(--fg))]">
+                  If you lost your password, request a reset with your teacher.
                 </div>
               </div>
             </CardContent>

@@ -12,8 +12,9 @@ import { EditAssignmentModal } from './_components/EditAssignmentModal';
 export function CalendarClient(props: {
   classroomId: number;
   initial: CalendarAssignmentsListResponse;
+  canManageAssignments: boolean;
 }) {
-  const { classroomId, initial } = props;
+  const { classroomId, initial, canManageAssignments } = props;
 
   const toast = useToast();
 
@@ -57,7 +58,7 @@ export function CalendarClient(props: {
   }, []);
 
   async function onEditSave() {
-    if (!selected) return;
+    if (!canManageAssignments || !selected) return;
 
     if (!editLocalDate || !editLocalTime) {
       toast('Please choose a date and time', 'error');
@@ -91,7 +92,7 @@ export function CalendarClient(props: {
   }
 
   async function onCancelOccurrence() {
-    if (!selected) return;
+    if (!canManageAssignments || !selected) return;
 
     try {
       const { cancelCalendarItemOccurrence } = await import('@/modules/teacher/calendar/actions');
@@ -131,8 +132,25 @@ export function CalendarClient(props: {
         tz={cal.tz}
         isProjection={selected ? cal.isProjection(selected) : false}
         isClosed={selectedClosed}
-        onOpenEdit={() => setEditOpen(true)}
+        onOpenEdit={() => {
+          if (!canManageAssignments) return;
+          setEditOpen(true);
+        }}
         onCancelOccurrence={onCancelOccurrence}
+        canManageAssignments={canManageAssignments}
+        getDetailsUrl={(item) => {
+          if (cal.isProjection(item)) {
+            if (!item.scheduleId || !item.runDate) return null;
+
+            return canManageAssignments
+              ? `/teacher/classrooms/${classroomId}/calendar/schedules/${item.scheduleId}?runDate=${item.runDate}`
+              : `/student/calendar/schedules/${item.scheduleId}?classroomId=${classroomId}&runDate=${item.runDate}`;
+          }
+
+          return canManageAssignments
+            ? `/teacher/classrooms/${classroomId}/assignments/${item.assignmentId}`
+            : `/student/assignments/${item.assignmentId}`;
+        }}
       />
 
       <EditAssignmentModal
@@ -153,6 +171,7 @@ export function CalendarClient(props: {
         onChangeNumQuestions={setEditNumQuestions}
         onChangeDurationMinutes={setEditDurationMinutes}
         onSave={() => void onEditSave()}
+        canManageAssignments={canManageAssignments}
       />
     </div>
   );

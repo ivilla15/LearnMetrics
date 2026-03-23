@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { useToast } from '@/components';
-import { AuthLogoutShell } from '@/modules/auth/_components/AuthLogoutShell';
+import { AuthLogoutShell } from '@/modules/shell/AuthLogoutShell';
 
 export default function TeacherLogoutClient() {
   const router = useRouter();

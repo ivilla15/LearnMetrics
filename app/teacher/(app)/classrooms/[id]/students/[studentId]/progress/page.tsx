@@ -1,12 +1,8 @@
 import * as React from 'react';
-
+import { Suspense } from 'react';
 import { requireTeacher } from '@/core';
-
-import { ClassroomSubNav } from '@/modules';
-
-import { PageHeader, Section } from '@/components';
-import { getStudentProgress } from '@/core/progress/studentProgress.service';
-import { StudentProgressClient } from '@/modules/teacher/student-progress';
+import { ClassroomShell, StudentProgressSkeleton } from '@/modules';
+import { StudentProgressSection } from '@/modules/teacher/student-progress/StudentProgressSection';
 
 export default async function Page({
   params,
@@ -14,49 +10,20 @@ export default async function Page({
   params: Promise<{ id: string; studentId: string }>;
 }) {
   const auth = await requireTeacher();
-  if (!auth.ok) return <div className="p-6 text-sm text-[hsl(var(--danger))]">{auth.error}</div>;
+  if (!auth.ok) return <div className="p-6">{auth.error}</div>;
 
   const { id, studentId } = await params;
-
   const classroomId = Number(id);
-  if (!Number.isFinite(classroomId) || classroomId <= 0) {
-    return <div className="p-6 text-sm text-[hsl(var(--danger))]">Invalid classroom id</div>;
-  }
-
   const sid = Number(studentId);
-  if (!Number.isFinite(sid) || sid <= 0) {
-    return <div className="p-6 text-sm text-[hsl(var(--danger))]">Invalid student id</div>;
-  }
-
-  let dto: Awaited<ReturnType<typeof getStudentProgress>>;
-  try {
-    dto = await getStudentProgress({
-      teacherId: auth.teacher.id,
-      classroomId,
-      studentId: sid,
-      days: 30,
-    });
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Failed to load student progress';
-    return <div className="p-6 text-sm text-[hsl(var(--danger))]">{msg}</div>;
-  }
+  const teacherId = Number(auth.teacher.id);
 
   const currentPath = `/teacher/classrooms/${classroomId}/students/${sid}/progress`;
 
   return (
-    <>
-      <PageHeader
-        title={`${dto.student.name}`}
-        subtitle={`@${dto.student.username} — Progress report`}
-      />
-
-      <Section className="space-y-4">
-        <div className="lm-no-print">
-          <ClassroomSubNav classroomId={classroomId} currentPath={currentPath} variant="tabs" />
-        </div>
-
-        <StudentProgressClient classroomId={classroomId} studentId={sid} initial={dto} />
-      </Section>
-    </>
+    <ClassroomShell classroomId={classroomId} teacherId={teacherId} currentPath={currentPath}>
+      <Suspense fallback={<StudentProgressSkeleton />}>
+        <StudentProgressSection classroomId={classroomId} studentId={sid} teacherId={teacherId} />
+      </Suspense>
+    </ClassroomShell>
   );
 }

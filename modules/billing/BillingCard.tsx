@@ -21,17 +21,14 @@ export function BillingCard() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function load() {
       setLoading(true);
       const res = await fetch('/api/teacher/entitlement');
       const json = await res.json().catch(() => null);
-
       if (cancelled) return;
       setEnt(json?.ok ? (json.entitlement ?? null) : null);
       setLoading(false);
     }
-
     void load();
     return () => {
       cancelled = true;
@@ -40,17 +37,14 @@ export function BillingCard() {
 
   useEffect(() => {
     let cancelled = false;
-
     async function loadSummary() {
       setSummaryLoading(true);
       const res = await fetch('/api/billing/subscription-summary');
       const json = await res.json().catch(() => null);
       if (cancelled) return;
-
       setSummary(json?.ok ? (json.summary ?? null) : null);
       setSummaryLoading(false);
     }
-
     void loadSummary();
     return () => {
       cancelled = true;
@@ -71,10 +65,8 @@ export function BillingCard() {
   }
 
   const planLabel = ent?.plan === 'PRO' ? 'Pro' : ent?.plan === 'SCHOOL' ? 'School' : 'Trial';
-
   const statusLabel =
     ent?.status === 'ACTIVE' ? 'Active' : ent?.status === 'CANCELED' ? 'Canceled' : 'Expired';
-
   const ctaLabel =
     ent?.plan === 'PRO' && ent?.status === 'ACTIVE' ? 'Manage billing' : 'Upgrade to Pro';
 
@@ -85,12 +77,25 @@ export function BillingCard() {
         <CardDescription>Manage your plan and payments</CardDescription>
       </CardHeader>
 
-      <CardContent className="space-y-4 min-h-37.5">
+      <CardContent className="space-y-6">
         {loading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-10 w-40" />
-            <Skeleton className="h-10 w-56" />
-            <Skeleton className="h-10 w-40" />
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+                Plan
+              </div>
+              <div className="mt-3">
+                <Skeleton className="h-2 w-24" />
+              </div>
+            </div>
+            <div>
+              <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+                Status
+              </div>
+              <div className="mt-3">
+                <Skeleton className="h-2 w-20" />
+              </div>
+            </div>
           </div>
         ) : !ent ? (
           <div className="text-[15px] text-[hsl(var(--muted-fg))]">
@@ -117,8 +122,8 @@ export function BillingCard() {
                 <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
                   Billing
                 </div>
-                <div className="mt-2">
-                  <Skeleton className="h-5 w-44" />
+                <div className="mt-3">
+                  <Skeleton className="h-2 w-44" />
                 </div>
               </div>
             ) : summary?.currentPeriodEnd ? (
@@ -132,7 +137,7 @@ export function BillingCard() {
               </div>
             ) : null}
 
-            {ent.trialEndsAt ? (
+            {ent.trialEndsAt && (
               <div className="sm:col-span-2">
                 <div className="text-[13px] font-medium uppercase tracking-wider text-[hsl(var(--muted-fg))]">
                   Trial ends
@@ -141,13 +146,15 @@ export function BillingCard() {
                   {new Date(ent.trialEndsAt).toLocaleDateString()}
                 </div>
               </div>
-            ) : null}
+            )}
           </div>
         )}
 
         <div className="flex flex-wrap gap-3">
           {loading ? (
-            <Skeleton className="h-10 w-40" />
+            <Button variant="secondary" disabled className="opacity-50 w-40">
+              Manage billing
+            </Button>
           ) : (
             <Button onClick={openManageBilling} disabled={ctaLoading}>
               {ctaLoading ? 'Opening…' : ctaLabel}

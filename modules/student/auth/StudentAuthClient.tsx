@@ -3,7 +3,7 @@
 import * as React from 'react';
 
 import { Label, Input, Button, HelpText, useToast, Pill } from '@/components';
-import { AuthSplitShell, type AuthMode } from '@/modules/auth/_components/AuthSplitShell';
+import { AuthSplitShell, type AuthMode } from '@/modules/shell/AuthSplitShell';
 import { LearnMetricsLogo } from '@/modules/marketing/components/LearnMetricsLogo';
 
 function LoginForm({ busy, onBusyChange }: { busy: boolean; onBusyChange: (v: boolean) => void }) {
