@@ -4,6 +4,7 @@ import type {
   AssignmentType,
   OperationCode,
 } from '@/types/enums';
+import { OperandValue } from './question';
 
 export type StudentMeDTO = {
   id: number;
@@ -30,8 +31,8 @@ export type StudentAssignmentStatus = 'NOT_OPEN' | 'CLOSED' | 'READY' | 'ALREADY
 
 export type StudentQuestionDTO = {
   id: number;
-  operandA: number;
-  operandB: number;
+  operandA: OperandValue;
+  operandB: OperandValue;
   operation: OperationCode;
 };
 

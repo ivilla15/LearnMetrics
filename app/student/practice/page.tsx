@@ -17,33 +17,13 @@ import {
   Section,
 } from '@/components';
 
-import type { StudentMeDTO, MinutesOption } from '@/types';
+import type { StudentMeDTO, MinutesOption, ProgressionModifier } from '@/types';
 import { parseIntSafe, clamp } from '@/utils';
 import { OPERATION_CODES, type OperationCode } from '@/types/enums';
+import { getMaxUniqueQuestionsFor } from '@/core/questions/questions';
 
 type OpCode = OperationCode;
 const OPS = OPERATION_CODES;
-
-function maxAvailableForOp(op: OpCode, lvl: number, maxNumber: number): number {
-  const max = Math.max(1, Math.floor(maxNumber));
-  const level = Math.max(1, Math.floor(lvl));
-  const zeroCount = 1;
-
-  switch (op) {
-    case 'MUL':
-    case 'ADD':
-      return max + zeroCount;
-
-    case 'DIV':
-      return Math.floor(max / level) + zeroCount;
-
-    case 'SUB':
-      return Math.max(0, max - level + 1) + zeroCount;
-
-    default:
-      return max + zeroCount;
-  }
-}
 
 function getLevelForOp(progress: StudentMeDTO['progress'], op: OpCode): number | null {
   const list = Array.isArray(progress) ? progress : [];
@@ -62,8 +42,7 @@ export default function StudentPracticeSetupPage() {
   const [minutes, setMinutes] = useState<MinutesOption>('4');
 
   const [selectedOps, setSelectedOps] = useState<OpCode[]>(['MUL']);
-  const [fractions, setFractions] = useState(false);
-  const [decimals, setDecimals] = useState(false);
+  const [modifier, setModifier] = useState<ProgressionModifier>(null);
   const [practiceMaxNumber, setPracticeMaxNumber] = useState<number>(12);
 
   useEffect(() => {
@@ -101,8 +80,7 @@ export default function StudentPracticeSetupPage() {
       setMinutes('4');
 
       setSelectedOps(['MUL']);
-      setFractions(false);
-      setDecimals(false);
+      setModifier(null);
 
       setLoading(false);
     }
@@ -136,30 +114,53 @@ export default function StudentPracticeSetupPage() {
     const cntRaw = parseIntSafe(countText);
 
     const lvl = clamp(lvlRaw ?? (me ? getLevelForOp(me.progress, 'MUL') : null) ?? 3, 1, 12);
-    const c = clamp(cntRaw ?? 30, 6, 40);
-    const m = minutes === 'OFF' ? 0 : Number(minutes);
 
     const ops = selectedOps.length > 0 ? selectedOps : (['MUL'] as OpCode[]);
 
-    return { lvl, c, m, ops, fractions, decimals };
-  }, [levelText, countText, minutes, me, selectedOps, fractions, decimals]);
+    const maxAvailable = Math.max(
+      ...ops.map((op) =>
+        getMaxUniqueQuestionsFor({
+          operation: op,
+          level: lvl,
+          maxNumber: practiceMaxNumber,
+          modifier,
+        }),
+      ),
+    );
+
+    const c = clamp(cntRaw ?? 30, 6, Math.min(40, maxAvailable || 40));
+    const m = minutes === 'OFF' ? 0 : Number(minutes);
+
+    return { lvl, c, m, ops, modifier };
+  }, [levelText, countText, minutes, me, selectedOps, modifier, practiceMaxNumber]);
 
   const qsString = useMemo(() => {
     const params = new URLSearchParams({
       level: String(summary.lvl),
       count: String(summary.c),
       minutes: String(summary.m),
+      maxNumber: String(practiceMaxNumber),
       ops: summary.ops.join(','),
-      fractions: summary.fractions ? '1' : '0',
-      decimals: summary.decimals ? '1' : '0',
+      fractions: summary.modifier === 'FRACTION' ? '1' : '0',
+      decimals: summary.modifier === 'DECIMAL' ? '1' : '0',
     });
     return params.toString();
-  }, [summary.lvl, summary.c, summary.m, summary.ops, summary.fractions, summary.decimals]);
+  }, [summary.lvl, summary.c, summary.m, summary.ops, summary.modifier, practiceMaxNumber]);
 
   const maxAvailable = useMemo(() => {
-    const ops = summary.ops.length ? summary.ops : (['MUL'] as OpCode[]);
-    return Math.max(...ops.map((op) => maxAvailableForOp(op, summary.lvl, practiceMaxNumber)));
-  }, [summary.ops, summary.lvl, practiceMaxNumber]);
+    const ops = summary.ops.length > 0 ? summary.ops : (['MUL'] as OpCode[]);
+
+    return Math.max(
+      ...ops.map((op) =>
+        getMaxUniqueQuestionsFor({
+          operation: op,
+          level: summary.lvl,
+          maxNumber: practiceMaxNumber,
+          modifier: summary.modifier,
+        }),
+      ),
+    );
+  }, [summary.ops, summary.lvl, summary.modifier, practiceMaxNumber]);
 
   const canStart = !loading && !!me;
 
@@ -198,9 +199,8 @@ export default function StudentPracticeSetupPage() {
                         if (raw === '' || /^\d+$/.test(raw)) setLevelText(raw);
                       }}
                       onBlur={() => {
-                        const n = parseIntSafe(countText);
-                        const hardMax = Math.min(40, maxAvailable);
-                        setCountText(String(clamp(n ?? 30, 6, hardMax)));
+                        const n = parseIntSafe(levelText);
+                        setLevelText(String(clamp(n ?? 3, 1, 12)));
                       }}
                     />
                     <HelpText>
@@ -221,7 +221,7 @@ export default function StudentPracticeSetupPage() {
                       }}
                       onBlur={() => {
                         const n = parseIntSafe(countText);
-                        setCountText(String(clamp(n ?? 30, 6, 40)));
+                        setCountText(String(clamp(n ?? 30, 6, Math.min(40, maxAvailable))));
                       }}
                     />
                     <HelpText>
@@ -235,7 +235,7 @@ export default function StudentPracticeSetupPage() {
                       id="minutes"
                       value={minutes}
                       onChange={(e) => setMinutes(e.target.value as MinutesOption)}
-                      className="h-11 rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
+                      className="h-11 rounded-(--radius) border-0 bg-[hsl(var(--surface))] px-3 text-sm shadow-[0_4px_10px_rgba(0,0,0,0.08)]"
                     >
                       <option value="OFF">Off</option>
                       <option value="2">2 minutes</option>
@@ -290,8 +290,8 @@ export default function StudentPracticeSetupPage() {
                       <label className="inline-flex items-center gap-2">
                         <input
                           type="checkbox"
-                          checked={fractions}
-                          onChange={(e) => setFractions(e.target.checked)}
+                          checked={modifier === 'FRACTION'}
+                          onChange={(e) => setModifier(e.target.checked ? 'FRACTION' : null)}
                         />
                         <span className="text-sm">Include fractions</span>
                       </label>
@@ -299,16 +299,16 @@ export default function StudentPracticeSetupPage() {
                       <label className="inline-flex items-center gap-2">
                         <input
                           type="checkbox"
-                          checked={decimals}
-                          onChange={(e) => setDecimals(e.target.checked)}
+                          checked={modifier === 'DECIMAL'}
+                          onChange={(e) => setModifier(e.target.checked ? 'DECIMAL' : null)}
                         />
                         <span className="text-sm">Include decimals</span>
                       </label>
                     </div>
 
                     <HelpText>
-                      By default practice focuses on multiplication. Choose other operations or
-                      include fractions/decimals for mixed practice.
+                      Practice sets use one question style at a time. Pick integers, fractions, or
+                      decimals.
                     </HelpText>
                   </div>
 
@@ -356,10 +356,13 @@ export default function StudentPracticeSetupPage() {
               </div>
 
               <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4">
-                <div className="text-xs text-[hsl(var(--muted-fg))]">Extras</div>
+                <div className="text-xs text-[hsl(var(--muted-fg))]">Question style</div>
                 <div className="text-lg font-semibold text-[hsl(var(--fg))]">
-                  {summary.fractions ? 'Fractions' : 'No fractions'} ·{' '}
-                  {summary.decimals ? 'Decimals' : 'No decimals'}
+                  {summary.modifier === 'FRACTION'
+                    ? 'Fractions'
+                    : summary.modifier === 'DECIMAL'
+                      ? 'Decimals'
+                      : 'Integers'}
                 </div>
               </div>
 

@@ -29,7 +29,7 @@ export default function StudentAssignmentClient({
   const [data, setData] = useState<StudentAssignmentLoadResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const [answers, setAnswers] = useState<Record<number, number | ''>>({});
+  const [answers, setAnswers] = useState<Record<number, string>>({});
   const inputRefs = useRef<Record<number, HTMLInputElement | null>>({});
   const autoSubmittedRef = useRef(false);
 
@@ -47,15 +47,16 @@ export default function StudentAssignmentClient({
     progress: practiceProgress,
     refresh: refreshPracticeProgress,
   } = usePracticeProgress(isPracticeTime && assignmentId ? assignmentId : null);
+
   const readyQuestions = data?.status === 'READY' ? data.questions : null;
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  function jumpTo(qId: number) {
+  const jumpTo = useCallback((qId: number) => {
     const el = inputRefs.current[qId];
     if (!el) return;
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     requestAnimationFrame(() => el.focus());
-  }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -89,7 +90,11 @@ export default function StudentAssignmentClient({
         setLoadError(null);
         setData(json as StudentAssignmentLoadResponse);
       } catch {
-        if (!cancelled) toast('Could not load test', 'error');
+        if (!cancelled) {
+          setData(null);
+          setLoadError('Could not load test');
+          toast('Could not load test', 'error');
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -123,10 +128,13 @@ export default function StudentAssignmentClient({
       if (!data || data.status !== 'READY') return;
 
       const qs = data.questions;
-      const payload = qs.map((q) => ({
-        questionId: q.id,
-        givenAnswer: answers[q.id] === '' ? null : Number(answers[q.id]),
-      }));
+      const payload = qs.map((q) => {
+        const raw = (answers[q.id] ?? '').trim();
+        return {
+          questionId: q.id,
+          givenAnswer: raw === '' ? null : raw,
+        };
+      });
 
       try {
         setSubmitting(true);
@@ -246,7 +254,7 @@ export default function StudentAssignmentClient({
       <AppPage title="Test" subtitle="Loading your test…">
         <Section>
           <Card className="shadow-sm">
-            <CardContent className="py-10 flex flex-col items-center justify-center gap-3">
+            <CardContent className="flex flex-col items-center justify-center gap-3 py-10">
               <div className="text-sm text-[hsl(var(--muted-fg))]">Loading test…</div>
               <Skeleton className="h-2 w-40 rounded-full" />
             </CardContent>
@@ -261,7 +269,7 @@ export default function StudentAssignmentClient({
       <AppPage title="Test">
         <Section>
           <Card className="shadow-sm">
-            <CardContent className="py-8 space-y-3">
+            <CardContent className="space-y-3 py-8">
               <div className="text-sm text-[hsl(var(--muted-fg))]">
                 {loadError ?? 'Unable to load.'}
               </div>
@@ -297,7 +305,7 @@ export default function StudentAssignmentClient({
       <AppPage title="Test not open yet" subtitle="Come back when the test window opens.">
         <Section>
           <Card className="shadow-sm">
-            <CardContent className="py-6 space-y-1">
+            <CardContent className="space-y-1 py-6">
               <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Opens</div>
               <div className="text-base font-semibold text-[hsl(var(--fg))]">
                 {formatLocal(assignment.opensAt)}
@@ -314,7 +322,7 @@ export default function StudentAssignmentClient({
       <AppPage title="Test closed" subtitle="This test window is over.">
         <Section>
           <Card className="shadow-sm">
-            <CardContent className="py-6 space-y-1">
+            <CardContent className="space-y-1 py-6">
               <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Closed</div>
               <div className="text-base font-semibold text-[hsl(var(--fg))]">
                 {formatLocal(assignment.closesAt)}
@@ -331,7 +339,7 @@ export default function StudentAssignmentClient({
       <AppPage title="Already submitted" subtitle="You already completed this test.">
         <Section>
           <Card className="shadow-sm">
-            <CardContent className="py-6 space-y-2">
+            <CardContent className="space-y-2 py-6">
               <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Score</div>
               <div className="text-3xl font-semibold tracking-tight text-[hsl(var(--fg))]">
                 {data.result.percent}%
@@ -343,10 +351,6 @@ export default function StudentAssignmentClient({
                 <Button
                   variant="secondary"
                   onClick={() => {
-                    if (data?.status !== 'ALREADY_SUBMITTED') {
-                      toast('No attempt found', 'error');
-                      return;
-                    }
                     setSelectedAttemptId(data.attemptId);
                   }}
                 >
@@ -356,6 +360,17 @@ export default function StudentAssignmentClient({
             </CardContent>
           </Card>
         </Section>
+
+        <AttemptDetailModal
+          open={Boolean(selectedAttemptId)}
+          onClose={() => setSelectedAttemptId(null)}
+          title="Attempt details"
+          detail={attemptDetail}
+          loading={detailLoading}
+          error={detailError}
+          showIncorrectOnly={showIncorrectOnly}
+          onToggleIncorrectOnly={setShowIncorrectOnly}
+        />
       </AppPage>
     );
   }
@@ -385,7 +400,7 @@ export default function StudentAssignmentClient({
         <Section>
           <div className="space-y-4">
             <Card className="shadow-sm">
-              <CardContent className="py-6 space-y-3">
+              <CardContent className="space-y-3 py-6">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="min-w-0">
                     <div className="text-sm font-semibold text-[hsl(var(--fg))]">
@@ -439,7 +454,7 @@ export default function StudentAssignmentClient({
             </Card>
 
             <Card className="shadow-sm">
-              <CardContent className="py-6 space-y-2">
+              <CardContent className="space-y-2 py-6">
                 <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Opens</div>
                 <div className="text-base font-semibold text-[hsl(var(--fg))]">
                   {formatLocal(assignment.opensAt)}
@@ -465,9 +480,7 @@ export default function StudentAssignmentClient({
 
   const questions = data.questions;
 
-  const answeredCount = questions.filter(
-    (q) => answers[q.id] !== undefined && answers[q.id] !== '',
-  ).length;
+  const answeredCount = questions.filter((q) => (answers[q.id] ?? '').trim() !== '').length;
 
   return (
     <AppPage title="Test" subtitle="Answer each question, then submit.">
@@ -477,7 +490,7 @@ export default function StudentAssignmentClient({
             <div className="grid gap-6 md:grid-cols-2">
               {questions.map((q, i) => {
                 const value = answers[q.id] ?? '';
-                const done = value !== '';
+                const done = value.trim() !== '';
 
                 return (
                   <QuestionCard
@@ -487,6 +500,7 @@ export default function StudentAssignmentClient({
                     operandA={q.operandA}
                     operandB={q.operandB}
                     value={value}
+                    answerMode={null}
                     isAnswered={done}
                     inputRef={(el) => {
                       inputRefs.current[q.id] = el;
@@ -516,14 +530,14 @@ export default function StudentAssignmentClient({
               questionButtons={
                 <div className="grid grid-cols-5 gap-2">
                   {questions.map((q, i) => {
-                    const done = answers[q.id] !== undefined && answers[q.id] !== '';
+                    const done = (answers[q.id] ?? '').trim() !== '';
                     return (
                       <button
                         key={q.id}
                         type="button"
                         onClick={() => jumpTo(q.id)}
                         className={cn(
-                          'h-9 rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] text-xs font-semibold text-[hsl(var(--fg))] transition',
+                          'h-9 rounded-(--radius) border-0 bg-[hsl(var(--surface))] text-xs font-semibold text-[hsl(var(--fg))] shadow-[0_4px_10px_rgba(0,0,0,0.08)] transition',
                           'hover:bg-[hsl(var(--surface-2))]',
                           done ? '' : 'ring-1 ring-[hsl(var(--brand)/0.25)]',
                         )}
@@ -540,16 +554,6 @@ export default function StudentAssignmentClient({
           </aside>
         </div>
       </Section>
-      <AttemptDetailModal
-        open={Boolean(selectedAttemptId)}
-        onClose={() => setSelectedAttemptId(null)}
-        title="Attempt details"
-        detail={attemptDetail}
-        loading={detailLoading}
-        error={detailError}
-        showIncorrectOnly={showIncorrectOnly}
-        onToggleIncorrectOnly={setShowIncorrectOnly}
-      />
     </AppPage>
   );
 }

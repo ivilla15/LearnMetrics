@@ -22,6 +22,8 @@ import {
   type OperationCode,
   type GeneratedQuestionDTO,
   type GradeResultDTO,
+  type AnswerValue,
+  ProgressionModifier,
 } from '@/types';
 
 import { usePracticeProgress } from '@/modules/student/assignments/hooks/usePracticeProgress';
@@ -29,8 +31,8 @@ import { generateQuestions, gradeGeneratedQuestions } from '@/core/questions';
 
 function PracticeSessionFallback() {
   return (
-    <div className="min-h-screen w-screen bg-[hsl(var(--bg))] flex items-center justify-center p-4 md:p-8">
-      <div className="w-full max-w-5xl rounded-[32px] border-0 bg-[hsl(var(--card))] shadow-[0_30px_90px_rgba(0,0,0,0.10)] p-6 md:p-10">
+    <div className="flex min-h-screen w-screen items-center justify-center bg-[hsl(var(--bg))] p-4 md:p-8">
+      <div className="w-full max-w-5xl rounded-4xl border-0 bg-[hsl(var(--card))] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.10)] md:p-10">
         <div className="text-sm text-[hsl(var(--muted-fg))]">Loading practice…</div>
       </div>
     </div>
@@ -59,6 +61,63 @@ function formatClock(totalSeconds: number) {
   const mm = Math.floor(s / 60);
   const ss = s % 60;
   return `${mm}:${String(ss).padStart(2, '0')}`;
+}
+
+function getModifierFromFlags(params: {
+  fractionsFlag: boolean;
+  decimalsFlag: boolean;
+}): ProgressionModifier {
+  if (params.fractionsFlag) return 'FRACTION';
+  if (params.decimalsFlag) return 'DECIMAL';
+  return null;
+}
+
+function parseFractionInput(raw: string): AnswerValue | null {
+  const match = raw.match(/^(-?\d+)\s*\/\s*(-?\d+)$/);
+  if (!match) return null;
+
+  const numerator = Number(match[1]);
+  const denominator = Number(match[2]);
+
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) {
+    return null;
+  }
+
+  return {
+    kind: 'fraction',
+    numerator: Math.trunc(numerator),
+    denominator: Math.trunc(denominator),
+  };
+}
+
+function parseAnswerInput(raw: string, modifier: ProgressionModifier): AnswerValue | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  if (modifier === 'FRACTION') {
+    const fraction = parseFractionInput(trimmed);
+    if (fraction) return fraction;
+
+    const whole = Number(trimmed);
+    if (!Number.isFinite(whole)) return null;
+
+    return {
+      kind: 'fraction',
+      numerator: Math.trunc(whole),
+      denominator: 1,
+    };
+  }
+
+  const numeric = Number(trimmed);
+  if (!Number.isFinite(numeric)) return null;
+
+  return { kind: 'decimal', value: numeric };
+}
+
+function formatAnswerValue(value: AnswerValue | null): string {
+  if (!value) return '—';
+  if (value.kind === 'fraction') return `${value.numerator}/${value.denominator}`;
+  return String(value.value);
 }
 
 async function startPracticeTimeSession(params: {
@@ -131,6 +190,7 @@ function StudentPracticeSessionInner() {
   const level = getNumberParam(params, 'level', 3, 1, 12);
   const count = getNumberParam(params, 'count', 30, 6, 40);
   const minutes = getNumberParam(params, 'minutes', 4, 0, 30);
+  const maxNumber = getNumberParam(params, 'maxNumber', 12, 1, 100);
 
   const assignmentIdParam = params.get('assignmentId');
   const assignmentId = assignmentIdParam ? Number(assignmentIdParam) : null;
@@ -139,6 +199,7 @@ function StudentPracticeSessionInner() {
   const opsRaw = params.get('ops');
   const fractionsFlag = params.get('fractions') === '1';
   const decimalsFlag = params.get('decimals') === '1';
+  const modifier = getModifierFromFlags({ fractionsFlag, decimalsFlag });
 
   const ops = useMemo(() => parseOpsParam(opsRaw), [opsRaw]);
   const primaryOp = ops[0] ?? 'MUL';
@@ -154,12 +215,13 @@ function StudentPracticeSessionInner() {
       seed: Date.now(),
       operation: primaryOp,
       level,
-      maxNumber: 12,
+      maxNumber,
       count,
+      modifier,
     }),
   );
 
-  const [answers, setAnswers] = useState<Record<number, number | ''>>({});
+  const [answers, setAnswers] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const [finished, setFinished] = useState(false);
@@ -182,8 +244,9 @@ function StudentPracticeSessionInner() {
         seed: Date.now(),
         operation: primaryOp,
         level,
-        maxNumber: 12,
+        maxNumber,
         count,
+        modifier,
       }),
     );
 
@@ -194,7 +257,7 @@ function StudentPracticeSessionInner() {
 
     setStartedAt(Date.now());
     setNow(Date.now());
-  }, [level, count, minutes, primaryOp, fractionsFlag, decimalsFlag]);
+  }, [level, count, minutes, primaryOp, modifier, maxNumber]);
 
   const msLeft = useMemo(() => {
     if (minutes <= 0) return Infinity;
@@ -236,7 +299,7 @@ function StudentPracticeSessionInner() {
           assignmentId: assignmentId as number,
           operation: primaryOp,
           level,
-          maxNumber: 12,
+          maxNumber,
         });
 
         if (cancelled) return;
@@ -249,7 +312,7 @@ function StudentPracticeSessionInner() {
     return () => {
       cancelled = true;
     };
-  }, [assignmentId, isPracticeTimeAssignment, primaryOp, level]);
+  }, [assignmentId, isPracticeTimeAssignment, primaryOp, level, maxNumber]);
 
   useEffect(() => {
     if (!isPracticeTimeAssignment) return;
@@ -331,7 +394,7 @@ function StudentPracticeSessionInner() {
   }, []);
 
   const answeredCount = useMemo(() => {
-    return questions.filter((q) => answers[q.id] !== undefined && answers[q.id] !== '').length;
+    return questions.filter((q) => (answers[q.id] ?? '').trim() !== '').length;
   }, [answers, questions]);
 
   const submit = useCallback(() => {
@@ -339,10 +402,11 @@ function StudentPracticeSessionInner() {
 
     setSubmitting(true);
 
-    const answersByIndex: Record<number, number | ''> = {};
+    const answersByIndex: Record<number, AnswerValue | null> = {};
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      answersByIndex[i] = q ? (answers[q.id] ?? '') : '';
+      const raw = q ? (answers[q.id] ?? '') : '';
+      answersByIndex[i] = parseAnswerInput(raw, modifier);
     }
 
     const graded = gradeGeneratedQuestions({
@@ -353,7 +417,7 @@ function StudentPracticeSessionInner() {
     setResult(graded);
     setFinished(true);
     setSubmitting(false);
-  }, [answers, finished, questions, submitting]);
+  }, [answers, finished, questions, submitting, modifier]);
 
   useEffect(() => {
     if (minutes <= 0) return;
@@ -424,12 +488,12 @@ function StudentPracticeSessionInner() {
                       {incorrect.map((it) => (
                         <div
                           key={it.id}
-                          className="rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface-2))] p-3"
+                          className="rounded-(--radius) border-0 bg-[hsl(var(--surface-2))] p-3 shadow-[0_4px_10px_rgba(0,0,0,0.08)]"
                         >
                           <div className="font-medium text-[hsl(var(--fg))]">{it.prompt}</div>
                           <div className="text-sm text-[hsl(var(--muted-fg))]">
-                            Your answer: {it.studentAnswer === -1 ? '—' : it.studentAnswer} ·
-                            Correct: {it.correctAnswer}
+                            Your answer: {formatAnswerValue(it.studentAnswer)} · Correct:{' '}
+                            {formatAnswerValue(it.correctAnswer)}
                           </div>
                         </div>
                       ))}
@@ -461,8 +525,9 @@ function StudentPracticeSessionInner() {
                         seed: Date.now(),
                         operation: primaryOp,
                         level,
-                        maxNumber: 12,
+                        maxNumber,
                         count,
+                        modifier,
                       }),
                     );
                     setStartedAt(Date.now());
@@ -491,7 +556,6 @@ function StudentPracticeSessionInner() {
     );
   }
 
-  // Active session screen
   const completedMin = practiceProgress ? Math.floor(practiceProgress.completedSeconds / 60) : null;
   const requiredMin = practiceProgress ? Math.floor(practiceProgress.requiredSeconds / 60) : null;
 
@@ -499,8 +563,8 @@ function StudentPracticeSessionInner() {
     <AppPage
       title="Practice"
       subtitle={`${primaryOp} · Level ${level} · ${count} questions${
-        minutes > 0 ? ` · ${minutes} min` : ''
-      }`}
+        modifier === 'FRACTION' ? ' · Fractions' : modifier === 'DECIMAL' ? ' · Decimals' : ''
+      }${minutes > 0 ? ` · ${minutes} min` : ''}`}
       width="wide"
     >
       <Section>
@@ -508,7 +572,7 @@ function StudentPracticeSessionInner() {
           <main className="space-y-6">
             {isPracticeTimeAssignment ? (
               <Card className="shadow-sm">
-                <CardContent className="py-4 space-y-2">
+                <CardContent className="space-y-2 py-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-[hsl(var(--fg))]">
@@ -550,7 +614,7 @@ function StudentPracticeSessionInner() {
             <div className="grid gap-6 md:grid-cols-2">
               {questions.map((q, i) => {
                 const value = answers[q.id] ?? '';
-                const done = value !== '';
+                const done = value.trim() !== '';
 
                 return (
                   <QuestionCard
@@ -560,11 +624,12 @@ function StudentPracticeSessionInner() {
                     operandA={q.operandA}
                     operandB={q.operandB}
                     value={value}
+                    answerMode={modifier}
                     isAnswered={done}
                     inputRef={(el) => {
                       inputRefs.current[q.id] = el;
                     }}
-                    onChange={(next) => setAnswers((prev) => ({ ...prev, [i]: next }))}
+                    onChange={(next) => setAnswers((prev) => ({ ...prev, [q.id]: next }))}
                     onEnter={() => {
                       const nextQ = questions[i + 1];
                       if (nextQ) jumpTo(nextQ.id);
@@ -593,14 +658,14 @@ function StudentPracticeSessionInner() {
               questionButtons={
                 <div className="grid grid-cols-5 gap-2">
                   {questions.map((q, i) => {
-                    const done = answers[q.id] !== undefined && answers[q.id] !== '';
+                    const done = (answers[q.id] ?? '').trim() !== '';
                     return (
                       <button
                         key={q.id}
                         type="button"
                         onClick={() => jumpTo(q.id)}
                         className={cn(
-                          'h-9 rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] text-xs font-semibold text-[hsl(var(--fg))] transition',
+                          'h-9 rounded-(--radius) border-0 bg-[hsl(var(--surface))] text-xs font-semibold text-[hsl(var(--fg))] shadow-[0_4px_10px_rgba(0,0,0,0.08)] transition',
                           'hover:bg-[hsl(var(--surface-2))]',
                           done ? '' : 'ring-1 ring-[hsl(var(--brand)/0.25)]',
                         )}

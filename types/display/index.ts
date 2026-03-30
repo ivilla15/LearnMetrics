@@ -1,4 +1,5 @@
 import type { AssignmentMode, AssignmentType, OperationCode } from '@/types/enums';
+import { OperandValue } from '..';
 
 export const ASSIGNMENT_TYPE_LABEL: Record<AssignmentType, string> = {
   TEST: 'Test',
@@ -30,4 +31,28 @@ export function formatAssignmentMode(mode: AssignmentMode) {
 
 export function formatOperation(op: OperationCode) {
   return OPERATION_LABEL[op];
+}
+
+export function opSymbol(op: OperationCode): string {
+  switch (op) {
+    case 'ADD':
+      return '+';
+    case 'SUB':
+      return '−';
+    case 'MUL':
+      return '×';
+    case 'DIV':
+      return '÷';
+  }
+}
+
+export function formatOperand(operand: OperandValue): string {
+  switch (operand.kind) {
+    case 'integer':
+      return String(operand.value);
+    case 'decimal':
+      return String(operand.value);
+    case 'fraction':
+      return `${operand.numerator}/${operand.denominator}`;
+  }
 }

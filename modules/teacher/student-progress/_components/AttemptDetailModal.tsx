@@ -1,9 +1,39 @@
 'use client';
 
 import * as React from 'react';
+
 import { Modal, Button } from '@/components';
 import { cn } from '@/lib';
 import type { AttemptDetailDTO } from '@/types';
+
+function formatAttemptValue(value: unknown): string {
+  if (value === null || value === undefined || value === '' || value === -1) {
+    return '—';
+  }
+
+  if (typeof value === 'number' || typeof value === 'string') {
+    return String(value);
+  }
+
+  if (typeof value === 'object') {
+    const maybe = value as {
+      kind?: unknown;
+      value?: unknown;
+      numerator?: unknown;
+      denominator?: unknown;
+    };
+
+    if (maybe.kind === 'fraction') {
+      return `${String(maybe.numerator)}/${String(maybe.denominator)}`;
+    }
+
+    if (maybe.kind === 'decimal') {
+      return String(maybe.value);
+    }
+  }
+
+  return String(value);
+}
 
 export function AttemptDetailModal({
   open,
@@ -118,10 +148,10 @@ export function AttemptDetailModal({
                 <li
                   key={it.id}
                   className={cn(
-                    'rounded-(--radius) border p-3 border-l-4',
+                    'rounded-(--radius) border border-l-4 p-3',
                     it.isCorrect
-                      ? 'border-[hsl(var(--success)/0.4)] bg-[hsl(var(--success)/0.12)] border-l-[hsl(var(--success))]'
-                      : 'border-[hsl(var(--danger)/0.4)] bg-[hsl(var(--danger)/0.12)] border-l-[hsl(var(--danger))]',
+                      ? 'border-[hsl(var(--success)/0.4)] border-l-[hsl(var(--success))] bg-[hsl(var(--success)/0.12)]'
+                      : 'border-[hsl(var(--danger)/0.4)] border-l-[hsl(var(--danger))] bg-[hsl(var(--danger)/0.12)]',
                   )}
                 >
                   <div className="font-medium text-[hsl(var(--fg))]">{it.prompt}</div>
@@ -129,11 +159,13 @@ export function AttemptDetailModal({
                   <div className="mt-1 text-[hsl(var(--muted-fg))]">
                     Your answer:{' '}
                     <span className="font-medium text-[hsl(var(--fg))]">
-                      {it.studentAnswer === -1 ? '—' : it.studentAnswer}
+                      {formatAttemptValue(it.studentAnswer)}
                     </span>
                     {' · '}
                     Correct:{' '}
-                    <span className="font-medium text-[hsl(var(--fg))]">{it.correctAnswer}</span>
+                    <span className="font-medium text-[hsl(var(--fg))]">
+                      {formatAttemptValue(it.correctAnswer)}
+                    </span>
                   </div>
                 </li>
               ))}

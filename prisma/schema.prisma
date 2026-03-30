@@ -187,18 +187,17 @@ model Attempt {
 }
 
 model AttemptItem {
-  id          Int      @id @default(autoincrement())
-  attemptId   Int
+  id            Int      @id @default(autoincrement())
+  attemptId      Int
 
-  operation    Operation
-  operandA     Int
-  operandB     Int
-  correctAnswer Int
+  operation      Operation
+  operandAValue   Json
+  operandBValue   Json
+  correctAnswerValue Json
+  givenAnswerValue   Json?
+  isCorrect      Boolean
 
-  givenAnswer  Int
-  isCorrect    Boolean
-
-  Attempt     Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  Attempt        Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
 
   @@index([attemptId])
 }

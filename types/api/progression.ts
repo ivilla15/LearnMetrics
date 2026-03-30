@@ -12,7 +12,7 @@ export type StudentProgressLiteDTO = {
 };
 
 export type ModifierRuleDTO = {
-  modifier: ModifierCode;
+  modifier: 'DECIMAL' | 'FRACTION';
   operations: OperationCode[];
   minLevel: number;
   propagate: boolean;
@@ -26,10 +26,19 @@ export type ProgressionPolicyInputDTO = {
   modifierRules: ModifierRuleDTO[];
 };
 
+export type ProgressionModifier = 'DECIMAL' | 'FRACTION' | null;
+
 export type ProgressionPolicyDTO = ProgressionPolicyInputDTO & {
   classroomId: number;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ProgressionModifierRuleDTO = {
+  modifier: ProgressionModifier;
+  operations: OperationCode[];
+  minLevel: number;
+  propagate: boolean;
 };
 
 export type ProgressionSnapshotDTO = {
@@ -37,6 +46,7 @@ export type ProgressionSnapshotDTO = {
   operationOrder: OperationCode[];
   primaryOperation: OperationCode;
   maxNumber: number;
+  modifierRules: ModifierRuleDTO[];
 };
 
 export type PromotionResultDTO = {

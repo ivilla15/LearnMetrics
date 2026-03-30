@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 import { clampTake, parseCursor, percent } from '@/utils';
+import type { OperandValue, AnswerValue } from '@/types';
 
 import type {
   AssignModalBootstrapResponse,
@@ -28,6 +29,69 @@ import type {
   AssignmentMode,
   AssignmentType,
 } from '@/types/enums';
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+function isOperandValue(value: unknown): value is OperandValue {
+  if (!isObject(value) || typeof value.kind !== 'string') return false;
+
+  if (value.kind === 'integer' || value.kind === 'decimal') {
+    return typeof value.value === 'number' && Number.isFinite(value.value);
+  }
+
+  if (value.kind === 'fraction') {
+    return (
+      typeof value.numerator === 'number' &&
+      Number.isFinite(value.numerator) &&
+      typeof value.denominator === 'number' &&
+      Number.isFinite(value.denominator) &&
+      value.denominator !== 0
+    );
+  }
+
+  return false;
+}
+
+function isAnswerValue(value: unknown): value is AnswerValue {
+  if (!isObject(value) || typeof value.kind !== 'string') return false;
+
+  if (value.kind === 'decimal') {
+    return typeof value.value === 'number' && Number.isFinite(value.value);
+  }
+
+  if (value.kind === 'fraction') {
+    return (
+      typeof value.numerator === 'number' &&
+      Number.isFinite(value.numerator) &&
+      typeof value.denominator === 'number' &&
+      Number.isFinite(value.denominator) &&
+      value.denominator !== 0
+    );
+  }
+
+  return false;
+}
+
+function parseOperandValue(value: unknown): OperandValue {
+  if (isOperandValue(value)) return value;
+  throw new Error('Expected OperandValue JSON object');
+}
+
+function parseAnswerValue(value: unknown): AnswerValue {
+  if (isAnswerValue(value)) return value;
+  throw new Error('Expected AnswerValue JSON object');
+}
+
+function extractNumericValue(value: OperandValue | AnswerValue): number {
+  if (value.kind === 'integer' || value.kind === 'decimal') {
+    return value.value;
+  }
+  if (value.kind === 'fraction') {
+    return value.numerator / value.denominator;
+  }
+  throw new Error('Unknown value kind');
+}
 
 export async function listTeacherAssignmentsForClassroom(params: {
   teacherId: number;
@@ -360,10 +424,10 @@ export async function getTeacherAttemptDetail(params: {
         select: {
           id: true,
           operation: true,
-          operandA: true,
-          operandB: true,
-          correctAnswer: true,
-          givenAnswer: true,
+          operandAValue: true,
+          operandBValue: true,
+          correctAnswerValue: true,
+          givenAnswerValue: true,
           isCorrect: true,
         },
         orderBy: { id: 'asc' },
@@ -383,15 +447,21 @@ export async function getTeacherAttemptDetail(params: {
   const p = percent(attempt.score, attempt.total);
   const wasMastery = attempt.total > 0 && attempt.score === attempt.total;
 
-  const items: TeacherAttemptDetailItemDTO[] = attempt.AttemptItem.map((it) => ({
-    id: it.id,
-    operation: it.operation as OperationCode,
-    operandA: it.operandA,
-    operandB: it.operandB,
-    correctAnswer: it.correctAnswer,
-    studentAnswer: it.givenAnswer,
-    isCorrect: it.isCorrect,
-  }));
+  const items: TeacherAttemptDetailItemDTO[] = attempt.AttemptItem.map((it) => {
+    const operandA = parseOperandValue(it.operandAValue);
+    const operandB = parseOperandValue(it.operandBValue);
+    const correctAnswer = parseAnswerValue(it.correctAnswerValue);
+
+    return {
+      id: it.id,
+      operation: it.operation as OperationCode,
+      operandA: extractNumericValue(operandA),
+      operandB: extractNumericValue(operandB),
+      correctAnswer: extractNumericValue(correctAnswer),
+      studentAnswer: it.givenAnswerValue ? extractNumericValue(parseAnswerValue(it.givenAnswerValue)) : -1,
+      isCorrect: it.isCorrect,
+    };
+  });
 
   return {
     attemptId: attempt.id,

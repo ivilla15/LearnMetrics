@@ -1,5 +1,69 @@
 import { prisma } from '@/data/prisma';
 import type { OperationCode } from '@/types/enums';
+import type { OperandValue, AnswerValue } from '@/types';
+
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null;
+
+function isOperandValue(value: unknown): value is OperandValue {
+  if (!isObject(value) || typeof value.kind !== 'string') return false;
+
+  if (value.kind === 'integer' || value.kind === 'decimal') {
+    return typeof value.value === 'number' && Number.isFinite(value.value);
+  }
+
+  if (value.kind === 'fraction') {
+    return (
+      typeof value.numerator === 'number' &&
+      Number.isFinite(value.numerator) &&
+      typeof value.denominator === 'number' &&
+      Number.isFinite(value.denominator) &&
+      value.denominator !== 0
+    );
+  }
+
+  return false;
+}
+
+function isAnswerValue(value: unknown): value is AnswerValue {
+  if (!isObject(value) || typeof value.kind !== 'string') return false;
+
+  if (value.kind === 'decimal') {
+    return typeof value.value === 'number' && Number.isFinite(value.value);
+  }
+
+  if (value.kind === 'fraction') {
+    return (
+      typeof value.numerator === 'number' &&
+      Number.isFinite(value.numerator) &&
+      typeof value.denominator === 'number' &&
+      Number.isFinite(value.denominator) &&
+      value.denominator !== 0
+    );
+  }
+
+  return false;
+}
+
+function parseOperandValue(value: unknown): OperandValue {
+  if (isOperandValue(value)) return value;
+  throw new Error('Expected OperandValue JSON object');
+}
+
+function parseAnswerValue(value: unknown): AnswerValue {
+  if (isAnswerValue(value)) return value;
+  throw new Error('Expected AnswerValue JSON object');
+}
+
+function extractNumericValue(value: OperandValue | AnswerValue): number {
+  if (value.kind === 'integer' || value.kind === 'decimal') {
+    return value.value;
+  }
+  if (value.kind === 'fraction') {
+    return value.numerator / value.denominator;
+  }
+  throw new Error('Unknown value kind');
+}
 
 function keyForFact(fact: {
   operation: OperationCode;
@@ -145,8 +209,8 @@ export async function getMissedFactsInRange(params: {
 }) {
   const { classroomId, startAt, endAt, limit } = params;
 
-  const incorrect = await prisma.attemptItem.groupBy({
-    by: ['operation', 'operandA', 'operandB', 'correctAnswer'],
+  // Fetch all incorrect attempt items in range (can't use groupBy on JSON fields efficiently)
+  const incorrectItems = await prisma.attemptItem.findMany({
     where: {
       isCorrect: false,
       Attempt: {
@@ -154,50 +218,71 @@ export async function getMissedFactsInRange(params: {
         Student: { classroomId },
       },
     },
-    _count: { _all: true },
+    select: {
+      operation: true,
+      operandAValue: true,
+      operandBValue: true,
+      correctAnswerValue: true,
+    },
   });
 
-  if (incorrect.length === 0) return [];
+  if (incorrectItems.length === 0) return [];
 
-  const totals = await prisma.attemptItem.groupBy({
-    by: ['operation', 'operandA', 'operandB', 'correctAnswer'],
+  // Fetch all attempt items (incorrect or not) for totals
+  const allItems = await prisma.attemptItem.findMany({
     where: {
       Attempt: {
         completedAt: { gte: startAt, lt: endAt },
         Student: { classroomId },
       },
     },
-    _count: { _all: true },
+    select: {
+      operation: true,
+      operandAValue: true,
+      operandBValue: true,
+      correctAnswerValue: true,
+    },
   });
 
-  const totalByKey = new Map<string, number>();
-  for (const t of totals) {
+  // Group in memory
+  const incorrectByKey = new Map<string, number>();
+  for (const item of incorrectItems) {
+    const operandA = extractNumericValue(parseOperandValue(item.operandAValue));
+    const operandB = extractNumericValue(parseOperandValue(item.operandBValue));
+    const correctAnswer = extractNumericValue(parseAnswerValue(item.correctAnswerValue));
     const k = keyForFact({
-      operation: t.operation as OperationCode,
-      operandA: t.operandA,
-      operandB: t.operandB,
-      correctAnswer: t.correctAnswer,
+      operation: item.operation as OperationCode,
+      operandA,
+      operandB,
+      correctAnswer,
     });
-    totalByKey.set(k, t._count._all);
+    incorrectByKey.set(k, (incorrectByKey.get(k) ?? 0) + 1);
   }
 
-  const rows = incorrect
-    .map((r) => {
-      const k = keyForFact({
-        operation: r.operation as OperationCode,
-        operandA: r.operandA,
-        operandB: r.operandB,
-        correctAnswer: r.correctAnswer,
-      });
+  const totalByKey = new Map<string, number>();
+  for (const item of allItems) {
+    const operandA = extractNumericValue(parseOperandValue(item.operandAValue));
+    const operandB = extractNumericValue(parseOperandValue(item.operandBValue));
+    const correctAnswer = extractNumericValue(parseAnswerValue(item.correctAnswerValue));
+    const k = keyForFact({
+      operation: item.operation as OperationCode,
+      operandA,
+      operandB,
+      correctAnswer,
+    });
+    totalByKey.set(k, (totalByKey.get(k) ?? 0) + 1);
+  }
 
-      const totalCount = totalByKey.get(k) ?? r._count._all;
-
+  const rows = Array.from(incorrectByKey.entries())
+    .map(([k, incorrectCount]) => {
+      const totalCount = totalByKey.get(k) ?? incorrectCount;
+      const parts = k.split('|');
       return {
-        operation: r.operation as OperationCode,
-        operandA: r.operandA,
-        operandB: r.operandB,
-        correctAnswer: r.correctAnswer,
-        incorrectCount: r._count._all,
+        operation: parts[0] as OperationCode,
+        operandA: Number(parts[1]),
+        operandB: Number(parts[2]),
+        correctAnswer: Number(parts[3]),
+        incorrectCount,
         totalCount,
       };
     })
@@ -273,8 +358,8 @@ export async function getMissedFactsForStudentInRange(params: {
 }) {
   const { classroomId, studentId, startAt, endAt, limit } = params;
 
-  const incorrect = await prisma.attemptItem.groupBy({
-    by: ['operation', 'operandA', 'operandB', 'correctAnswer'],
+  // Fetch all incorrect attempt items in range
+  const incorrectItems = await prisma.attemptItem.findMany({
     where: {
       isCorrect: false,
       Attempt: {
@@ -283,13 +368,18 @@ export async function getMissedFactsForStudentInRange(params: {
         Student: { classroomId },
       },
     },
-    _count: { _all: true },
+    select: {
+      operation: true,
+      operandAValue: true,
+      operandBValue: true,
+      correctAnswerValue: true,
+    },
   });
 
-  if (incorrect.length === 0) return [];
+  if (incorrectItems.length === 0) return [];
 
-  const totals = await prisma.attemptItem.groupBy({
-    by: ['operation', 'operandA', 'operandB', 'correctAnswer'],
+  // Fetch all attempt items (incorrect or not) for totals
+  const allItems = await prisma.attemptItem.findMany({
     where: {
       Attempt: {
         completedAt: { gte: startAt, lt: endAt },
@@ -297,37 +387,53 @@ export async function getMissedFactsForStudentInRange(params: {
         Student: { classroomId },
       },
     },
-    _count: { _all: true },
+    select: {
+      operation: true,
+      operandAValue: true,
+      operandBValue: true,
+      correctAnswerValue: true,
+    },
   });
 
-  const totalByKey = new Map<string, number>();
-  for (const t of totals) {
+  // Group in memory
+  const incorrectByKey = new Map<string, number>();
+  for (const item of incorrectItems) {
+    const operandA = extractNumericValue(parseOperandValue(item.operandAValue));
+    const operandB = extractNumericValue(parseOperandValue(item.operandBValue));
+    const correctAnswer = extractNumericValue(parseAnswerValue(item.correctAnswerValue));
     const k = keyForFact({
-      operation: t.operation as OperationCode,
-      operandA: t.operandA,
-      operandB: t.operandB,
-      correctAnswer: t.correctAnswer,
+      operation: item.operation as OperationCode,
+      operandA,
+      operandB,
+      correctAnswer,
     });
-    totalByKey.set(k, t._count._all);
+    incorrectByKey.set(k, (incorrectByKey.get(k) ?? 0) + 1);
   }
 
-  return incorrect
-    .map((r) => {
-      const k = keyForFact({
-        operation: r.operation as OperationCode,
-        operandA: r.operandA,
-        operandB: r.operandB,
-        correctAnswer: r.correctAnswer,
-      });
+  const totalByKey = new Map<string, number>();
+  for (const item of allItems) {
+    const operandA = extractNumericValue(parseOperandValue(item.operandAValue));
+    const operandB = extractNumericValue(parseOperandValue(item.operandBValue));
+    const correctAnswer = extractNumericValue(parseAnswerValue(item.correctAnswerValue));
+    const k = keyForFact({
+      operation: item.operation as OperationCode,
+      operandA,
+      operandB,
+      correctAnswer,
+    });
+    totalByKey.set(k, (totalByKey.get(k) ?? 0) + 1);
+  }
 
-      const totalCount = totalByKey.get(k) ?? r._count._all;
-
+  return Array.from(incorrectByKey.entries())
+    .map(([k, incorrectCount]) => {
+      const totalCount = totalByKey.get(k) ?? incorrectCount;
+      const parts = k.split('|');
       return {
-        operation: r.operation as OperationCode,
-        operandA: r.operandA,
-        operandB: r.operandB,
-        correctAnswer: r.correctAnswer,
-        incorrectCount: r._count._all,
+        operation: parts[0] as OperationCode,
+        operandA: Number(parts[1]),
+        operandB: Number(parts[2]),
+        correctAnswer: Number(parts[3]),
+        incorrectCount,
         totalCount,
       };
     })

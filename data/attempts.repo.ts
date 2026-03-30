@@ -1,5 +1,8 @@
+import { Prisma } from '@prisma/client';
+
 import { prisma } from '@/data/prisma';
 import type { OperationCode } from '@/types/enums';
+import type { OperandValue, AnswerValue } from '@/types';
 
 export async function createAttempt(args: {
   studentId: number;
@@ -19,7 +22,6 @@ export async function createAttempt(args: {
       total,
       completedAt: args.completedAt ?? null,
       levelAtTime: args.levelAtTime ?? null,
-      // startedAt defaults in DB
     },
   });
 }
@@ -27,14 +29,11 @@ export async function createAttempt(args: {
 export async function createAttemptItems(
   items: Array<{
     attemptId: number;
-
     operation: OperationCode;
-    operandA: number;
-    operandB: number;
-
-    correctAnswer: number;
-    givenAnswer: number;
-
+    operandAValue: OperandValue;
+    operandBValue: OperandValue;
+    correctAnswerValue: AnswerValue;
+    givenAnswerValue: AnswerValue | null;
     isCorrect: boolean;
   }>,
 ) {
@@ -44,10 +43,10 @@ export async function createAttemptItems(
     data: items.map((it) => ({
       attemptId: it.attemptId,
       operation: it.operation,
-      operandA: it.operandA,
-      operandB: it.operandB,
-      correctAnswer: it.correctAnswer,
-      givenAnswer: it.givenAnswer,
+      operandAValue: it.operandAValue,
+      operandBValue: it.operandBValue,
+      correctAnswerValue: it.correctAnswerValue,
+      givenAnswerValue: it.givenAnswerValue ?? Prisma.JsonNull,
       isCorrect: it.isCorrect,
     })),
   });
