@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
-import { Modal, Button, Input, Label, HelpText, Badge, useToast } from '@/components';
+import { Modal, Button, Input, Label, HelpText, Badge, useToast, Skeleton } from '@/components';
 import type { AssignmentTargetKind } from '@/types/enums';
 
 type StudentLite = {
@@ -28,6 +28,7 @@ type Props = {
 
   classroomId: number;
   students: StudentLite[];
+  loading?: boolean; // Added loading prop
 
   lastTestMeta: LastTestMeta | null;
 
@@ -55,6 +56,7 @@ export function AssignMakeupTestModal({
   onClose,
   classroomId,
   students,
+  loading = false, // Default to false
   lastTestMeta,
   onCreated,
   defaultAudience,
@@ -296,77 +298,75 @@ export function AssignMakeupTestModal({
         </div>
       }
     >
-      <div className="space-y-5">
+      <div className="space-y-6">
         {error ? (
           <div className="rounded-[14px] border border-[hsl(var(--danger)/0.25)] bg-[hsl(var(--danger)/0.06)] p-3 text-sm text-[hsl(var(--danger))]">
             {error}
           </div>
         ) : null}
 
-        {/* Audience */}
-        <div className="space-y-2">
+        {/* Audience Selection */}
+        <div className="space-y-3">
           <div className="text-sm font-semibold text-[hsl(var(--fg))]">Who gets this test?</div>
 
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => setAudience('MISSED_LAST')}
-              className={[
-                'cursor-pointer rounded-[999px] border px-3 py-1.5 text-sm font-medium transition-colors',
-                audience === 'MISSED_LAST'
-                  ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
-                  : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
-              ].join(' ')}
-            >
-              Missed last test ({missedLastStudents.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setAudience('ALL')}
-              className={[
-                'cursor-pointer rounded-[999px] border px-3 py-1.5 text-sm font-medium transition-colors',
-                audience === 'ALL'
-                  ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
-                  : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
-              ].join(' ')}
-            >
-              All eligible ({eligibleStudents.length})
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setAudience('CUSTOM')}
-              className={[
-                'cursor-pointer rounded-[999px] border px-3 py-1.5 text-sm font-medium transition-colors',
-                audience === 'CUSTOM'
-                  ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
-                  : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
-              ].join(' ')}
-            >
-              Custom
-            </button>
+            {[
+              { id: 'MISSED_LAST', label: 'Missed last test', count: missedLastStudents.length },
+              { id: 'ALL', label: 'All eligible', count: eligibleStudents.length },
+              { id: 'CUSTOM', label: 'Custom', count: null },
+            ].map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setAudience(opt.id as AudienceMode)}
+                className={[
+                  'cursor-pointer rounded-[999px] border px-4 py-1.5 text-sm font-medium transition-all',
+                  audience === opt.id
+                    ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white shadow-md'
+                    : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
+                ].join(' ')}
+              >
+                {opt.label} {opt.count !== null ? `(${opt.count})` : ''}
+              </button>
+            ))}
           </div>
 
           <HelpText>
-            Students who <span className="font-medium">need setup</span> are excluded automatically.
+            Students who <span className="font-medium text-[hsl(var(--fg))]">need setup</span> are
+            excluded automatically.
           </HelpText>
 
-          {audience === 'CUSTOM' ? (
-            <div className="space-y-3 pt-2">
-              <div className="grid gap-1">
+          {audience === 'CUSTOM' && (
+            <div className="space-y-3 pt-2 animate-in fade-in slide-in-from-top-1">
+              <div className="grid gap-1.5">
                 <Label htmlFor="assign-search">Search students</Label>
                 <Input
                   id="assign-search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Name or username…"
+                  className="bg-[hsl(var(--surface))]"
                 />
               </div>
 
-              <div className="max-h-80 overflow-auto rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)]">
-                {filteredEligible.length === 0 ? (
-                  <div className="p-4 text-sm text-[hsl(var(--muted-fg))]">No matches.</div>
+              <div className="max-h-80 overflow-auto rounded-[20px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] shadow-sm">
+                {loading ? (
+                  // Custom List Skeletons
+                  <div className="divide-y divide-[hsl(var(--border))]">
+                    {Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="flex items-center justify-between p-4">
+                        <div className="space-y-2">
+                          <Skeleton className="h-4 w-32" />
+                          <Skeleton className="h-3 w-20" />
+                        </div>
+                        <Skeleton className="h-5 w-5 rounded-md" />
+                      </div>
+                    ))}
+                  </div>
+                ) : filteredEligible.length === 0 ? (
+                  <div className="p-8 text-center text-sm text-[hsl(var(--muted-fg))] italic">
+                    No matching students found.
+                  </div>
                 ) : (
                   <div className="divide-y divide-[hsl(var(--border))]">
                     {filteredEligible.map((s) => {
@@ -374,24 +374,25 @@ export function AssignMakeupTestModal({
                       return (
                         <label
                           key={s.id}
-                          className="flex items-center justify-between gap-3 p-4 cursor-pointer hover:bg-[hsl(var(--surface-2))]"
+                          className="flex items-center justify-between gap-3 p-4 cursor-pointer hover:bg-[hsl(var(--surface-2))] transition-colors"
                         >
                           <div className="min-w-0">
                             <div className="text-sm font-semibold text-[hsl(var(--fg))] truncate">
                               {s.name}
                             </div>
-                            <div className="text-xs font-mono text-[hsl(var(--muted-fg))] truncate">
+                            <div className="text-xs font-mono text-[hsl(var(--muted-fg))] truncate opacity-70">
                               {s.username}
                             </div>
-                            <div className="mt-2 flex flex-wrap gap-2">
-                              {s.flags?.missedLastTest
-                                ? Badge({ text: `Missed last test`, tone: 'warning' })
-                                : null}
-                            </div>
+                            {s.flags?.missedLastTest && (
+                              <div className="mt-2">
+                                <Badge tone="warning">Missed last test</Badge>
+                              </div>
+                            )}
                           </div>
 
                           <input
                             type="checkbox"
+                            className="h-5 w-5 rounded border-[hsl(var(--border))] text-[hsl(var(--brand))] focus:ring-[hsl(var(--brand))]"
                             checked={checked}
                             onChange={() => toggleCustom(s.id)}
                             aria-label={`Select ${s.name}`}
@@ -403,21 +404,21 @@ export function AssignMakeupTestModal({
                 )}
               </div>
             </div>
-          ) : null}
+          )}
         </div>
 
-        {/* Assignment type */}
-        <div className="space-y-2">
+        {/* Assignment Type Toggle */}
+        <div className="space-y-3">
           <div className="text-sm font-semibold text-[hsl(var(--fg))]">Assignment type</div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex bg-[hsl(var(--surface-2))] p-1 rounded-xl w-fit">
             <button
               type="button"
               onClick={() => setTargetKind('ASSESSMENT')}
               className={[
-                'cursor-pointer rounded-[999px] border px-3 py-1.5 text-sm font-medium transition-colors',
+                'px-4 py-1.5 text-sm font-medium rounded-lg transition-all',
                 targetKind === 'ASSESSMENT'
-                  ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
-                  : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
+                  ? 'bg-[hsl(var(--surface))] text-[hsl(var(--fg))] shadow-sm'
+                  : 'text-[hsl(var(--muted-fg))] hover:text-[hsl(var(--fg))]',
               ].join(' ')}
             >
               Assessment
@@ -426,10 +427,10 @@ export function AssignMakeupTestModal({
               type="button"
               onClick={() => setTargetKind('PRACTICE_TIME')}
               className={[
-                'cursor-pointer rounded-[999px] border px-3 py-1.5 text-sm font-medium transition-colors',
+                'px-4 py-1.5 text-sm font-medium rounded-lg transition-all',
                 targetKind === 'PRACTICE_TIME'
-                  ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
-                  : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
+                  ? 'bg-[hsl(var(--surface))] text-[hsl(var(--fg))] shadow-sm'
+                  : 'text-[hsl(var(--muted-fg))] hover:text-[hsl(var(--fg))]',
               ].join(' ')}
             >
               Practice sets
@@ -437,12 +438,12 @@ export function AssignMakeupTestModal({
           </div>
         </div>
 
-        {/* Settings */}
-        <div className="space-y-3">
-          <div className="text-sm font-semibold text-[hsl(var(--fg))]">Settings</div>
+        {/* Configuration Settings */}
+        <div className="space-y-4 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--surface-2)/0.3)] p-4">
+          <div className="text-sm font-semibold text-[hsl(var(--fg))]">Assignment Settings</div>
 
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="grid gap-1">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-1.5">
               <Label htmlFor="opensAt">Opens at</Label>
               <Input
                 id="opensAt"
@@ -452,19 +453,19 @@ export function AssignMakeupTestModal({
               />
             </div>
 
+            <div className="grid gap-1.5">
+              <Label htmlFor="closesAt">Closes at</Label>
+              <Input
+                id="closesAt"
+                type="datetime-local"
+                value={closesAtText}
+                onChange={(e) => setClosesAtText(e.target.value)}
+              />
+            </div>
+
             {targetKind === 'ASSESSMENT' ? (
               <>
-                <div className="grid gap-1">
-                  <Label htmlFor="closesAt">Closes at</Label>
-                  <Input
-                    id="closesAt"
-                    type="datetime-local"
-                    value={closesAtText}
-                    onChange={(e) => setClosesAtText(e.target.value)}
-                  />
-                </div>
-
-                <div className="grid gap-1">
+                <div className="grid gap-1.5">
                   <Label htmlFor="windowMinutes">Time limit (minutes)</Label>
                   <Input
                     id="windowMinutes"
@@ -473,9 +474,8 @@ export function AssignMakeupTestModal({
                     onChange={(e) => setWindowMinutes(Number(e.target.value) || 0)}
                   />
                 </div>
-
-                <div className="grid gap-1">
-                  <Label htmlFor="numQuestions">Questions</Label>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="numQuestions">Number of questions</Label>
                   <Input
                     id="numQuestions"
                     inputMode="numeric"
@@ -486,17 +486,7 @@ export function AssignMakeupTestModal({
               </>
             ) : (
               <>
-                <div className="grid gap-1">
-                  <Label htmlFor="practiceClosesAt">Closes at</Label>
-                  <Input
-                    id="practiceClosesAt"
-                    type="datetime-local"
-                    value={closesAtText}
-                    onChange={(e) => setClosesAtText(e.target.value)}
-                  />
-                </div>
-
-                <div className="grid gap-1">
+                <div className="grid gap-1.5">
                   <Label htmlFor="requiredSets">Required sets</Label>
                   <Input
                     id="requiredSets"
@@ -505,9 +495,8 @@ export function AssignMakeupTestModal({
                     onChange={(e) => setRequiredSets(Number(e.target.value) || 0)}
                   />
                 </div>
-
-                <div className="grid gap-1">
-                  <Label htmlFor="minimumScorePercent">Minimum score (%)</Label>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="minimumScorePercent">Min. score to qualify (%)</Label>
                   <Input
                     id="minimumScorePercent"
                     inputMode="numeric"
@@ -521,8 +510,8 @@ export function AssignMakeupTestModal({
 
           <HelpText>
             {targetKind === 'ASSESSMENT'
-              ? 'Defaults match the most recent test when available.'
-              : 'Students must complete the required number of qualifying sets before the deadline. A set qualifies when the score meets the minimum.'}
+              ? 'Defaults match the most recent classroom test configuration.'
+              : 'Students must complete the required number of sets with scores at or above the minimum before the deadline.'}
           </HelpText>
         </div>
       </div>

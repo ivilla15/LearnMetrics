@@ -1,6 +1,8 @@
+'use client';
+
 import * as React from 'react';
 import { formatLocal } from '@/lib';
-import { Badge, Tile } from '@/components';
+import { Badge, Tile, Skeleton } from '@/components';
 import {
   pctTone,
   assignmentStatusTone,
@@ -20,12 +22,56 @@ function formatTargetBadge(
 
 export function RecentAssignmentsCards({
   rows,
+  loading = false,
   onOpen,
 }: {
   classroomId: number;
   rows: TeacherAssignmentListItemDTO[];
+  loading?: boolean;
   onOpen: (assignmentId: number) => void;
 }) {
+  // If loading and we have no rows, or just loading in general
+  if (loading && rows.length === 0) {
+    return (
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Tile key={`skeleton-card-${i}`} className="p-4 space-y-4">
+            <Skeleton className="h-3 w-32" /> {/* Opens At text */}
+            <div className="flex flex-wrap gap-2">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+              <Skeleton className="h-5 w-14 rounded-full" />
+            </div>
+            <div className="grid grid-cols-3 gap-3 pt-2">
+              <div className="space-y-1">
+                <Skeleton className="h-2.5 w-10" />
+                <Skeleton className="h-6 w-12" />
+              </div>
+              <div className="space-y-1">
+                <Skeleton className="h-2.5 w-10" />
+                <Skeleton className="h-6 w-12" />
+              </div>
+              <div className="space-y-1">
+                <Skeleton className="h-2.5 w-10" />
+                <Skeleton className="h-6 w-12" />
+              </div>
+            </div>
+            <Skeleton className="h-3 w-40 mt-2" /> {/* Closes At text */}
+          </Tile>
+        ))}
+      </div>
+    );
+  }
+
+  // Empty state (after loading finishes)
+  if (rows.length === 0) {
+    return (
+      <div className="py-12 text-center text-sm text-[hsl(var(--muted-fg))] italic border-2 border-dashed border-[hsl(var(--border))] rounded-[28px]">
+        No recent assignments found.
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       {rows.map((t) => {
@@ -42,7 +88,7 @@ export function RecentAssignmentsCards({
         return (
           <Tile
             key={t.assignmentId}
-            className="group cursor-pointer transition-colors hover:bg-[hsl(var(--surface-2))]"
+            className="group cursor-pointer transition-all hover:translate-y-[-2px] hover:shadow-md hover:bg-[hsl(var(--surface-2))]"
           >
             <button
               type="button"
@@ -68,7 +114,11 @@ export function RecentAssignmentsCards({
                 <div>
                   <div className="text-[11px] text-[hsl(var(--muted-fg))]">Mastery</div>
                   <div className="text-lg font-semibold text-[hsl(var(--fg))]">
-                    {mastery === null ? '—' : <Badge tone={pctTone(mastery)}>{mastery}%</Badge>}
+                    {mastery === null ? (
+                      <span className="text-[hsl(var(--muted-fg))]">—</span>
+                    ) : (
+                      <Badge tone={pctTone(mastery)}>{mastery}%</Badge>
+                    )}
                   </div>
                 </div>
 
@@ -92,7 +142,11 @@ export function RecentAssignmentsCards({
                 <div>
                   <div className="text-[11px] text-[hsl(var(--muted-fg))]">Avg</div>
                   <div className="text-lg font-semibold text-[hsl(var(--fg))]">
-                    {avg === null ? '—' : <Badge tone={pctTone(avg)}>{avg}%</Badge>}
+                    {avg === null ? (
+                      <span className="text-[hsl(var(--muted-fg))]">—</span>
+                    ) : (
+                      <Badge tone={pctTone(avg)}>{avg}%</Badge>
+                    )}
                   </div>
                 </div>
               </div>
