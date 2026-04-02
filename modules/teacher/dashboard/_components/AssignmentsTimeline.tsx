@@ -4,7 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { formatLocal } from '@/lib';
-import { formatAssignmentMode, formatAssignmentType, formatOperation } from '@/types/display';
+import { formatAssignmentType } from '@/types/display';
 import type { StudentAssignmentListItemDTO, CalendarProjectionRowDTO } from '@/types';
 import { Card, CardHeader, Pill, Modal, Button } from '@/components';
 import { formatWeekdayMonthDay } from '@/utils';
@@ -234,15 +234,14 @@ export function AssignmentsTimeline({
                   g.rows.map((row) => {
                     const proj = isProjectionRow(row);
                     const submitted = !proj && Boolean(row.latestAttempt);
+                    const isPracticeAssignment = !proj && row.targetKind === 'PRACTICE_TIME';
                     const title = proj
                       ? row.type
                         ? formatAssignmentType(row.type)
                         : 'Scheduled assignment'
-                      : formatAssignmentType(row.type);
-
-                    const metaLeft = row.operation ? formatOperation(row.operation) : null;
-                    const metaRight = formatAssignmentMode(row.mode);
-                    const status = getItemStatus(row);
+                      : isPracticeAssignment
+                        ? 'Practice sets'
+                        : formatAssignmentType(row.type);
                     const href = proj ? null : `/student/assignments/${row.assignmentId}`;
 
                     return (
@@ -261,38 +260,34 @@ export function AssignmentsTimeline({
                       >
                         <Card
                           variant="elevated"
-                          tone={proj ? 'default' : 'primary'}
-                          className="transition hover:bg-[hsl(var(--surface-2))]"
+                          tone="primary"
+                          className="transition hover:bg-[hsl(var(--brand)/0.85)]"
                         >
-                          <div className="flex items-start justify-between gap-4 px-5 py-4">
+                          <div className="flex items-start justify-between gap-4 px-5 py-4 text-white">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-5">
-                                <div className="truncate text-[15px] font-semibold text-[hsl(var(--fg))]">
-                                  {title}
-                                </div>
+                                <div className="truncate text-[15px] font-semibold">{title}</div>
                                 {submitted ? Pill('Submitted', 'primary') : null}
-                                {!submitted && (
-                                  <span className="text-xs text-[hsl(var(--muted-fg))] uppercase">
-                                    {proj ? 'Scheduled' : status}
-                                  </span>
-                                )}
                               </div>
-                              <div className="mt-1 text-sm text-[hsl(var(--fg))]">
-                                {[metaLeft, metaRight].filter(Boolean).join(' · ')}
-                              </div>
-                              <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
+
+                              <div className="mt-1 text-sm"></div>
+
+                              <div className="mt-1 text-xs text-white/80">
                                 {formatWindowLine({ opensAt: row.opensAt, closesAt: row.closesAt })}
                               </div>
                             </div>
 
                             <div className="shrink-0 text-right">
                               {submitted && row.latestAttempt && (
-                                <div className="text-sm font-semibold text-[hsl(var(--fg))]">
+                                <div className="text-sm font-semibold">
                                   {row.latestAttempt.percent}%
                                 </div>
                               )}
-                              <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
-                                {row.durationMinutes ? `${row.durationMinutes} min` : '—'}
+
+                              <div className="mt-1 text-xs text-white/80">
+                                {isPracticeAssignment && !proj && row.requiredSets
+                                  ? `${row.requiredSets} sets · ${row.minimumScorePercent ?? 80}% min`
+                                  : null}
                               </div>
                             </div>
                           </div>

@@ -6,6 +6,7 @@ import type {
   AssignmentListFilter,
   AttemptRowDTO,
 } from '@/types';
+import type { AnswerValue, OperandValue } from './question';
 
 export type AssignmentCoreDTO = {
   id: number;
@@ -25,6 +26,9 @@ export type AssignmentCoreDTO = {
   numQuestions: number;
 
   durationMinutes: number | null;
+
+  requiredSets: number | null;
+  minimumScorePercent: number | null;
 
   scheduleId: number | null;
   runDate: string | null;
@@ -55,6 +59,9 @@ export type TeacherAssignmentListItemDTO = {
 
   numQuestions: number;
   durationMinutes: number | null;
+
+  requiredSets: number | null;
+  minimumScorePercent: number | null;
 
   scheduleId: number | null;
   runDate: string | null;
@@ -122,6 +129,9 @@ export type TeacherAssignmentAttemptsResponse = {
 
     numQuestions: number;
     durationMinutes: number | null;
+
+    requiredSets: number | null;
+    minimumScorePercent: number | null;
   };
   rows: TeacherAssignmentAttemptRowDTO[];
 };
@@ -129,10 +139,10 @@ export type TeacherAssignmentAttemptsResponse = {
 export type TeacherAttemptDetailItemDTO = {
   id: number;
   operation: OperationCode;
-  operandA: number;
-  operandB: number;
-  correctAnswer: number;
-  studentAnswer: number;
+  operandA: OperandValue;
+  operandB: OperandValue;
+  correctAnswer: AnswerValue;
+  studentAnswer: AnswerValue | null;
   isCorrect: boolean;
 };
 
@@ -190,6 +200,9 @@ export type StudentAssignmentListItemDTO = {
 
   numQuestions: number;
   durationMinutes: number | null;
+
+  requiredSets: number | null;
+  minimumScorePercent: number | null;
 
   scheduleId: number | null;
   runDate: string | null;

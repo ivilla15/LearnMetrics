@@ -2,6 +2,12 @@ import * as React from 'react';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
+const toneOverrides = {
+  primary: 'bg-[hsl(var(--brand))] text-white',
+  black: 'bg-black text-white',
+  white: 'bg-white text-black',
+} as const;
+
 const cardVariants = cva(
   'rounded-[var(--radius)] bg-[hsl(var(--card))] text-[hsl(var(--card-fg))] transition',
   {
@@ -15,9 +21,9 @@ const cardVariants = cva(
 
       tone: {
         default: '',
-        primary: 'border-[hsl(var(--brand))]',
-        black: 'border-black',
-        white: 'border-white',
+        primary: '',
+        black: '',
+        white: '',
       },
     },
 
@@ -35,11 +41,20 @@ const cardVariants = cva(
 );
 
 export interface CardProps
-  extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof cardVariants> {}
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof cardVariants> {}
 
 const Card = React.forwardRef<HTMLDivElement, CardProps>(
-  ({ className, variant, tone, ...props }, ref) => (
-    <div ref={ref} className={cn(cardVariants({ variant, tone, className }))} {...props} />
+  ({ className, variant, tone = 'default', ...props }, ref) => (
+    <div
+      ref={ref}
+      className={cn(
+        cardVariants({ variant, tone }),
+        tone && tone !== 'default' && toneOverrides[tone],
+        className,
+      )}
+      {...props}
+    />
   ),
 );
 Card.displayName = 'Card';

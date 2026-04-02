@@ -9,6 +9,8 @@ import {
   generateQuestions,
   gradeGeneratedQuestions,
   resolveModifierForOperationLevel,
+  studentCanAccessAssignment,
+  getMaxUniqueQuestionsFor,
 } from '@/core';
 import { requireStudent } from '@/core/auth';
 import { readJson, handleApiError, type RouteContext } from '@/app/api/_shared';
@@ -26,20 +28,6 @@ const submitBodySchema = z.object({
     )
     .min(1),
 });
-
-function studentCanAccessAssignment(params: {
-  assignment: { classroomId: number; recipients: Array<{ studentId: number }> };
-  student: { id: number; classroomId: number };
-}) {
-  const { assignment, student } = params;
-
-  if (assignment.classroomId !== student.classroomId) return false;
-
-  const isTargeted = assignment.recipients.length > 0;
-  if (!isTargeted) return true;
-
-  return assignment.recipients.some((r) => r.studentId === student.id);
-}
 
 function assignmentSeed(assignmentId: number, studentId: number) {
   return assignmentId * 100_000 + studentId;
@@ -110,6 +98,8 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
         numQuestions: true,
         operation: true,
         durationMinutes: true,
+        requiredSets: true,
+        minimumScorePercent: true,
         recipients: { select: { studentId: true } },
       },
     });
@@ -130,6 +120,8 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
       windowMinutes: assignment.windowMinutes,
       numQuestions: assignment.numQuestions,
       durationMinutes: assignment.durationMinutes ?? null,
+      requiredSets: assignment.requiredSets ?? null,
+      minimumScorePercent: assignment.minimumScorePercent ?? null,
       operation: assignment.operation ?? null,
     };
 
@@ -149,10 +141,45 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
     }
 
     if (assignment.targetKind === 'PRACTICE_TIME') {
+      const practiceSnapshot = await getProgressionSnapshot(student.classroomId);
+      const practiceMaxNumber = clampInt(practiceSnapshot.maxNumber, 1, 100);
+      const practiceActive = await getStudentActiveProgress({
+        studentId: student.id,
+        snapshot: practiceSnapshot,
+      });
+      const practiceOperation = assignment.operation ?? practiceActive.operation;
+      const practiceLevel =
+        assignment.operation != null
+          ? await getStudentLevelForOperation({ studentId: student.id, operation: practiceOperation })
+          : practiceActive.level;
+      const practiceModifier =
+        assignment.operation != null
+          ? resolveModifierForOperationLevel({
+              operation: practiceOperation,
+              level: practiceLevel,
+              snapshot: practiceSnapshot,
+            })
+          : practiceActive.modifier;
+      const available = getMaxUniqueQuestionsFor({
+        operation: practiceOperation,
+        level: practiceLevel,
+        maxNumber: practiceMaxNumber,
+        modifier: practiceModifier,
+      });
+      const requestedPerSet = assignment.numQuestions > 0 ? assignment.numQuestions : 10;
+      const numQuestionsPerSet = Math.min(requestedPerSet, available);
+
       return jsonResponse(
         {
           status: 'READY_PRACTICE_TIME',
           assignment: assignmentPayload,
+          progression: {
+            operation: practiceOperation,
+            level: practiceLevel,
+            maxNumber: practiceMaxNumber,
+            modifier: practiceModifier,
+            numQuestionsPerSet,
+          },
         },
         200,
       );

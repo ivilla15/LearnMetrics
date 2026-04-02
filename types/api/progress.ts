@@ -146,8 +146,8 @@ export type TeacherStudentProgressDTO = {
 
   practice?: {
     summary: {
-      requiredSeconds: number;
-      completedSeconds: number;
+      requiredSets: number;
+      completedSets: number;
       percent: number;
     } | null;
     rows: PracticeProgressDTO[];

@@ -127,9 +127,8 @@ export function SummaryCard(props: {
           <div className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4">
             <div className="text-sm font-semibold text-[hsl(var(--fg))]">Practice</div>
             <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
-              {Math.round((practiceSummary.completedSeconds ?? 0) / 60)} /{' '}
-              {Math.round((practiceSummary.requiredSeconds ?? 0) / 60)} minutes (
-              {practiceSummary.percent ?? 0}%)
+              {practiceSummary.completedSets ?? 0} / {practiceSummary.requiredSets ?? 0} qualifying
+              sets ({practiceSummary.percent ?? 0}%)
             </div>
           </div>
         ) : null}

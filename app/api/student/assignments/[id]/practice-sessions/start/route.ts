@@ -1,9 +1,10 @@
 import { prisma } from '@/data/prisma';
 import { requireStudent } from '@/core/auth/requireStudent';
-import { jsonResponse } from '@/utils/http';
+import { studentCanAccessAssignment } from '@/core/assignments';
+import { jsonResponse, errorResponse } from '@/utils/http';
+import { parseId, getStatus } from '@/utils';
 import { handleApiError, type RouteContext } from '@/app/api/_shared';
 import { z } from 'zod';
-import { getStatus } from '@/utils';
 
 const bodySchema = z.object({
   operation: z.enum(['ADD', 'SUB', 'MUL', 'DIV']).optional(),
@@ -11,18 +12,6 @@ const bodySchema = z.object({
   maxNumber: z.coerce.number().int().min(1).max(100).optional(),
 });
 
-function canAccessAssignment(params: {
-  assignment: { classroomId: number; recipients: Array<{ studentId: number }> };
-  student: { id: number; classroomId: number };
-}) {
-  const { assignment, student } = params;
-  if (assignment.classroomId !== student.classroomId) return false;
-
-  const targeted = assignment.recipients.length > 0;
-  if (!targeted) return true;
-
-  return assignment.recipients.some((r) => r.studentId === student.id);
-}
 type Params = { id: string };
 
 export async function POST(req: Request, { params }: RouteContext<Params>) {
@@ -31,10 +20,8 @@ export async function POST(req: Request, { params }: RouteContext<Params>) {
     if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
     const { id } = await params;
-    const assignmentId = Number(id);
-    if (!Number.isFinite(assignmentId) || assignmentId <= 0) {
-      return jsonResponse({ error: 'Invalid assignment id' }, 400);
-    }
+    const assignmentId = parseId(id);
+    if (!assignmentId) return errorResponse('Invalid assignment id', 400);
 
     const student = auth.student;
     const parsed = bodySchema.parse(await req.json().catch(() => null));
@@ -52,13 +39,13 @@ export async function POST(req: Request, { params }: RouteContext<Params>) {
       },
     });
 
-    if (!assignment) return jsonResponse({ error: 'Assignment not found' }, 404);
-    if (!canAccessAssignment({ assignment, student })) {
-      return jsonResponse({ error: 'Not allowed' }, 403);
+    if (!assignment) return errorResponse('Assignment not found', 404);
+    if (!studentCanAccessAssignment({ assignment, student })) {
+      return errorResponse('Not allowed', 403);
     }
 
     if (assignment.targetKind !== 'PRACTICE_TIME') {
-      return jsonResponse({ error: 'Not a practice-time assignment' }, 409);
+      return errorResponse('Not a practice-time assignment', 409);
     }
 
     const status = getStatus({
@@ -66,8 +53,8 @@ export async function POST(req: Request, { params }: RouteContext<Params>) {
       closesAt: assignment.closesAt,
       now: new Date(),
     });
-    if (status === 'NOT_OPEN') return jsonResponse({ error: 'Assignment not open yet' }, 409);
-    if (status === 'CLOSED') return jsonResponse({ error: 'Assignment window closed' }, 409);
+    if (status === 'NOT_OPEN') return errorResponse('Assignment not open yet', 409);
+    if (status === 'CLOSED') return errorResponse('Assignment window closed', 409);
 
     // Prefer explicit assignment.operation if set, otherwise accept client payload, otherwise MUL
     const operationAtTime = assignment.operation ?? parsed.operation ?? 'MUL';
@@ -81,6 +68,7 @@ export async function POST(req: Request, { params }: RouteContext<Params>) {
     const session = await prisma.practiceSession.create({
       data: {
         studentId: student.id,
+        assignmentId,
         startedAt: new Date(),
         endedAt: null,
         durationSeconds: 0,

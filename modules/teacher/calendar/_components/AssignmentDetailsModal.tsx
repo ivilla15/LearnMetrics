@@ -73,7 +73,8 @@ export function AssignmentDetailsModal(props: {
   const typeLabel = item ? formatCalendarTypeLabel(item) : '—';
   const opLabel = item?.operation ? formatOperation(item.operation) : null;
 
-  const stats = !item || proj || isProjection(item) ? null : (item.stats ?? null);
+  const isPractice = item?.targetKind === 'PRACTICE_TIME';
+  const stats = !item || proj || isProjection(item) || isPractice ? null : (item.stats ?? null);
 
   const canCancelOccurrence = !!item && (proj || (!!item.scheduleId && !!item.runDate));
 
@@ -91,7 +92,9 @@ export function AssignmentDetailsModal(props: {
   const primaryActionLabel = canManageAssignments
     ? 'View details'
     : isOpenNow
-      ? 'Open test'
+      ? item?.targetKind === 'PRACTICE_TIME'
+        ? 'Open practice'
+        : 'Open test'
       : 'View details';
 
   return (
@@ -150,7 +153,15 @@ export function AssignmentDetailsModal(props: {
             {Pill(typeLabel, 'muted')}
             {modeLabel ? Pill(modeLabel, 'muted') : null}
             {Pill(formatCalendarTargetLine(item), 'muted')}
-            {Pill(item.windowMinutes ? `${item.windowMinutes} min window` : 'No window', 'muted')}
+            {!isPractice
+              ? Pill(item.windowMinutes ? `${item.windowMinutes} min window` : 'No window', 'muted')
+              : null}
+            {isPractice && item.requiredSets != null
+              ? Pill(`${item.requiredSets} sets required`, 'muted')
+              : null}
+            {isPractice && item.minimumScorePercent != null
+              ? Pill(`${item.minimumScorePercent}% min score`, 'muted')
+              : null}
             {opLabel ? Pill(opLabel, 'muted') : null}
           </div>
 

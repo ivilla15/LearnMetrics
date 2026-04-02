@@ -13,7 +13,7 @@ export async function getPracticeProgressForAssignment(params: {
   if (!assignment) throw new NotFoundError('Assignment not found');
 
   if (assignment.targetKind !== 'PRACTICE_TIME') {
-    throw new ConflictError('Assignment is not practice-time');
+    throw new ConflictError('Assignment is not a practice assignment');
   }
 
   const recipientOk = await AssignmentsRepo.isStudentRecipientForAssignment({
@@ -22,31 +22,27 @@ export async function getPracticeProgressForAssignment(params: {
   });
   if (!recipientOk) throw new ConflictError('You are not allowed to view this assignment');
 
-  const requiredSeconds =
-    typeof assignment.durationMinutes === 'number' && Number.isFinite(assignment.durationMinutes)
-      ? Math.max(0, Math.trunc(assignment.durationMinutes) * 60)
-      : 0;
+  const requiredSets =
+    typeof assignment.requiredSets === 'number' && assignment.requiredSets > 0
+      ? assignment.requiredSets
+      : 1;
 
-  const windowStart = assignment.opensAt;
-  const windowEnd =
-    assignment.closesAt ??
-    new Date(assignment.opensAt.getTime() + Math.max(0, assignment.windowMinutes) * 60_000);
+  const minimumScorePercent =
+    typeof assignment.minimumScorePercent === 'number' && assignment.minimumScorePercent > 0
+      ? assignment.minimumScorePercent
+      : 80;
 
-  const completedSeconds = await PracticeRepo.sumPracticeSecondsInWindow({
-    studentId,
-    start: windowStart,
-    end: windowEnd,
-    operation: assignment.operation ?? null,
-  });
+  const completedSets = await PracticeRepo.countQualifyingSets({ studentId, assignmentId });
 
-  const safeCompleted = Math.max(0, Math.trunc(completedSeconds));
+  const safeCompleted = Math.max(0, completedSets);
   const percent =
-    requiredSeconds <= 0 ? 0 : Math.min(100, Math.round((safeCompleted / requiredSeconds) * 100));
+    requiredSets <= 0 ? 0 : Math.min(100, Math.round((safeCompleted / requiredSets) * 100));
 
   return {
     assignmentId,
-    requiredSeconds,
-    completedSeconds: safeCompleted,
+    requiredSets,
+    completedSets: safeCompleted,
+    minimumScorePercent,
     percent,
   };
 }

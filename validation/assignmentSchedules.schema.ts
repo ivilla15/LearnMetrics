@@ -37,7 +37,9 @@ const assessment = base.extend({
 
 const practiceTime = base.extend({
   targetKind: z.literal('PRACTICE_TIME'),
-  durationMinutes: z.coerce.number().int().min(1).max(240),
+  requiredSets: z.coerce.number().int().min(1).max(20),
+  minimumScorePercent: z.coerce.number().int().min(1).max(100),
+  durationMinutes: z.undefined().optional(),
   type: z.undefined().optional(),
   numQuestions: z.undefined().optional(),
 });

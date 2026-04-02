@@ -28,6 +28,8 @@ export type CalendarAssignmentRowDTO = {
   numQuestions: number;
 
   durationMinutes: number | null;
+  requiredSets: number | null;
+  minimumScorePercent: number | null;
 
   operation: OperationCode | null;
 
@@ -53,6 +55,8 @@ export type CalendarProjectionRowDTO = {
   operation: OperationCode | null;
 
   durationMinutes: number | null;
+  requiredSets?: number | null;
+  minimumScorePercent?: number | null;
 };
 
 export type CalendarItemRowDTO = CalendarAssignmentRowDTO | CalendarProjectionRowDTO;

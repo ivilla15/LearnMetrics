@@ -5,35 +5,7 @@ import * as React from 'react';
 import { Modal, Button } from '@/components';
 import { cn } from '@/lib';
 import type { AttemptDetailDTO } from '@/types';
-
-function formatAttemptValue(value: unknown): string {
-  if (value === null || value === undefined || value === '' || value === -1) {
-    return '—';
-  }
-
-  if (typeof value === 'number' || typeof value === 'string') {
-    return String(value);
-  }
-
-  if (typeof value === 'object') {
-    const maybe = value as {
-      kind?: unknown;
-      value?: unknown;
-      numerator?: unknown;
-      denominator?: unknown;
-    };
-
-    if (maybe.kind === 'fraction') {
-      return `${String(maybe.numerator)}/${String(maybe.denominator)}`;
-    }
-
-    if (maybe.kind === 'decimal') {
-      return String(maybe.value);
-    }
-  }
-
-  return String(value);
-}
+import { formatAnswer } from '@/types';
 
 export function AttemptDetailModal({
   open,
@@ -159,12 +131,12 @@ export function AttemptDetailModal({
                   <div className="mt-1 text-[hsl(var(--muted-fg))]">
                     Your answer:{' '}
                     <span className="font-medium text-[hsl(var(--fg))]">
-                      {formatAttemptValue(it.studentAnswer)}
+                      {it.studentAnswer !== null ? formatAnswer(it.studentAnswer) : '—'}
                     </span>
                     {' · '}
                     Correct:{' '}
                     <span className="font-medium text-[hsl(var(--fg))]">
-                      {formatAttemptValue(it.correctAnswer)}
+                      {formatAnswer(it.correctAnswer)}
                     </span>
                   </div>
                 </li>

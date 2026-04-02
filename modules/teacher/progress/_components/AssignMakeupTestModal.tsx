@@ -4,6 +4,7 @@ import * as React from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Modal, Button, Input, Label, HelpText, Badge, useToast } from '@/components';
+import type { AssignmentTargetKind } from '@/types/enums';
 
 type StudentLite = {
   id: number;
@@ -71,6 +72,10 @@ export function AssignMakeupTestModal({
     [eligibleStudents],
   );
 
+  const [targetKind, setTargetKind] = React.useState<AssignmentTargetKind>('ASSESSMENT');
+  const [requiredSets, setRequiredSets] = React.useState<number>(3);
+  const [minimumScorePercent, setMinimumScorePercent] = React.useState<number>(80);
+
   const [audience, setAudience] = React.useState<AudienceMode>('MISSED_LAST');
   const [search, setSearch] = React.useState('');
   const [selectedIds, setSelectedIds] = React.useState<Set<number>>(new Set());
@@ -101,6 +106,9 @@ export function AssignMakeupTestModal({
     if (!open) return;
 
     setError(null);
+    setTargetKind('ASSESSMENT');
+    setRequiredSets(3);
+    setMinimumScorePercent(80);
     setAudience(defaultAudience ?? 'MISSED_LAST');
     setSearch('');
     setSelectedIds(new Set(defaultSelectedIds ?? []));
@@ -151,28 +159,80 @@ export function AssignMakeupTestModal({
     setError(null);
 
     const opensAt = fromDatetimeLocalValue(opensAtText);
+    if (!opensAt) {
+      setError('Please enter a valid open date.');
+      return;
+    }
+
     const closesAt = fromDatetimeLocalValue(closesAtText);
 
-    if (!opensAt || !closesAt) {
-      setError('Please enter valid open/close dates.');
-      return;
+    if (targetKind === 'PRACTICE_TIME') {
+      if (!closesAt) {
+        setError('Please enter a valid close date.');
+        return;
+      }
+      if (closesAt <= opensAt) {
+        setError('Close time must be after open time.');
+        return;
+      }
+      if (!Number.isFinite(requiredSets) || requiredSets < 1 || requiredSets > 20) {
+        setError('Required sets must be between 1 and 20.');
+        return;
+      }
+      if (
+        !Number.isFinite(minimumScorePercent) ||
+        minimumScorePercent < 1 ||
+        minimumScorePercent > 100
+      ) {
+        setError('Minimum score must be between 1 and 100.');
+        return;
+      }
+    } else {
+      if (!closesAt) {
+        setError('Please enter a valid close date.');
+        return;
+      }
+      if (closesAt <= opensAt) {
+        setError('Close time must be after open time.');
+        return;
+      }
+      if (!Number.isFinite(windowMinutes) || windowMinutes <= 0 || windowMinutes > 60) {
+        setError('Window minutes must be between 1 and 60.');
+        return;
+      }
+      if (!Number.isFinite(numQuestions) || numQuestions < 1 || numQuestions > 12) {
+        setError('Number of questions must be between 1 and 12.');
+        return;
+      }
     }
-    if (closesAt <= opensAt) {
-      setError('Close time must be after open time.');
-      return;
-    }
-    if (!Number.isFinite(windowMinutes) || windowMinutes <= 0 || windowMinutes > 60) {
-      setError('Window minutes must be between 1 and 60.');
-      return;
-    }
-    if (!Number.isFinite(numQuestions) || numQuestions < 1 || numQuestions > 12) {
-      setError('Number of questions must be between 1 and 12.');
-      return;
-    }
+
     if (selectedCount < 1) {
       setError('Select at least one student.');
       return;
     }
+
+    const body =
+      targetKind === 'PRACTICE_TIME'
+        ? {
+            targetKind: 'PRACTICE_TIME' as const,
+            mode: 'MANUAL' as const,
+            opensAt: opensAt.toISOString(),
+            closesAt: closesAt!.toISOString(),
+            requiredSets,
+            minimumScorePercent,
+            studentIds: computedStudentIds,
+          }
+        : {
+            targetKind: 'ASSESSMENT' as const,
+            mode: 'MANUAL' as const,
+            type: 'TEST' as const,
+            opensAt: opensAt.toISOString(),
+            closesAt: closesAt!.toISOString(),
+            windowMinutes,
+            numQuestions,
+            studentIds: computedStudentIds,
+            ...(questionSetId ? { questionSetId } : {}),
+          };
 
     setBusy(true);
     try {
@@ -180,19 +240,7 @@ export function AssignMakeupTestModal({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({
-          opensAt: opensAt.toISOString(),
-          closesAt: closesAt.toISOString(),
-          windowMinutes,
-          numQuestions,
-          studentIds: computedStudentIds,
-
-          mode: 'MANUAL',
-          type: 'TEST',
-          targetKind: 'ASSESSMENT',
-
-          ...(questionSetId ? { questionSetId } : {}),
-        }),
+        body: JSON.stringify(body),
       });
 
       const json = await res.json().catch(() => null);
@@ -228,8 +276,8 @@ export function AssignMakeupTestModal({
       onClose={() => {
         if (!busy) onClose();
       }}
-      title="Assign makeup test"
-      description="Create a manual assignment for selected students."
+      title="Create manual assignment"
+      description="Create a targeted assignment for selected students."
       size="lg"
       footer={
         <div className="flex items-center justify-between gap-3">
@@ -358,6 +406,37 @@ export function AssignMakeupTestModal({
           ) : null}
         </div>
 
+        {/* Assignment type */}
+        <div className="space-y-2">
+          <div className="text-sm font-semibold text-[hsl(var(--fg))]">Assignment type</div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setTargetKind('ASSESSMENT')}
+              className={[
+                'cursor-pointer rounded-[999px] border px-3 py-1.5 text-sm font-medium transition-colors',
+                targetKind === 'ASSESSMENT'
+                  ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
+                  : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
+              ].join(' ')}
+            >
+              Assessment
+            </button>
+            <button
+              type="button"
+              onClick={() => setTargetKind('PRACTICE_TIME')}
+              className={[
+                'cursor-pointer rounded-[999px] border px-3 py-1.5 text-sm font-medium transition-colors',
+                targetKind === 'PRACTICE_TIME'
+                  ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
+                  : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
+              ].join(' ')}
+            >
+              Practice sets
+            </button>
+          </div>
+        </div>
+
         {/* Settings */}
         <div className="space-y-3">
           <div className="text-sm font-semibold text-[hsl(var(--fg))]">Settings</div>
@@ -373,40 +452,77 @@ export function AssignMakeupTestModal({
               />
             </div>
 
-            <div className="grid gap-1">
-              <Label htmlFor="closesAt">Closes at</Label>
-              <Input
-                id="closesAt"
-                type="datetime-local"
-                value={closesAtText}
-                onChange={(e) => setClosesAtText(e.target.value)}
-              />
-            </div>
+            {targetKind === 'ASSESSMENT' ? (
+              <>
+                <div className="grid gap-1">
+                  <Label htmlFor="closesAt">Closes at</Label>
+                  <Input
+                    id="closesAt"
+                    type="datetime-local"
+                    value={closesAtText}
+                    onChange={(e) => setClosesAtText(e.target.value)}
+                  />
+                </div>
 
-            <div className="grid gap-1">
-              <Label htmlFor="windowMinutes">Time limit (minutes)</Label>
-              <Input
-                id="windowMinutes"
-                inputMode="numeric"
-                value={String(windowMinutes)}
-                onChange={(e) => setWindowMinutes(Number(e.target.value) || 0)}
-              />
-            </div>
+                <div className="grid gap-1">
+                  <Label htmlFor="windowMinutes">Time limit (minutes)</Label>
+                  <Input
+                    id="windowMinutes"
+                    inputMode="numeric"
+                    value={String(windowMinutes)}
+                    onChange={(e) => setWindowMinutes(Number(e.target.value) || 0)}
+                  />
+                </div>
 
-            <div className="grid gap-1">
-              <Label htmlFor="numQuestions">Questions</Label>
-              <Input
-                id="numQuestions"
-                inputMode="numeric"
-                value={String(numQuestions)}
-                onChange={(e) => setNumQuestions(Number(e.target.value) || 0)}
-              />
-            </div>
+                <div className="grid gap-1">
+                  <Label htmlFor="numQuestions">Questions</Label>
+                  <Input
+                    id="numQuestions"
+                    inputMode="numeric"
+                    value={String(numQuestions)}
+                    onChange={(e) => setNumQuestions(Number(e.target.value) || 0)}
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="grid gap-1">
+                  <Label htmlFor="practiceClosesAt">Closes at</Label>
+                  <Input
+                    id="practiceClosesAt"
+                    type="datetime-local"
+                    value={closesAtText}
+                    onChange={(e) => setClosesAtText(e.target.value)}
+                  />
+                </div>
+
+                <div className="grid gap-1">
+                  <Label htmlFor="requiredSets">Required sets</Label>
+                  <Input
+                    id="requiredSets"
+                    inputMode="numeric"
+                    value={String(requiredSets)}
+                    onChange={(e) => setRequiredSets(Number(e.target.value) || 0)}
+                  />
+                </div>
+
+                <div className="grid gap-1">
+                  <Label htmlFor="minimumScorePercent">Minimum score (%)</Label>
+                  <Input
+                    id="minimumScorePercent"
+                    inputMode="numeric"
+                    value={String(minimumScorePercent)}
+                    onChange={(e) => setMinimumScorePercent(Number(e.target.value) || 0)}
+                  />
+                </div>
+              </>
+            )}
           </div>
 
           <HelpText>
-            Defaults match the most recent test when available. This uses the existing manual
-            assignment API.
+            {targetKind === 'ASSESSMENT'
+              ? 'Defaults match the most recent test when available.'
+              : 'Students must complete the required number of qualifying sets before the deadline. A set qualifies when the score meets the minimum.'}
           </HelpText>
         </div>
       </div>

@@ -11,7 +11,7 @@ export async function AssignmentsSection({
   const cookie = await getCookieHeader();
 
   const res = await fetch(
-    `${baseUrl}/api/teacher/classrooms/${classroomId}/assignments?status=finished&type=TEST&limit=20`,
+    `${baseUrl}/api/teacher/classrooms/${classroomId}/assignments?status=all&type=all&limit=20`,
     { cache: 'no-store', headers: { cookie } },
   );
 

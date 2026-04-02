@@ -375,28 +375,15 @@ export default function StudentAssignmentClient({
     );
   }
 
-  if (data.status !== 'READY') {
-    return (
-      <AppPage title="Test">
-        <Section>
-          <Card className="shadow-sm">
-            <CardContent className="py-8 text-sm text-[hsl(var(--muted-fg))]">
-              Unexpected state.
-            </CardContent>
-          </Card>
-        </Section>
-      </AppPage>
-    );
-  }
-
   if (isPracticeTime) {
-    const requiredMin = practiceProgress ? Math.floor(practiceProgress.requiredSeconds / 60) : null;
-    const completedMin = practiceProgress
-      ? Math.floor(practiceProgress.completedSeconds / 60)
-      : null;
+    const requiredSets = practiceProgress?.requiredSets ?? assignment.requiredSets ?? null;
+    const completedSets = practiceProgress?.completedSets ?? null;
+    const minScore = practiceProgress?.minimumScorePercent ?? assignment.minimumScorePercent ?? null;
+    const isDone =
+      requiredSets !== null && completedSets !== null && completedSets >= requiredSets;
 
     return (
-      <AppPage title="Practice assignment" subtitle="Complete the required practice time.">
+      <AppPage title="Practice assignment" subtitle="Complete the required qualifying sets.">
         <Section>
           <div className="space-y-4">
             <Card className="shadow-sm">
@@ -409,9 +396,10 @@ export default function StudentAssignmentClient({
                     <div className="mt-1 text-sm text-[hsl(var(--muted-fg))]">
                       {practiceLoading
                         ? 'Loading…'
-                        : practiceProgress && requiredMin !== null && completedMin !== null
-                          ? `${completedMin} / ${requiredMin} minutes`
+                        : completedSets !== null && requiredSets !== null
+                          ? `${completedSets} / ${requiredSets} qualifying sets`
                           : '—'}
+                      {minScore !== null ? ` · ${minScore}% minimum score` : ''}
                     </div>
                   </div>
 
@@ -425,15 +413,23 @@ export default function StudentAssignmentClient({
                       Refresh
                     </Button>
 
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        router.push(`/student/practice/session?assignmentId=${assignmentId}`);
-                      }}
-                      disabled={!assignmentId}
-                    >
-                      Start practice
-                    </Button>
+                    {!isDone ? (
+                      <Button
+                        size="sm"
+                        onClick={() => {
+                          if (!assignmentId || data?.status !== 'READY_PRACTICE_TIME') return;
+                          const p = data.progression;
+                          let sessionUrl = `/student/practice/session?assignmentId=${assignmentId}`;
+                          sessionUrl += `&ops=${p.operation}&level=${p.level}&maxNumber=${p.maxNumber}&count=${p.numQuestionsPerSet}`;
+                          if (p.modifier === 'DECIMAL') sessionUrl += '&decimals=1';
+                          else if (p.modifier === 'FRACTION') sessionUrl += '&fractions=1';
+                          router.push(sessionUrl);
+                        }}
+                        disabled={!assignmentId}
+                      >
+                        Start set
+                      </Button>
+                    ) : null}
                   </div>
                 </div>
 
@@ -446,10 +442,15 @@ export default function StudentAssignmentClient({
                   </div>
                 ) : null}
 
-                <div className="text-xs text-[hsl(var(--muted-fg))]">
-                  This assignment updates based on your practice sessions during the assignment
-                  window.
-                </div>
+                {isDone ? (
+                  <div className="text-sm font-medium text-[hsl(var(--brand))]">
+                    All qualifying sets completed.
+                  </div>
+                ) : (
+                  <div className="text-xs text-[hsl(var(--muted-fg))]">
+                    Each set must score at least {minScore ?? 80}% to count toward your total.
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -473,6 +474,20 @@ export default function StudentAssignmentClient({
               </CardContent>
             </Card>
           </div>
+        </Section>
+      </AppPage>
+    );
+  }
+
+  if (data.status !== 'READY') {
+    return (
+      <AppPage title="Test">
+        <Section>
+          <Card className="shadow-sm">
+            <CardContent className="py-8 text-sm text-[hsl(var(--muted-fg))]">
+              Unexpected state.
+            </CardContent>
+          </Card>
         </Section>
       </AppPage>
     );

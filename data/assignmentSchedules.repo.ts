@@ -36,6 +36,8 @@ export async function findAllActiveSchedulesWithTimezone() {
       operation: true,
 
       durationMinutes: true,
+      requiredSets: true,
+      minimumScorePercent: true,
 
       dependsOnScheduleId: true,
       offsetMinutes: true,

@@ -3,7 +3,7 @@ import type { Prisma } from '@prisma/client';
 
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 import { clampTake, parseCursor, percent } from '@/utils';
-import type { OperandValue, AnswerValue } from '@/types';
+import { parseOperandValue, parseAnswerValue } from '@/types';
 
 import type {
   AssignModalBootstrapResponse,
@@ -29,69 +29,6 @@ import type {
   AssignmentMode,
   AssignmentType,
 } from '@/types/enums';
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-function isOperandValue(value: unknown): value is OperandValue {
-  if (!isObject(value) || typeof value.kind !== 'string') return false;
-
-  if (value.kind === 'integer' || value.kind === 'decimal') {
-    return typeof value.value === 'number' && Number.isFinite(value.value);
-  }
-
-  if (value.kind === 'fraction') {
-    return (
-      typeof value.numerator === 'number' &&
-      Number.isFinite(value.numerator) &&
-      typeof value.denominator === 'number' &&
-      Number.isFinite(value.denominator) &&
-      value.denominator !== 0
-    );
-  }
-
-  return false;
-}
-
-function isAnswerValue(value: unknown): value is AnswerValue {
-  if (!isObject(value) || typeof value.kind !== 'string') return false;
-
-  if (value.kind === 'decimal') {
-    return typeof value.value === 'number' && Number.isFinite(value.value);
-  }
-
-  if (value.kind === 'fraction') {
-    return (
-      typeof value.numerator === 'number' &&
-      Number.isFinite(value.numerator) &&
-      typeof value.denominator === 'number' &&
-      Number.isFinite(value.denominator) &&
-      value.denominator !== 0
-    );
-  }
-
-  return false;
-}
-
-function parseOperandValue(value: unknown): OperandValue {
-  if (isOperandValue(value)) return value;
-  throw new Error('Expected OperandValue JSON object');
-}
-
-function parseAnswerValue(value: unknown): AnswerValue {
-  if (isAnswerValue(value)) return value;
-  throw new Error('Expected AnswerValue JSON object');
-}
-
-function extractNumericValue(value: OperandValue | AnswerValue): number {
-  if (value.kind === 'integer' || value.kind === 'decimal') {
-    return value.value;
-  }
-  if (value.kind === 'fraction') {
-    return value.numerator / value.denominator;
-  }
-  throw new Error('Unknown value kind');
-}
 
 export async function listTeacherAssignmentsForClassroom(params: {
   teacherId: number;
@@ -142,6 +79,8 @@ export async function listTeacherAssignmentsForClassroom(params: {
       windowMinutes: true,
       numQuestions: true,
       durationMinutes: true,
+      requiredSets: true,
+      minimumScorePercent: true,
       scheduleId: true,
       runDate: true,
     },
@@ -215,6 +154,9 @@ export async function listTeacherAssignmentsForClassroom(params: {
       windowMinutes: a.windowMinutes ?? null,
       numQuestions: a.numQuestions ?? 12,
       durationMinutes: a.durationMinutes ?? null,
+
+      requiredSets: a.requiredSets ?? null,
+      minimumScorePercent: a.minimumScorePercent ?? null,
 
       scheduleId: a.scheduleId ?? null,
       runDate: a.runDate ? a.runDate.toISOString() : null,
@@ -290,6 +232,8 @@ export async function listTeacherAssignmentAttempts(params: {
       windowMinutes: true,
       numQuestions: true,
       durationMinutes: true,
+      requiredSets: true,
+      minimumScorePercent: true,
       recipients: { select: { studentId: true } },
     },
   });
@@ -385,6 +329,9 @@ export async function listTeacherAssignmentAttempts(params: {
       windowMinutes: assignment.windowMinutes ?? null,
       numQuestions: assignment.numQuestions ?? 12,
       durationMinutes: assignment.durationMinutes ?? null,
+
+      requiredSets: assignment.requiredSets ?? null,
+      minimumScorePercent: assignment.minimumScorePercent ?? null,
     },
     rows,
   };
@@ -455,10 +402,10 @@ export async function getTeacherAttemptDetail(params: {
     return {
       id: it.id,
       operation: it.operation as OperationCode,
-      operandA: extractNumericValue(operandA),
-      operandB: extractNumericValue(operandB),
-      correctAnswer: extractNumericValue(correctAnswer),
-      studentAnswer: it.givenAnswerValue ? extractNumericValue(parseAnswerValue(it.givenAnswerValue)) : -1,
+      operandA,
+      operandB,
+      correctAnswer,
+      studentAnswer: it.givenAnswerValue !== null ? parseAnswerValue(it.givenAnswerValue) : null,
       isCorrect: it.isCorrect,
     };
   });

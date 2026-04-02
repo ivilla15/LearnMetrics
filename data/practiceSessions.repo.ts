@@ -1,6 +1,19 @@
 import { prisma } from '@/data/prisma';
 import type { OperationCode } from '@/types/enums';
 
+export async function countQualifyingSets(params: {
+  studentId: number;
+  assignmentId: number;
+}): Promise<number> {
+  return prisma.practiceSession.count({
+    where: {
+      studentId: params.studentId,
+      assignmentId: params.assignmentId,
+      qualified: true,
+    },
+  });
+}
+
 export async function sumPracticeSecondsInWindow(params: {
   studentId: number;
   start: Date;

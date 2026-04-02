@@ -2,6 +2,10 @@ export function percent(score: number, total: number): number {
   return total > 0 ? Math.round((score / total) * 100) : 0;
 }
 
+export function isMastery(score: number, total: number): boolean {
+  return total > 0 && score === total;
+}
+
 export function median(nums: number[]): number {
   if (!nums.length) return 0;
   const arr = [...nums].sort((a, b) => a - b);

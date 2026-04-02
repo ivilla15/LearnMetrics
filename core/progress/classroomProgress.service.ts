@@ -11,9 +11,9 @@ import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 
 import type { OperationCode } from '@/types/enums';
 import { isoDay } from '@/utils/time';
-import { median, percent } from '@/utils/math';
+import { isMastery, median, percent } from '@/utils/math';
 import { getLevelForOp } from '@/types';
-import { bucketScore, trendFromLast3 } from './utils';
+import { bucketScore, computeStreaks, trendFromLast3 } from './utils';
 
 export async function getClassroomProgress(params: {
   teacherId: number;
@@ -73,7 +73,7 @@ export async function getClassroomProgress(params: {
     const attemptsForLast = attemptsByAssignment.get(lastTest.id) ?? [];
     for (const a of attemptsForLast) {
       lastTestAttemptedStudentIds.add(a.studentId);
-      if (a.total > 0 && a.score === a.total) lastTestMasteredStudentIds.add(a.studentId);
+      if (isMastery(a.score, a.total)) lastTestMasteredStudentIds.add(a.studentId);
     }
   }
 
@@ -82,7 +82,7 @@ export async function getClassroomProgress(params: {
     const attemptedCount = attempts.length;
 
     const masteryCount = attempts.reduce(
-      (acc, a) => acc + (a.total > 0 && a.score === a.total ? 1 : 0),
+      (acc, a) => acc + (isMastery(a.score, a.total) ? 1 : 0),
       0,
     );
 
@@ -120,7 +120,7 @@ export async function getClassroomProgress(params: {
     const p = percent(a.score, a.total);
     prev.sumPct += p;
 
-    if (a.total > 0 && a.score === a.total) prev.mastered += 1;
+    if (isMastery(a.score, a.total)) prev.mastered += 1;
 
     dailyMap.set(key, prev);
   }
@@ -188,7 +188,7 @@ export async function getClassroomProgress(params: {
     const medRange = pctsRange.length ? median(pctsRange) : 0;
 
     const masteredRange = range.reduce(
-      (acc, a) => acc + (a.total > 0 && a.score === a.total ? 1 : 0),
+      (acc, a) => acc + (isMastery(a.score, a.total) ? 1 : 0),
       0,
     );
 
@@ -202,19 +202,7 @@ export async function getClassroomProgress(params: {
       ? Math.floor((nowMs - last.completedAt.getTime()) / (24 * 60 * 60 * 1000))
       : null;
 
-    let masteryStreak = 0;
-    let nonMasteryStreak = 0;
-
-    for (const a of rec) {
-      const isMastery = a.total > 0 && a.score === a.total;
-      if (isMastery) {
-        if (nonMasteryStreak === 0) masteryStreak += 1;
-        else break;
-      } else {
-        if (masteryStreak === 0) nonMasteryStreak += 1;
-        else break;
-      }
-    }
+    const { masteryStreak, nonMasteryStreak } = computeStreaks(rec);
 
     const last3 = rec.slice(0, 3).reverse();
     const last3pcts = last3.map((a) => percent(a.score, a.total));
@@ -268,7 +256,7 @@ export async function getClassroomProgress(params: {
 
   const attemptsTotal = attemptsInRange.length;
   const masteryTotal = attemptsInRange.reduce(
-    (acc, a) => acc + (a.total > 0 && a.score === a.total ? 1 : 0),
+    (acc, a) => acc + (isMastery(a.score, a.total) ? 1 : 0),
     0,
   );
 

@@ -8,71 +8,7 @@ import { percent } from '@/utils/math';
 import type { AttemptDetailDTO } from '@/types/api/attempts';
 import type { OperationCode } from '@/types/enums';
 import type { StudentAttemptRouteContext } from '@/app/api/_shared/route-types';
-import type { OperandValue, AnswerValue } from '@/types';
-import { opSymbol } from '@/types';
-
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null;
-
-function isOperandValue(value: unknown): value is OperandValue {
-  if (!isObject(value) || typeof value.kind !== 'string') return false;
-
-  if (value.kind === 'integer' || value.kind === 'decimal') {
-    return typeof value.value === 'number' && Number.isFinite(value.value);
-  }
-
-  if (value.kind === 'fraction') {
-    return (
-      typeof value.numerator === 'number' &&
-      Number.isFinite(value.numerator) &&
-      typeof value.denominator === 'number' &&
-      Number.isFinite(value.denominator) &&
-      value.denominator !== 0
-    );
-  }
-
-  return false;
-}
-
-function isAnswerValue(value: unknown): value is AnswerValue {
-  if (!isObject(value) || typeof value.kind !== 'string') return false;
-
-  if (value.kind === 'decimal') {
-    return typeof value.value === 'number' && Number.isFinite(value.value);
-  }
-
-  if (value.kind === 'fraction') {
-    return (
-      typeof value.numerator === 'number' &&
-      Number.isFinite(value.numerator) &&
-      typeof value.denominator === 'number' &&
-      Number.isFinite(value.denominator) &&
-      value.denominator !== 0
-    );
-  }
-
-  return false;
-}
-
-function parseOperandValue(value: unknown): OperandValue {
-  if (isOperandValue(value)) return value;
-  throw new Error('Expected OperandValue JSON object');
-}
-
-function parseAnswerValue(value: unknown): AnswerValue {
-  if (isAnswerValue(value)) return value;
-  throw new Error('Expected AnswerValue JSON object');
-}
-
-function extractNumericValue(value: OperandValue | AnswerValue): number {
-  if (value.kind === 'integer' || value.kind === 'decimal') {
-    return value.value;
-  }
-  if (value.kind === 'fraction') {
-    return value.numerator / value.denominator;
-  }
-  throw new Error('Unknown value kind');
-}
+import { opSymbol, formatOperand, parseOperandValue, parseAnswerValue } from '@/types';
 
 export async function GET(_req: Request, { params }: StudentAttemptRouteContext) {
   try {
@@ -159,9 +95,9 @@ export async function GET(_req: Request, { params }: StudentAttemptRouteContext)
 
         return {
           id: it.id,
-          prompt: `${extractNumericValue(operandA)} ${opSymbol(it.operation as OperationCode)} ${extractNumericValue(operandB)}`,
-          studentAnswer: it.givenAnswerValue ? extractNumericValue(parseAnswerValue(it.givenAnswerValue)) : -1,
-          correctAnswer: extractNumericValue(correctAnswer),
+          prompt: `${formatOperand(operandA)} ${opSymbol(it.operation as OperationCode)} ${formatOperand(operandB)}`,
+          studentAnswer: it.givenAnswerValue !== null ? parseAnswerValue(it.givenAnswerValue) : null,
+          correctAnswer,
           isCorrect: it.isCorrect,
         };
       }),

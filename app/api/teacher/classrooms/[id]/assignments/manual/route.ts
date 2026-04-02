@@ -40,11 +40,14 @@ export async function POST(req: Request, { params }: RouteContext<{ id: string }
       numQuestions: parsed.numQuestions ?? 12,
 
       mode: parsed.mode,
-      type: parsed.type ?? 'TEST',
+      type: parsed.targetKind === 'PRACTICE_TIME' ? 'PRACTICE' : (parsed.type ?? 'TEST'),
       targetKind: parsed.targetKind,
 
       operation: parsed.operation ?? null,
       durationMinutes: parsed.durationMinutes ?? null,
+
+      requiredSets: parsed.requiredSets ?? null,
+      minimumScorePercent: parsed.minimumScorePercent ?? null,
 
       studentIds: parsed.studentIds,
     });

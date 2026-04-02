@@ -51,7 +51,8 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
   const [numQuestions, setNumQuestions] = React.useState(12);
   const [type, setType] = React.useState<AssignmentType>('TEST');
 
-  const [durationMinutes, setDurationMinutes] = React.useState(10);
+  const [requiredSets, setRequiredSets] = React.useState(3);
+  const [minimumScorePercent, setMinimumScorePercent] = React.useState(80);
 
   React.useEffect(() => {
     if (!open) return;
@@ -81,12 +82,14 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
         setWindowMinutes(initial.windowMinutes ?? 4);
         setNumQuestions(initial.numQuestions ?? 12);
         setType(initial.type ?? 'TEST');
-        setDurationMinutes(initial.durationMinutes ?? 10);
+        setRequiredSets(3);
+        setMinimumScorePercent(80);
       } else {
-        setDurationMinutes(initial.durationMinutes ?? 10);
         setWindowMinutes(initial.windowMinutes ?? 4);
-        setNumQuestions(initial.numQuestions ?? 12);
-        setType(initial.type ?? 'TEST');
+        setRequiredSets(initial.requiredSets ?? 3);
+        setMinimumScorePercent(initial.minimumScorePercent ?? 80);
+        setNumQuestions(12);
+        setType('TEST');
       }
     } else {
       setTargetKind('ASSESSMENT');
@@ -97,8 +100,8 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
       setWindowMinutes(4);
       setNumQuestions(12);
       setType('TEST');
-
-      setDurationMinutes(10);
+      setRequiredSets(3);
+      setMinimumScorePercent(80);
     }
   }, [open, mode, initial]);
   function toggleDay(key: (typeof WEEKDAYS)[number]) {
@@ -118,8 +121,8 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
         ? 'Update when assessments open, which days run, and how long students have.'
         : 'Add a new schedule for automatic assessments in this classroom.'
       : mode === 'edit'
-        ? 'Update when practice opens, which days run, and how long students practice.'
-        : 'Add a new schedule for timed practice in this classroom.';
+        ? 'Update when practice opens, which days run, and the qualifying-set requirements.'
+        : 'Add a new schedule for practice sets in this classroom.';
 
   function buildSubmitInput(): UpsertScheduleInput {
     const safeDays = days.length > 0 ? days : (['Friday'] as const);
@@ -143,10 +146,11 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
     return {
       targetKind: 'PRACTICE_TIME',
       opensAtLocalTime,
-      windowMinutes: initial?.windowMinutes ?? 4,
+      windowMinutes,
       isActive,
       days: safeDays as unknown as string[],
-      durationMinutes,
+      requiredSets,
+      minimumScorePercent,
       operation: initial?.operation ?? null,
       dependsOnScheduleId: initial?.dependsOnScheduleId ?? null,
       offsetMinutes: initial?.offsetMinutes ?? 0,
@@ -215,14 +219,13 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
                   : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
               ].join(' ')}
             >
-              Practice time
+              Practice sets
             </button>
           </div>
 
           <div className="mt-3">
             <HelpText>
-              Assessment schedules create graded assignments. Practice-time schedules open a timed
-              practice session.
+              Assessment schedules create graded assignments. Practice-set schedules require students to complete qualifying sets before the deadline.
             </HelpText>
           </div>
         </div>
@@ -292,12 +295,12 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
               </div>
             ) : (
               <div className="grid gap-1">
-                <Label htmlFor="durationMinutes">Practice duration (minutes)</Label>
+                <Label htmlFor="practiceWindowMinutes">Open window (minutes)</Label>
                 <Input
-                  id="durationMinutes"
+                  id="practiceWindowMinutes"
                   inputMode="numeric"
-                  value={String(durationMinutes)}
-                  onChange={(e) => setDurationMinutes(Number(e.target.value) || 0)}
+                  value={String(windowMinutes)}
+                  onChange={(e) => setWindowMinutes(Number(e.target.value) || 0)}
                 />
               </div>
             )}
@@ -345,12 +348,33 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
             </div>
 
             {targetKind === 'PRACTICE_TIME' ? (
-              <div className="sm:col-span-2">
-                <HelpText>
-                  Practice-time schedules do not create graded attempts. They open a timed practice
-                  session for students.
-                </HelpText>
-              </div>
+              <>
+                <div className="grid gap-1">
+                  <Label htmlFor="requiredSets">Required sets</Label>
+                  <Input
+                    id="requiredSets"
+                    inputMode="numeric"
+                    value={String(requiredSets)}
+                    onChange={(e) => setRequiredSets(Number(e.target.value) || 0)}
+                  />
+                </div>
+
+                <div className="grid gap-1">
+                  <Label htmlFor="minimumScorePercent">Minimum score (%)</Label>
+                  <Input
+                    id="minimumScorePercent"
+                    inputMode="numeric"
+                    value={String(minimumScorePercent)}
+                    onChange={(e) => setMinimumScorePercent(Number(e.target.value) || 0)}
+                  />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <HelpText>
+                    Students must complete the required number of qualifying sets before the window closes. A set qualifies when the score meets the minimum.
+                  </HelpText>
+                </div>
+              </>
             ) : null}
           </div>
         </div>

@@ -1,9 +1,9 @@
 import type { AssignmentMode, AssignmentType, OperationCode } from '@/types/enums';
-import { OperandValue } from '..';
+import { AnswerValue, OperandValue } from '..';
 
 export const ASSIGNMENT_TYPE_LABEL: Record<AssignmentType, string> = {
   TEST: 'Test',
-  PRACTICE: 'Practice test',
+  PRACTICE: 'Practice',
   REMEDIATION: 'Remediation',
   PLACEMENT: 'Placement',
 };
@@ -11,7 +11,7 @@ export const ASSIGNMENT_TYPE_LABEL: Record<AssignmentType, string> = {
 export const ASSIGNMENT_MODE_LABEL: Record<AssignmentMode, string> = {
   SCHEDULED: 'Scheduled',
   MAKEUP: 'Makeup',
-  MANUAL: 'Created manually',
+  MANUAL: 'Custom',
 };
 
 export const OPERATION_LABEL: Record<OperationCode, string> = {
@@ -54,5 +54,14 @@ export function formatOperand(operand: OperandValue): string {
       return String(operand.value);
     case 'fraction':
       return `${operand.numerator}/${operand.denominator}`;
+  }
+}
+
+export function formatAnswer(answer: AnswerValue): string {
+  switch (answer.kind) {
+    case 'decimal':
+      return String(answer.value);
+    case 'fraction':
+      return `${answer.numerator}/${answer.denominator}`;
   }
 }

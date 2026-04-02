@@ -63,9 +63,12 @@ export function AssignmentsTable({
                   <td className="py-3 pl-5 pr-3">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
-                        <Badge tone="muted">{formatAssignmentType(a.type)}</Badge>
+                        {isPracticeTime ? (
+                          <Badge tone="muted">Practice sets</Badge>
+                        ) : (
+                          <Badge tone="muted">{formatAssignmentType(a.type)}</Badge>
+                        )}
                         <Badge tone="muted">{formatAssignmentMode(a.mode)}</Badge>
-                        {isPracticeTime ? <Badge tone="muted">Practice time</Badge> : null}
                       </div>
 
                       <div className="text-xs text-[hsl(var(--muted-fg))]">

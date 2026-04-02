@@ -1,3 +1,5 @@
+import { isMastery } from '@/utils/math';
+
 export type Trend = 'improving' | 'regressing' | 'flat' | 'need3';
 
 export function trendFromLast3(pcts: number[]): Trend {
@@ -6,6 +8,29 @@ export function trendFromLast3(pcts: number[]): Trend {
   if (a < b && b < c) return 'improving';
   if (a > b && b > c) return 'regressing';
   return 'flat';
+}
+
+/**
+ * Compute mastery and non-mastery streaks from a recency-ordered attempt list.
+ * Attempts must be ordered most-recent first (same order returned by the DB queries).
+ */
+export function computeStreaks(
+  attempts: ReadonlyArray<{ score: number; total: number }>,
+): { masteryStreak: number; nonMasteryStreak: number } {
+  let masteryStreak = 0;
+  let nonMasteryStreak = 0;
+
+  for (const a of attempts) {
+    if (isMastery(a.score, a.total)) {
+      if (nonMasteryStreak === 0) masteryStreak++;
+      else break;
+    } else {
+      if (masteryStreak === 0) nonMasteryStreak++;
+      else break;
+    }
+  }
+
+  return { masteryStreak, nonMasteryStreak };
 }
 
 /**

@@ -20,7 +20,7 @@ type Props = {
 };
 
 function itemTitle(item: CalendarItemRowDTO) {
-  if (item.targetKind === 'PRACTICE_TIME') return 'Practice time';
+  if (item.targetKind === 'PRACTICE_TIME') return 'Practice sets';
   if (!item.type) return '—';
   return formatAssignmentType(item.type);
 }
