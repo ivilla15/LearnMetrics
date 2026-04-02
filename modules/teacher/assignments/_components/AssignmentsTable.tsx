@@ -1,6 +1,7 @@
-import * as React from 'react';
+'use client';
 
-import { Badge, Button } from '@/components';
+import * as React from 'react';
+import { Badge, Button, Skeleton } from '@/components';
 import { formatLocal } from '@/lib';
 import {
   pctTone,
@@ -14,11 +15,13 @@ import {
 
 export function AssignmentsTable({
   rows,
+  loading = false,
   onOpen,
   onDelete,
 }: {
   classroomId?: number;
   rows: TeacherAssignmentListItemDTO[];
+  loading?: boolean;
   onOpen: (assignmentId: number) => void;
   onDelete: (assignmentId: number) => void;
 }) {
@@ -27,22 +30,74 @@ export function AssignmentsTable({
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]">
-            <th className="py-3 pl-5 pr-3">Type / Mode</th>
-            <th className="py-3 px-3">Status</th>
-            <th className="py-3 px-3">Opens</th>
-            <th className="py-3 px-3">Closes</th>
-            <th className="py-3 px-3 text-center">Assigned</th>
-            <th className="py-3 px-3 text-center">Attempted</th>
-            <th className="py-3 px-3 text-center">Mastery</th>
-            <th className="py-3 px-3 text-center">Avg</th>
-            <th className="py-3 pl-3 pr-5 text-right">Actions</th>
+            <th className="py-4 pl-5 pr-3 font-semibold text-[hsl(var(--fg))]">Type / Mode</th>
+            <th className="py-4 px-3 font-semibold text-[hsl(var(--fg))]">Status</th>
+            <th className="py-4 px-3 font-semibold text-[hsl(var(--fg))]">Opens</th>
+            <th className="py-4 px-3 font-semibold text-[hsl(var(--fg))]">Closes</th>
+            <th className="py-4 px-3 text-center font-semibold text-[hsl(var(--fg))]">Assigned</th>
+            <th className="py-4 px-3 text-center font-semibold text-[hsl(var(--fg))]">Attempted</th>
+            <th className="py-4 px-3 text-center font-semibold text-[hsl(var(--fg))]">Mastery</th>
+            <th className="py-4 px-3 text-center font-semibold text-[hsl(var(--fg))]">Avg</th>
+            <th className="py-4 pl-3 pr-5 text-right font-semibold text-[hsl(var(--fg))]">
+              Actions
+            </th>
           </tr>
         </thead>
 
-        <tbody>
-          {rows.length === 0 ? (
+        <tbody className="divide-y divide-[hsl(var(--border))]">
+          {loading ? (
+            // Loading Skeleton Rows
+            Array.from({ length: 5 }).map((_, i) => (
+              <tr key={`skeleton-${i}`} className="animate-pulse">
+                <td className="py-4 pl-5 pr-3">
+                  <div className="space-y-2">
+                    <div className="flex gap-2">
+                      <Skeleton className="h-5 w-16 rounded-md" />
+                      <Skeleton className="h-5 w-16 rounded-md" />
+                    </div>
+                    <Skeleton className="h-3 w-32" />
+                  </div>
+                </td>
+                <td className="py-4 px-3">
+                  <Skeleton className="h-6 w-20 rounded-full" />
+                </td>
+                <td className="py-4 px-3">
+                  <Skeleton className="h-4 w-24" />
+                </td>
+                <td className="py-4 px-3">
+                  <Skeleton className="h-4 w-24" />
+                </td>
+                <td className="py-4 px-3">
+                  <div className="flex justify-center">
+                    <Skeleton className="h-4 w-8" />
+                  </div>
+                </td>
+                <td className="py-4 px-3">
+                  <div className="flex justify-center">
+                    <Skeleton className="h-4 w-12" />
+                  </div>
+                </td>
+                <td className="py-4 px-3">
+                  <div className="flex justify-center">
+                    <Skeleton className="h-6 w-12 rounded-full" />
+                  </div>
+                </td>
+                <td className="py-4 px-3">
+                  <div className="flex justify-center">
+                    <Skeleton className="h-6 w-12 rounded-full" />
+                  </div>
+                </td>
+                <td className="py-4 pl-3 pr-5">
+                  <div className="flex justify-end gap-3">
+                    <Skeleton className="h-8 w-14 rounded-lg" />
+                    <Skeleton className="h-8 w-16 rounded-lg" />
+                  </div>
+                </td>
+              </tr>
+            ))
+          ) : rows.length === 0 ? (
             <tr>
-              <td colSpan={9} className="py-10 px-3 text-center text-[hsl(var(--muted-fg))]">
+              <td colSpan={9} className="py-12 px-3 text-center text-[hsl(var(--muted-fg))] italic">
                 No assignments match your filters.
               </td>
             </tr>
@@ -58,9 +113,9 @@ export function AssignmentsTable({
               return (
                 <tr
                   key={a.assignmentId}
-                  className="border-b border-[hsl(var(--border))] last:border-b-0 hover:bg-[hsl(var(--surface-2))]"
+                  className="hover:bg-[hsl(var(--surface-2)/0.5)] transition-colors"
                 >
-                  <td className="py-3 pl-5 pr-3">
+                  <td className="py-4 pl-5 pr-3">
                     <div className="flex flex-col gap-1">
                       <div className="flex items-center gap-2">
                         {isPracticeTime ? (
@@ -78,21 +133,23 @@ export function AssignmentsTable({
                     </div>
                   </td>
 
-                  <td className="py-3 px-3">
+                  <td className="py-4 px-3">
                     <Badge tone={assignmentStatusTone(a.status)}>{a.status}</Badge>
                   </td>
 
-                  <td className="py-3 px-3 whitespace-nowrap">{formatLocal(a.opensAt)}</td>
+                  <td className="py-4 px-3 whitespace-nowrap text-[hsl(var(--fg))]">
+                    {formatLocal(a.opensAt)}
+                  </td>
 
-                  <td className="py-3 px-3 whitespace-nowrap">
+                  <td className="py-4 px-3 whitespace-nowrap text-[hsl(var(--muted-fg))]">
                     {a.closesAt ? formatLocal(a.closesAt) : '—'}
                   </td>
 
-                  <td className="py-3 px-3 text-center">
+                  <td className="py-4 px-3 text-center text-[hsl(var(--fg))]">
                     {assigned === 0 ? '—' : String(assigned)}
                   </td>
 
-                  <td className="py-3 px-3 text-center">
+                  <td className="py-4 px-3 text-center text-[hsl(var(--fg))]">
                     {isPracticeTime
                       ? '—'
                       : a.status === 'UPCOMING'
@@ -102,34 +159,36 @@ export function AssignmentsTable({
                         : `${attempted}/${assigned}`}
                   </td>
 
-                  <td className="py-3 px-3 text-center">
+                  <td className="py-4 px-3 text-center">
                     {a.status === 'FINISHED' && mastery !== null && mastery !== undefined ? (
                       <Badge tone={pctTone(mastery)}>{mastery}%</Badge>
                     ) : (
-                      '—'
+                      <span className="text-[hsl(var(--muted-fg))]">—</span>
                     )}
                   </td>
 
-                  <td className="py-3 px-3 text-center">
+                  <td className="py-4 px-3 text-center">
                     {a.status === 'FINISHED' && avg !== null && avg !== undefined ? (
                       <Badge tone={pctTone(avg)}>{avg}%</Badge>
                     ) : (
-                      '—'
+                      <span className="text-[hsl(var(--muted-fg))]">—</span>
                     )}
                   </td>
 
-                  <td className="py-3 pl-3 pr-5 flex justify-end gap-4">
-                    <Button variant="secondary" size="sm" onClick={() => onOpen(a.assignmentId)}>
-                      View
-                    </Button>
+                  <td className="py-4 pl-3 pr-5">
+                    <div className="flex justify-end gap-3">
+                      <Button variant="secondary" size="sm" onClick={() => onOpen(a.assignmentId)}>
+                        View
+                      </Button>
 
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => onDelete(a.assignmentId)}
-                    >
-                      Delete
-                    </Button>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => onDelete(a.assignmentId)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
                   </td>
                 </tr>
               );

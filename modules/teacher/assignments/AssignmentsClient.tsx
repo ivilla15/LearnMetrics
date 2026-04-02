@@ -29,6 +29,7 @@ export function AssignmentsClient({
   const assign = useAssignTest(classroomId);
 
   const [confirmDeleteId, setConfirmDeleteId] = React.useState<number | null>(null);
+
   const lastTestMeta = assign.lastNumQuestions
     ? { numQuestions: assign.lastNumQuestions, windowMinutes: 4, questionSetId: null }
     : null;
@@ -38,6 +39,7 @@ export function AssignmentsClient({
       <RecentAssignmentsSection
         classroomId={classroomId}
         rows={a.recent}
+        loading={a.loading}
         onOpen={(assignmentId) =>
           router.push(`/teacher/classrooms/${classroomId}/assignments/${assignmentId}`)
         }
@@ -67,16 +69,13 @@ export function AssignmentsClient({
           classroomId={classroomId}
           students={assign.students}
           lastTestMeta={lastTestMeta}
+          loading={assign.loading}
           defaultAudience="ALL"
         />
       ) : null}
 
-      {assign.loading ? (
-        <div className="text-xs text-[hsl(var(--muted-fg))]">Loading students…</div>
-      ) : null}
-
       {assign.error ? (
-        <div className="text-xs text-[hsl(var(--danger))]">{assign.error}</div>
+        <div className="mt-2 text-xs text-[hsl(var(--danger))]">{assign.error}</div>
       ) : null}
 
       <DeleteAssignmentModal

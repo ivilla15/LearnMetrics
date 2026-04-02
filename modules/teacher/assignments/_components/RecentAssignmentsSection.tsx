@@ -8,9 +8,10 @@ import { RecentAssignmentsCards } from './RecentAssignmentsCards';
 export function RecentAssignmentsSection(props: {
   classroomId: number;
   rows: TeacherAssignmentListItemDTO[];
+  loading?: boolean;
   onOpen: (assignmentId: number) => void;
 }) {
-  const { classroomId, rows, onOpen } = props;
+  const { classroomId, rows, loading = false, onOpen } = props;
 
   return (
     <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
@@ -22,10 +23,22 @@ export function RecentAssignmentsSection(props: {
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {rows.length === 0 ? (
-          <div className="text-sm text-[hsl(var(--muted-fg))]">No assignments yet.</div>
+        {loading ? (
+          <RecentAssignmentsCards
+            classroomId={classroomId}
+            rows={[]}
+            loading={true}
+            onOpen={onOpen}
+          />
+        ) : rows.length === 0 ? (
+          <div className="text-sm text-[hsl(var(--muted-fg))] italic py-4">No assignments yet.</div>
         ) : (
-          <RecentAssignmentsCards classroomId={classroomId} rows={rows} onOpen={onOpen} />
+          <RecentAssignmentsCards
+            classroomId={classroomId}
+            rows={rows}
+            loading={false}
+            onOpen={onOpen}
+          />
         )}
       </CardContent>
     </Card>

@@ -31,7 +31,7 @@ export function AssignmentsTableCard(props: {
     setSearch,
     onChangeStatus,
     rows,
-    loading,
+    loading, // Destructured here...
     nextCursor,
     onLoadMore,
     onOpenAssign,
@@ -67,6 +67,7 @@ export function AssignmentsTableCard(props: {
         <AssignmentsTable
           classroomId={classroomId}
           rows={rows}
+          loading={loading}
           onOpen={onOpen}
           onDelete={onDelete}
         />
