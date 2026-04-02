@@ -73,6 +73,9 @@ model Assignment {
 
   durationMinutes Int?
 
+  requiredSets        Int?
+  minimumScorePercent Int?
+
   scheduleId    Int?
   Schedule      AssignmentSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   runDate       DateTime?
@@ -81,9 +84,10 @@ model Assignment {
   ParentAssignment   Assignment?  @relation("AssignmentParent", fields: [parentAssignmentId], references: [id], onDelete: SetNull)
   ChildMakeups       Assignment[] @relation("AssignmentParent")
 
-  Attempt      Attempt[]
-  recipients   AssignmentRecipient[]
-  ScheduleRuns AssignmentScheduleRun[]
+  Attempt          Attempt[]
+  recipients       AssignmentRecipient[]
+  ScheduleRuns     AssignmentScheduleRun[]
+  PracticeSessions PracticeSession[]
 
   @@index([classroomId])
   @@index([scheduleId])
@@ -112,6 +116,9 @@ model AssignmentSchedule {
   operation        Operation?
 
   durationMinutes  Int?
+
+  requiredSets        Int?
+  minimumScorePercent Int?
 
   dependsOnScheduleId Int?
   DependsOnSchedule   AssignmentSchedule? @relation("ScheduleDependency", fields: [dependsOnScheduleId], references: [id], onDelete: SetNull)
@@ -187,18 +194,17 @@ model Attempt {
 }
 
 model AttemptItem {
-  id          Int      @id @default(autoincrement())
-  attemptId   Int
+  id            Int      @id @default(autoincrement())
+  attemptId      Int
 
-  operation    Operation
-  operandA     Int
-  operandB     Int
-  correctAnswer Int
+  operation      Operation
+  operandAValue   Json
+  operandBValue   Json
+  correctAnswerValue Json
+  givenAnswerValue   Json?
+  isCorrect      Boolean
 
-  givenAnswer  Int
-  isCorrect    Boolean
-
-  Attempt     Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  Attempt        Attempt  @relation(fields: [attemptId], references: [id], onDelete: Cascade)
 
   @@index([attemptId])
 }
@@ -214,11 +220,20 @@ model PracticeSession {
   levelAtTime     Int
   maxNumberAtTime Int      @default(12)
 
+  assignmentId Int?
+  Assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+
+  score     Int?
+  total     Int?
+  qualified Boolean @default(false)
+
   Student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@index([studentId])
   @@index([startedAt])
   @@index([studentId, startedAt])
+  @@index([assignmentId])
+  @@index([assignmentId, studentId])
 }
 
 model Classroom {

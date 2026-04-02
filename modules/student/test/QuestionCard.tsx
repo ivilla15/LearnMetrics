@@ -1,20 +1,25 @@
 'use client';
 
 import * as React from 'react';
+
 import { Card, CardContent, Input } from '@/components';
 import { cn } from '@/lib';
 import type { OperationCode } from '@/types/enums';
-import { OPERATION_SYMBOL } from '@/types/ui/operations';
+import type { OperandValue } from '@/types';
+import { formatOperand, opSymbol } from '@/types';
+
+type AnswerMode = 'DECIMAL' | 'FRACTION' | null;
 
 type Props = {
   index: number;
   operation: OperationCode;
-  operandA: number;
-  operandB: number;
-  value: number | '';
+  operandA: OperandValue;
+  operandB: OperandValue;
+  value: string;
+  answerMode: AnswerMode;
   isAnswered: boolean;
   inputRef?: (el: HTMLInputElement | null) => void;
-  onChange: (next: number | '') => void;
+  onChange: (next: string) => void;
   onEnter?: () => void;
 };
 
@@ -24,14 +29,17 @@ export function QuestionCard({
   operandA,
   operandB,
   value,
+  answerMode,
   isAnswered,
   inputRef,
   onChange,
   onEnter,
 }: Props) {
+  const placeholder = answerMode === 'FRACTION' ? 'Answer (e.g. 3/4 or 2)' : 'Answer';
+
   return (
     <Card className="shadow-sm">
-      <CardContent className="p-5 space-y-4">
+      <CardContent className="space-y-4 p-5">
         <div className="flex items-center justify-between">
           <div className="text-sm font-semibold text-[hsl(var(--fg))]">#{index + 1}</div>
 
@@ -45,23 +53,18 @@ export function QuestionCard({
           </div>
         </div>
 
-        <div className="rounded-[var(--radius)] bg-[hsl(var(--surface-2))] px-4 py-4">
+        <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] px-4 py-4">
           <div className="text-2xl font-semibold tracking-tight text-[hsl(var(--fg))]">
-            {operandA} {OPERATION_SYMBOL[operation]} {operandB}
+            {formatOperand(operandA)} {opSymbol(operation)} {formatOperand(operandB)}
           </div>
         </div>
 
         <Input
           ref={inputRef}
-          inputMode="numeric"
-          placeholder="Answer"
+          inputMode={answerMode === 'FRACTION' ? 'text' : 'decimal'}
+          placeholder={placeholder}
           value={value}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === '') return onChange('');
-            if (!/^\d+$/.test(v)) return;
-            onChange(Number(v));
-          }}
+          onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => {
             if (e.key !== 'Enter') return;
             e.preventDefault();
@@ -70,7 +73,11 @@ export function QuestionCard({
           className="h-11 text-base"
         />
 
-        <div className="text-xs text-[hsl(var(--muted-fg))]">Press Enter to go next.</div>
+        <div className="text-xs text-[hsl(var(--muted-fg))]">
+          {answerMode === 'FRACTION'
+            ? 'Use a fraction like 3/4 or a whole number like 2. Press Enter to go next.'
+            : 'Press Enter to go next.'}
+        </div>
       </CardContent>
     </Card>
   );

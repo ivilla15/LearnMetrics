@@ -1,8 +1,8 @@
 import { prisma } from '@/data/prisma';
-import { requireStudent, opSymbol } from '@/core';
+import { requireStudent } from '@/core';
 import { handleApiError, StudentAttemptRouteContext } from '@/app';
 import { jsonResponse, errorResponse, parseId, percent } from '@/utils';
-import type { AttemptDetailDTO, OperationCode } from '@/types';
+import { AttemptDetailDTO, opSymbol, OperationCode, formatOperand, parseOperandValue, parseAnswerValue } from '@/types';
 
 export async function GET(_req: Request, { params }: StudentAttemptRouteContext) {
   try {
@@ -42,10 +42,10 @@ export async function GET(_req: Request, { params }: StudentAttemptRouteContext)
           select: {
             id: true,
             operation: true,
-            operandA: true,
-            operandB: true,
-            correctAnswer: true,
-            givenAnswer: true,
+            operandAValue: true,
+            operandBValue: true,
+            correctAnswerValue: true,
+            givenAnswerValue: true,
             isCorrect: true,
           },
         },
@@ -88,13 +88,19 @@ export async function GET(_req: Request, { params }: StudentAttemptRouteContext)
           }
         : undefined,
 
-      items: attempt.AttemptItem.map((it) => ({
-        id: it.id,
-        prompt: `${it.operandA} ${opSymbol(it.operation as OperationCode)} ${it.operandB}`,
-        studentAnswer: it.givenAnswer,
-        correctAnswer: it.correctAnswer,
-        isCorrect: it.isCorrect,
-      })),
+      items: attempt.AttemptItem.map((it) => {
+        const operandA = parseOperandValue(it.operandAValue);
+        const operandB = parseOperandValue(it.operandBValue);
+        const correctAnswer = parseAnswerValue(it.correctAnswerValue);
+
+        return {
+          id: it.id,
+          prompt: `${formatOperand(operandA)} ${opSymbol(it.operation as OperationCode)} ${formatOperand(operandB)}`,
+          studentAnswer: it.givenAnswerValue !== null ? parseAnswerValue(it.givenAnswerValue) : null,
+          correctAnswer,
+          isCorrect: it.isCorrect,
+        };
+      }),
     };
 
     return jsonResponse(dto, 200);

@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 import { clampTake, parseCursor, percent } from '@/utils';
+import { parseOperandValue, parseAnswerValue } from '@/types';
 
 import type {
   AssignModalBootstrapResponse,
@@ -78,6 +79,8 @@ export async function listTeacherAssignmentsForClassroom(params: {
       windowMinutes: true,
       numQuestions: true,
       durationMinutes: true,
+      requiredSets: true,
+      minimumScorePercent: true,
       scheduleId: true,
       runDate: true,
     },
@@ -151,6 +154,9 @@ export async function listTeacherAssignmentsForClassroom(params: {
       windowMinutes: a.windowMinutes ?? null,
       numQuestions: a.numQuestions ?? 12,
       durationMinutes: a.durationMinutes ?? null,
+
+      requiredSets: a.requiredSets ?? null,
+      minimumScorePercent: a.minimumScorePercent ?? null,
 
       scheduleId: a.scheduleId ?? null,
       runDate: a.runDate ? a.runDate.toISOString() : null,
@@ -226,6 +232,8 @@ export async function listTeacherAssignmentAttempts(params: {
       windowMinutes: true,
       numQuestions: true,
       durationMinutes: true,
+      requiredSets: true,
+      minimumScorePercent: true,
       recipients: { select: { studentId: true } },
     },
   });
@@ -321,6 +329,9 @@ export async function listTeacherAssignmentAttempts(params: {
       windowMinutes: assignment.windowMinutes ?? null,
       numQuestions: assignment.numQuestions ?? 12,
       durationMinutes: assignment.durationMinutes ?? null,
+
+      requiredSets: assignment.requiredSets ?? null,
+      minimumScorePercent: assignment.minimumScorePercent ?? null,
     },
     rows,
   };
@@ -360,10 +371,10 @@ export async function getTeacherAttemptDetail(params: {
         select: {
           id: true,
           operation: true,
-          operandA: true,
-          operandB: true,
-          correctAnswer: true,
-          givenAnswer: true,
+          operandAValue: true,
+          operandBValue: true,
+          correctAnswerValue: true,
+          givenAnswerValue: true,
           isCorrect: true,
         },
         orderBy: { id: 'asc' },
@@ -383,15 +394,21 @@ export async function getTeacherAttemptDetail(params: {
   const p = percent(attempt.score, attempt.total);
   const wasMastery = attempt.total > 0 && attempt.score === attempt.total;
 
-  const items: TeacherAttemptDetailItemDTO[] = attempt.AttemptItem.map((it) => ({
-    id: it.id,
-    operation: it.operation as OperationCode,
-    operandA: it.operandA,
-    operandB: it.operandB,
-    correctAnswer: it.correctAnswer,
-    studentAnswer: it.givenAnswer,
-    isCorrect: it.isCorrect,
-  }));
+  const items: TeacherAttemptDetailItemDTO[] = attempt.AttemptItem.map((it) => {
+    const operandA = parseOperandValue(it.operandAValue);
+    const operandB = parseOperandValue(it.operandBValue);
+    const correctAnswer = parseAnswerValue(it.correctAnswerValue);
+
+    return {
+      id: it.id,
+      operation: it.operation as OperationCode,
+      operandA,
+      operandB,
+      correctAnswer,
+      studentAnswer: it.givenAnswerValue !== null ? parseAnswerValue(it.givenAnswerValue) : null,
+      isCorrect: it.isCorrect,
+    };
+  });
 
   return {
     attemptId: attempt.id,

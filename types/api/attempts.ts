@@ -1,4 +1,5 @@
 import type { AssignmentMode, AssignmentType, OperationCode } from '@/types/enums';
+import type { AnswerValue } from './question';
 
 export type AttemptSummaryDTO = {
   id: number;
@@ -25,8 +26,8 @@ export type AttemptRowDTO = {
 export type AttemptDetailItemDTO = {
   id: number;
   prompt: string;
-  studentAnswer: number;
-  correctAnswer: number;
+  studentAnswer: AnswerValue | null;
+  correctAnswer: AnswerValue;
   isCorrect: boolean;
 };
 

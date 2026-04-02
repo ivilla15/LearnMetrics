@@ -53,6 +53,8 @@ const scheduleSelect = {
   operation: true,
 
   durationMinutes: true,
+  requiredSets: true,
+  minimumScorePercent: true,
 
   dependsOnScheduleId: true,
   offsetMinutes: true,
@@ -76,6 +78,8 @@ function toDTO(
 
     numQuestions: row.numQuestions,
     durationMinutes: row.durationMinutes ?? null,
+    requiredSets: row.requiredSets ?? null,
+    minimumScorePercent: row.minimumScorePercent ?? null,
     operation: row.operation ?? null,
 
     dependsOnScheduleId: row.dependsOnScheduleId ?? null,
@@ -125,12 +129,13 @@ export async function createAdditionalClassroomSchedule(params: {
 
       targetKind: input.targetKind,
 
-      // ASSESSMENT uses these; PRACTICE_TIME can still store operation/duration
       type: input.targetKind === 'ASSESSMENT' ? input.type : null,
       numQuestions: input.targetKind === 'ASSESSMENT' ? (input.numQuestions ?? 12) : 0,
       operation: input.operation ?? null,
 
-      durationMinutes: input.targetKind === 'PRACTICE_TIME' ? input.durationMinutes : null,
+      durationMinutes: null,
+      requiredSets: input.targetKind === 'PRACTICE_TIME' ? input.requiredSets : null,
+      minimumScorePercent: input.targetKind === 'PRACTICE_TIME' ? input.minimumScorePercent : null,
 
       dependsOnScheduleId: input.dependsOnScheduleId ?? null,
       offsetMinutes: input.offsetMinutes ?? 0,
@@ -175,7 +180,9 @@ export async function updateClassroomScheduleById(params: {
       numQuestions: input.targetKind === 'ASSESSMENT' ? (input.numQuestions ?? 12) : 0,
       operation: input.operation ?? null,
 
-      durationMinutes: input.targetKind === 'PRACTICE_TIME' ? input.durationMinutes : null,
+      durationMinutes: null,
+      requiredSets: input.targetKind === 'PRACTICE_TIME' ? input.requiredSets : null,
+      minimumScorePercent: input.targetKind === 'PRACTICE_TIME' ? input.minimumScorePercent : null,
 
       dependsOnScheduleId: input.dependsOnScheduleId ?? null,
       offsetMinutes: input.offsetMinutes ?? 0,
@@ -252,10 +259,7 @@ export async function runActiveSchedulesForDate(baseDate: Date = new Date()) {
       const scheduledLocalDate = getNextScheduledDateForSchedule(baseDate, days, tz);
       const runDate = localDayToUtcDate(scheduledLocalDate, tz);
 
-      const effectiveWindow =
-        sched.targetKind === 'PRACTICE_TIME'
-          ? (sched.durationMinutes ?? sched.windowMinutes)
-          : sched.windowMinutes;
+      const effectiveWindow = sched.windowMinutes;
 
       const { opensAtUTC, closesAtUTC } = localDateTimeToUtcRange({
         localDate: scheduledLocalDate,
@@ -294,7 +298,9 @@ export async function runActiveSchedulesForDate(baseDate: Date = new Date()) {
         operation: sched.operation ?? null,
 
         numQuestions: sched.targetKind === 'ASSESSMENT' ? sched.numQuestions : 0,
-        durationMinutes: sched.targetKind === 'PRACTICE_TIME' ? sched.durationMinutes : null,
+        durationMinutes: null,
+        requiredSets: sched.targetKind === 'PRACTICE_TIME' ? (sched.requiredSets ?? null) : null,
+        minimumScorePercent: sched.targetKind === 'PRACTICE_TIME' ? (sched.minimumScorePercent ?? null) : null,
       });
 
       results.push(dto);

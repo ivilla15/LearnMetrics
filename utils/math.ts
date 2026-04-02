@@ -2,6 +2,10 @@ export function percent(score: number, total: number): number {
   return total > 0 ? Math.round((score / total) * 100) : 0;
 }
 
+export function isMastery(score: number, total: number): boolean {
+  return total > 0 && score === total;
+}
+
 export function median(nums: number[]): number {
   if (!nums.length) return 0;
   const arr = [...nums].sort((a, b) => a - b);
@@ -37,4 +41,32 @@ export function uniq<T>(items: readonly T[]): T[] {
     }
   }
   return out;
+}
+
+export function gcd(a: number, b: number): number {
+  a = Math.abs(a);
+  b = Math.abs(b);
+  while (b !== 0) {
+    const t = b;
+    b = a % b;
+    a = t;
+  }
+  return a === 0 ? 1 : a;
+}
+
+export function reduceFraction(
+  numerator: number,
+  denominator: number,
+): { numerator: number; denominator: number } {
+  const g = gcd(Math.abs(numerator), Math.abs(denominator));
+  return { numerator: numerator / g, denominator: denominator / g };
+}
+
+// Converts a mixed number (e.g. 3 1/2) to an improper fraction (7/2)
+export function mixedToImproper(
+  whole: number,
+  numerator: number,
+  denominator: number,
+): { numerator: number; denominator: number } {
+  return reduceFraction(whole * denominator + numerator, denominator);
 }

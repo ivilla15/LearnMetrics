@@ -22,15 +22,17 @@ import {
   type OperationCode,
   type GeneratedQuestionDTO,
   type GradeResultDTO,
+  type AnswerValue,
+  ProgressionModifier,
 } from '@/types';
 
 import { usePracticeProgress } from '@/modules/student/assignments/hooks/usePracticeProgress';
-import { generateQuestions, gradeGeneratedQuestions } from '@/core/questions';
+import { generateQuestions, gradeGeneratedQuestions, getMaxUniqueQuestionsFor } from '@/core/questions';
 
 function PracticeSessionFallback() {
   return (
-    <div className="min-h-screen w-screen bg-[hsl(var(--bg))] flex items-center justify-center p-4 md:p-8">
-      <div className="w-full max-w-5xl rounded-[32px] border-0 bg-[hsl(var(--card))] shadow-[0_30px_90px_rgba(0,0,0,0.10)] p-6 md:p-10">
+    <div className="flex min-h-screen w-screen items-center justify-center bg-[hsl(var(--bg))] p-4 md:p-8">
+      <div className="w-full max-w-5xl rounded-4xl border-0 bg-[hsl(var(--card))] p-6 shadow-[0_30px_90px_rgba(0,0,0,0.10)] md:p-10">
         <div className="text-sm text-[hsl(var(--muted-fg))]">Loading practice…</div>
       </div>
     </div>
@@ -59,6 +61,63 @@ function formatClock(totalSeconds: number) {
   const mm = Math.floor(s / 60);
   const ss = s % 60;
   return `${mm}:${String(ss).padStart(2, '0')}`;
+}
+
+function getModifierFromFlags(params: {
+  fractionsFlag: boolean;
+  decimalsFlag: boolean;
+}): ProgressionModifier {
+  if (params.fractionsFlag) return 'FRACTION';
+  if (params.decimalsFlag) return 'DECIMAL';
+  return null;
+}
+
+function parseFractionInput(raw: string): AnswerValue | null {
+  const match = raw.match(/^(-?\d+)\s*\/\s*(-?\d+)$/);
+  if (!match) return null;
+
+  const numerator = Number(match[1]);
+  const denominator = Number(match[2]);
+
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) {
+    return null;
+  }
+
+  return {
+    kind: 'fraction',
+    numerator: Math.trunc(numerator),
+    denominator: Math.trunc(denominator),
+  };
+}
+
+function parseAnswerInput(raw: string, modifier: ProgressionModifier): AnswerValue | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  if (modifier === 'FRACTION') {
+    const fraction = parseFractionInput(trimmed);
+    if (fraction) return fraction;
+
+    const whole = Number(trimmed);
+    if (!Number.isFinite(whole)) return null;
+
+    return {
+      kind: 'fraction',
+      numerator: Math.trunc(whole),
+      denominator: 1,
+    };
+  }
+
+  const numeric = Number(trimmed);
+  if (!Number.isFinite(numeric)) return null;
+
+  return { kind: 'decimal', value: numeric };
+}
+
+function formatAnswerValue(value: AnswerValue | null): string {
+  if (!value) return '—';
+  if (value.kind === 'fraction') return `${value.numerator}/${value.denominator}`;
+  return String(value.value);
 }
 
 async function startPracticeTimeSession(params: {
@@ -93,35 +152,51 @@ async function startPracticeTimeSession(params: {
   return json.sessionId;
 }
 
-async function heartbeatPracticeTimeSession(params: {
+
+async function endPracticeTimeSession(params: {
   assignmentId: number;
   sessionId: number;
-  deltaSeconds: number;
-}) {
-  const res = await fetch(
-    `/api/student/assignments/${params.assignmentId}/practice-sessions/heartbeat`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ sessionId: params.sessionId, deltaSeconds: params.deltaSeconds }),
-    },
-  );
-
-  const json = (await res.json().catch(() => null)) as { error?: string } | null;
-  if (!res.ok) throw new Error(json?.error ?? 'Failed to update practice session');
-}
-
-async function endPracticeTimeSession(params: { assignmentId: number; sessionId: number }) {
+  score: number;
+  total: number;
+}): Promise<{ qualified: boolean; scorePercent: number }> {
   const res = await fetch(`/api/student/assignments/${params.assignmentId}/practice-sessions/end`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ sessionId: params.sessionId }),
+    body: JSON.stringify({
+      sessionId: params.sessionId,
+      score: params.score,
+      total: params.total,
+    }),
   });
 
-  const json = (await res.json().catch(() => null)) as { error?: string } | null;
+  const json = (await res.json().catch(() => null)) as {
+    error?: string;
+    qualified?: boolean;
+    scorePercent?: number;
+  } | null;
   if (!res.ok) throw new Error(json?.error ?? 'Failed to end practice session');
+
+  return {
+    qualified: json?.qualified ?? false,
+    scorePercent: json?.scorePercent ?? 0,
+  };
+}
+
+function clampedCount(params: {
+  operation: OperationCode;
+  level: number;
+  maxNumber: number;
+  modifier: ProgressionModifier;
+  count: number;
+}): number {
+  const available = getMaxUniqueQuestionsFor({
+    operation: params.operation,
+    level: params.level,
+    maxNumber: params.maxNumber,
+    modifier: params.modifier,
+  });
+  return Math.min(params.count, available);
 }
 
 function StudentPracticeSessionInner() {
@@ -131,6 +206,7 @@ function StudentPracticeSessionInner() {
   const level = getNumberParam(params, 'level', 3, 1, 12);
   const count = getNumberParam(params, 'count', 30, 6, 40);
   const minutes = getNumberParam(params, 'minutes', 4, 0, 30);
+  const maxNumber = getNumberParam(params, 'maxNumber', 12, 1, 100);
 
   const assignmentIdParam = params.get('assignmentId');
   const assignmentId = assignmentIdParam ? Number(assignmentIdParam) : null;
@@ -139,6 +215,7 @@ function StudentPracticeSessionInner() {
   const opsRaw = params.get('ops');
   const fractionsFlag = params.get('fractions') === '1';
   const decimalsFlag = params.get('decimals') === '1';
+  const modifier = getModifierFromFlags({ fractionsFlag, decimalsFlag });
 
   const ops = useMemo(() => parseOpsParam(opsRaw), [opsRaw]);
   const primaryOp = ops[0] ?? 'MUL';
@@ -154,12 +231,13 @@ function StudentPracticeSessionInner() {
       seed: Date.now(),
       operation: primaryOp,
       level,
-      maxNumber: 12,
-      count,
+      maxNumber,
+      count: clampedCount({ operation: primaryOp, level, maxNumber, modifier, count }),
+      modifier,
     }),
   );
 
-  const [answers, setAnswers] = useState<Record<number, number | ''>>({});
+  const [answers, setAnswers] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
 
   const [finished, setFinished] = useState(false);
@@ -171,10 +249,9 @@ function StudentPracticeSessionInner() {
   const [startedAt, setStartedAt] = useState(() => Date.now());
 
   const sessionIdRef = useRef<number | null>(null);
-  const lastHeartbeatAtRef = useRef<number>(Date.now());
-  const elapsedThisSessionSecRef = useRef<number>(0);
 
-  const [elapsedThisSessionSec, setElapsedThisSessionSec] = useState(0);
+  // set-qualified result for the most recently ended assignment set
+  const [lastSetQualified, setLastSetQualified] = useState<boolean | null>(null);
 
   useEffect(() => {
     setQuestions(
@@ -182,8 +259,9 @@ function StudentPracticeSessionInner() {
         seed: Date.now(),
         operation: primaryOp,
         level,
-        maxNumber: 12,
-        count,
+        maxNumber,
+        count: clampedCount({ operation: primaryOp, level, maxNumber, modifier, count }),
+        modifier,
       }),
     );
 
@@ -194,7 +272,7 @@ function StudentPracticeSessionInner() {
 
     setStartedAt(Date.now());
     setNow(Date.now());
-  }, [level, count, minutes, primaryOp, fractionsFlag, decimalsFlag]);
+  }, [level, count, minutes, primaryOp, modifier, maxNumber]);
 
   const msLeft = useMemo(() => {
     if (minutes <= 0) return Infinity;
@@ -210,33 +288,19 @@ function StudentPracticeSessionInner() {
   }, [minutes]);
 
   useEffect(() => {
-    if (!isPracticeTimeAssignment) return;
-
-    const t = setInterval(() => {
-      elapsedThisSessionSecRef.current += 1;
-      setElapsedThisSessionSec(elapsedThisSessionSecRef.current);
-    }, 1000);
-
-    return () => clearInterval(t);
-  }, [isPracticeTimeAssignment]);
-
-  useEffect(() => {
     let cancelled = false;
 
     async function start() {
       if (!isPracticeTimeAssignment) return;
 
       sessionIdRef.current = null;
-      lastHeartbeatAtRef.current = Date.now();
-      elapsedThisSessionSecRef.current = 0;
-      setElapsedThisSessionSec(0);
 
       try {
         const sessionId = await startPracticeTimeSession({
           assignmentId: assignmentId as number,
           operation: primaryOp,
           level,
-          maxNumber: 12,
+          maxNumber,
         });
 
         if (cancelled) return;
@@ -249,79 +313,9 @@ function StudentPracticeSessionInner() {
     return () => {
       cancelled = true;
     };
-  }, [assignmentId, isPracticeTimeAssignment, primaryOp, level]);
+  }, [assignmentId, isPracticeTimeAssignment, primaryOp, level, maxNumber]);
 
-  useEffect(() => {
-    if (!isPracticeTimeAssignment) return;
-
-    const t = setInterval(async () => {
-      const sessionId = sessionIdRef.current;
-      if (!sessionId) return;
-
-      const nowMs = Date.now();
-      const delta = Math.floor((nowMs - lastHeartbeatAtRef.current) / 1000);
-      if (delta <= 0) return;
-
-      lastHeartbeatAtRef.current = nowMs;
-
-      try {
-        if (!assignmentId) return;
-
-        await heartbeatPracticeTimeSession({
-          assignmentId,
-          sessionId,
-          deltaSeconds: delta,
-        });
-
-        void refreshPracticeProgress();
-      } catch {}
-    }, 12_000);
-
-    return () => clearInterval(t);
-  }, [isPracticeTimeAssignment, assignmentId, refreshPracticeProgress]);
-
-  useEffect(() => {
-    if (!isPracticeTimeAssignment) return;
-
-    async function flushAndEnd() {
-      const sessionId = sessionIdRef.current;
-      if (!sessionId) return;
-
-      const nowMs = Date.now();
-      const delta = Math.floor((nowMs - lastHeartbeatAtRef.current) / 1000);
-      lastHeartbeatAtRef.current = nowMs;
-
-      try {
-        if (!assignmentId) return;
-        if (delta > 0) {
-          await heartbeatPracticeTimeSession({
-            assignmentId,
-            sessionId,
-            deltaSeconds: delta,
-          });
-        }
-
-        await endPracticeTimeSession({
-          assignmentId,
-          sessionId,
-        });
-      } catch {
-      } finally {
-        void refreshPracticeProgress();
-      }
-    }
-
-    function onBeforeUnload() {
-      void flushAndEnd();
-    }
-
-    window.addEventListener('beforeunload', onBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', onBeforeUnload);
-      void flushAndEnd();
-    };
-  }, [isPracticeTimeAssignment, assignmentId, refreshPracticeProgress]);
+  // No heartbeat needed for set-based assignments — score is submitted on set completion.
 
   const jumpTo = useCallback((qId: number) => {
     const el = inputRefs.current[qId];
@@ -331,18 +325,19 @@ function StudentPracticeSessionInner() {
   }, []);
 
   const answeredCount = useMemo(() => {
-    return questions.filter((q) => answers[q.id] !== undefined && answers[q.id] !== '').length;
+    return questions.filter((q) => (answers[q.id] ?? '').trim() !== '').length;
   }, [answers, questions]);
 
-  const submit = useCallback(() => {
+  const submit = useCallback(async () => {
     if (submitting || finished) return;
 
     setSubmitting(true);
 
-    const answersByIndex: Record<number, number | ''> = {};
+    const answersByIndex: Record<number, AnswerValue | null> = {};
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i];
-      answersByIndex[i] = q ? (answers[q.id] ?? '') : '';
+      const raw = q ? (answers[q.id] ?? '') : '';
+      answersByIndex[i] = parseAnswerInput(raw, modifier);
     }
 
     const graded = gradeGeneratedQuestions({
@@ -350,16 +345,32 @@ function StudentPracticeSessionInner() {
       answersByIndex,
     });
 
+    if (isPracticeTimeAssignment && assignmentId && sessionIdRef.current) {
+      try {
+        const endResult = await endPracticeTimeSession({
+          assignmentId,
+          sessionId: sessionIdRef.current,
+          score: graded.score,
+          total: graded.total,
+        });
+        setLastSetQualified(endResult.qualified);
+        void refreshPracticeProgress();
+      } catch {
+        setLastSetQualified(null);
+      }
+      sessionIdRef.current = null;
+    }
+
     setResult(graded);
     setFinished(true);
     setSubmitting(false);
-  }, [answers, finished, questions, submitting]);
+  }, [answers, finished, questions, submitting, modifier, isPracticeTimeAssignment, assignmentId, refreshPracticeProgress]);
 
   useEffect(() => {
     if (minutes <= 0) return;
     if (finished) return;
     if (msLeft > 0) return;
-    submit();
+    void submit();
   }, [finished, minutes, msLeft, submit]);
 
   useEffect(() => {
@@ -378,7 +389,7 @@ function StudentPracticeSessionInner() {
         title="Practice results"
         subtitle={
           isPracticeTimeAssignment
-            ? 'Your practice time was recorded.'
+            ? 'Set complete — see if it qualified below.'
             : 'Nothing was saved — practice anytime.'
         }
         width="wide"
@@ -403,18 +414,6 @@ function StudentPracticeSessionInner() {
                   {result.score}/{result.total} correct
                 </div>
 
-                {isPracticeTimeAssignment ? (
-                  <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4 text-sm">
-                    <div className="text-xs text-[hsl(var(--muted-fg))]">This session time</div>
-                    <div className="text-lg font-semibold text-[hsl(var(--fg))]">
-                      {formatClock(elapsedThisSessionSec)}
-                    </div>
-                    <div className="mt-2 text-xs text-[hsl(var(--muted-fg))]">
-                      Total updates based on multiple sessions during the assignment window.
-                    </div>
-                  </div>
-                ) : null}
-
                 {incorrect.length > 0 ? (
                   <div className="space-y-2">
                     <div className="text-sm font-semibold text-[hsl(var(--fg))]">
@@ -424,12 +423,12 @@ function StudentPracticeSessionInner() {
                       {incorrect.map((it) => (
                         <div
                           key={it.id}
-                          className="rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface-2))] p-3"
+                          className="rounded-(--radius) border-0 bg-[hsl(var(--surface-2))] p-3 shadow-[0_4px_10px_rgba(0,0,0,0.08)]"
                         >
                           <div className="font-medium text-[hsl(var(--fg))]">{it.prompt}</div>
                           <div className="text-sm text-[hsl(var(--muted-fg))]">
-                            Your answer: {it.studentAnswer === -1 ? '—' : it.studentAnswer} ·
-                            Correct: {it.correctAnswer}
+                            Your answer: {formatAnswerValue(it.studentAnswer)} · Correct:{' '}
+                            {formatAnswerValue(it.correctAnswer)}
                           </div>
                         </div>
                       ))}
@@ -446,43 +445,125 @@ function StudentPracticeSessionInner() {
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle>Next steps</CardTitle>
-                <CardDescription>Keep practicing or head back</CardDescription>
+                <CardDescription>
+                  {isPracticeTimeAssignment ? 'Keep going or head back' : 'Keep practicing or head back'}
+                </CardDescription>
               </CardHeader>
 
               <CardContent className="space-y-3">
-                <Button
-                  size="lg"
-                  onClick={() => {
-                    setAnswers({});
-                    setFinished(false);
-                    setResult(null);
-                    setQuestions(
-                      generateQuestions({
-                        seed: Date.now(),
-                        operation: primaryOp,
-                        level,
-                        maxNumber: 12,
-                        count,
-                      }),
-                    );
-                    setStartedAt(Date.now());
-                    setNow(Date.now());
-                  }}
-                >
-                  Practice again
-                </Button>
+                {isPracticeTimeAssignment ? (
+                  <>
+                    {lastSetQualified !== null ? (
+                      <div
+                        className={[
+                          'rounded-(--radius) p-3 text-sm font-medium',
+                          lastSetQualified
+                            ? 'bg-[hsl(var(--brand)/0.1)] text-[hsl(var(--brand))]'
+                            : 'bg-[hsl(var(--surface-2))] text-[hsl(var(--muted-fg))]',
+                        ].join(' ')}
+                      >
+                        {lastSetQualified
+                          ? 'This set qualified.'
+                          : 'This set did not meet the minimum score — try again.'}
+                      </div>
+                    ) : null}
 
-                <Button
-                  variant="secondary"
-                  size="lg"
-                  onClick={() =>
-                    router.push(
-                      isPracticeTimeAssignment ? '/student/dashboard' : '/student/practice',
-                    )
-                  }
-                >
-                  {isPracticeTimeAssignment ? 'Back to dashboard' : 'Change settings'}
-                </Button>
+                    {practiceProgress ? (
+                      <div className="text-sm text-[hsl(var(--muted-fg))]">
+                        {practiceProgress.completedSets} / {practiceProgress.requiredSets} qualifying sets · {practiceProgress.minimumScorePercent}% minimum
+                      </div>
+                    ) : null}
+
+                    {practiceProgress && practiceProgress.completedSets >= practiceProgress.requiredSets ? (
+                      <div className="text-sm font-medium text-[hsl(var(--brand))]">
+                        All qualifying sets completed!
+                      </div>
+                    ) : (
+                      <Button
+                        size="lg"
+                        onClick={async () => {
+                          setAnswers({});
+                          setFinished(false);
+                          setResult(null);
+                          setLastSetQualified(null);
+                          setQuestions(
+                            generateQuestions({
+                              seed: Date.now(),
+                              operation: primaryOp,
+                              level,
+                              maxNumber,
+                              count: clampedCount({ operation: primaryOp, level, maxNumber, modifier, count }),
+                              modifier,
+                            }),
+                          );
+                          setStartedAt(Date.now());
+                          setNow(Date.now());
+
+                          if (assignmentId) {
+                            try {
+                              const sessionId = await startPracticeTimeSession({
+                                assignmentId,
+                                operation: primaryOp,
+                                level,
+                                maxNumber,
+                              });
+                              sessionIdRef.current = sessionId;
+                            } catch {}
+                          }
+                        }}
+                      >
+                        Start next set
+                      </Button>
+                    )}
+
+                    <Button
+                      variant="secondary"
+                      size="lg"
+                      onClick={() =>
+                        router.push(
+                          assignmentId
+                            ? `/student/assignments/${assignmentId}`
+                            : '/student/dashboard',
+                        )
+                      }
+                    >
+                      Back to assignment
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button
+                      size="lg"
+                      onClick={() => {
+                        setAnswers({});
+                        setFinished(false);
+                        setResult(null);
+                        setQuestions(
+                          generateQuestions({
+                            seed: Date.now(),
+                            operation: primaryOp,
+                            level,
+                            maxNumber,
+                            count: clampedCount({ operation: primaryOp, level, maxNumber, modifier, count }),
+                            modifier,
+                          }),
+                        );
+                        setStartedAt(Date.now());
+                        setNow(Date.now());
+                      }}
+                    >
+                      Practice again
+                    </Button>
+
+                    <Button
+                      variant="secondary"
+                      size="lg"
+                      onClick={() => router.push('/student/practice')}
+                    >
+                      Change settings
+                    </Button>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -491,16 +572,12 @@ function StudentPracticeSessionInner() {
     );
   }
 
-  // Active session screen
-  const completedMin = practiceProgress ? Math.floor(practiceProgress.completedSeconds / 60) : null;
-  const requiredMin = practiceProgress ? Math.floor(practiceProgress.requiredSeconds / 60) : null;
-
   return (
     <AppPage
       title="Practice"
       subtitle={`${primaryOp} · Level ${level} · ${count} questions${
-        minutes > 0 ? ` · ${minutes} min` : ''
-      }`}
+        modifier === 'FRACTION' ? ' · Fractions' : modifier === 'DECIMAL' ? ' · Decimals' : ''
+      }${minutes > 0 ? ` · ${minutes} min` : ''}`}
       width="wide"
     >
       <Section>
@@ -508,31 +585,20 @@ function StudentPracticeSessionInner() {
           <main className="space-y-6">
             {isPracticeTimeAssignment ? (
               <Card className="shadow-sm">
-                <CardContent className="py-4 space-y-2">
+                <CardContent className="space-y-2 py-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div className="min-w-0">
                       <div className="text-sm font-semibold text-[hsl(var(--fg))]">
-                        Practice-time assignment
+                        Practice assignment
                       </div>
                       <div className="mt-1 text-sm text-[hsl(var(--muted-fg))]">
                         {progressLoading
-                          ? 'Loading total…'
-                          : practiceProgress && completedMin !== null && requiredMin !== null
-                            ? `${completedMin} / ${requiredMin} minutes total`
-                            : 'Total unavailable'}
-                        {' · '}
-                        {`This session: ${formatClock(elapsedThisSessionSec)}`}
+                          ? 'Loading…'
+                          : practiceProgress
+                            ? `${practiceProgress.completedSets} / ${practiceProgress.requiredSets} qualifying sets · ${practiceProgress.minimumScorePercent}% minimum`
+                            : 'Progress unavailable'}
                       </div>
                     </div>
-
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => void refreshPracticeProgress()}
-                      disabled={progressLoading}
-                    >
-                      Refresh
-                    </Button>
                   </div>
 
                   {practiceProgress ? (
@@ -550,7 +616,7 @@ function StudentPracticeSessionInner() {
             <div className="grid gap-6 md:grid-cols-2">
               {questions.map((q, i) => {
                 const value = answers[q.id] ?? '';
-                const done = value !== '';
+                const done = value.trim() !== '';
 
                 return (
                   <QuestionCard
@@ -560,15 +626,16 @@ function StudentPracticeSessionInner() {
                     operandA={q.operandA}
                     operandB={q.operandB}
                     value={value}
+                    answerMode={modifier}
                     isAnswered={done}
                     inputRef={(el) => {
                       inputRefs.current[q.id] = el;
                     }}
-                    onChange={(next) => setAnswers((prev) => ({ ...prev, [i]: next }))}
+                    onChange={(next) => setAnswers((prev) => ({ ...prev, [q.id]: next }))}
                     onEnter={() => {
                       const nextQ = questions[i + 1];
                       if (nextQ) jumpTo(nextQ.id);
-                      else submit();
+                      else void submit();
                     }}
                   />
                 );
@@ -589,18 +656,18 @@ function StudentPracticeSessionInner() {
               totalCount={questions.length}
               submitting={submitting}
               submitLabel="Submit"
-              onSubmit={submit}
+              onSubmit={() => void submit()}
               questionButtons={
                 <div className="grid grid-cols-5 gap-2">
                   {questions.map((q, i) => {
-                    const done = answers[q.id] !== undefined && answers[q.id] !== '';
+                    const done = (answers[q.id] ?? '').trim() !== '';
                     return (
                       <button
                         key={q.id}
                         type="button"
                         onClick={() => jumpTo(q.id)}
                         className={cn(
-                          'h-9 rounded-(--radius) border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] text-xs font-semibold text-[hsl(var(--fg))] transition',
+                          'h-9 rounded-(--radius) border-0 bg-[hsl(var(--surface))] text-xs font-semibold text-[hsl(var(--fg))] shadow-[0_4px_10px_rgba(0,0,0,0.08)] transition',
                           'hover:bg-[hsl(var(--surface-2))]',
                           done ? '' : 'ring-1 ring-[hsl(var(--brand)/0.25)]',
                         )}

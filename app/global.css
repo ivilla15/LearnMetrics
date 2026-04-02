@@ -167,3 +167,15 @@
     margin: 12mm;
   }
 }
+
+button,
+a,
+[role='button'],
+.cursor-pointer {
+  cursor: pointer;
+}
+
+[disabled],
+[aria-disabled='true'] {
+  cursor: not-allowed;
+}

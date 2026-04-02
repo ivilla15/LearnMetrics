@@ -21,6 +21,8 @@ export type ScheduleDTO = {
 
   numQuestions: number;
   durationMinutes: number | null;
+  requiredSets: number | null;
+  minimumScorePercent: number | null;
   operation: OperationCode | null;
 
   dependsOnScheduleId: number | null;

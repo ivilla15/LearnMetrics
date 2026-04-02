@@ -17,6 +17,22 @@ function toIso(d: Date | null | undefined): string | null {
   return d ? d.toISOString() : null;
 }
 
+/**
+ * Returns true when the given student is allowed to access the assignment.
+ * A student must be in the same classroom; if the assignment is targeted (has
+ * explicit recipients) the student must also be on the recipients list.
+ */
+export function studentCanAccessAssignment(params: {
+  assignment: { classroomId: number; recipients: ReadonlyArray<{ studentId: number }> };
+  student: { id: number; classroomId: number };
+}): boolean {
+  const { assignment, student } = params;
+  if (assignment.classroomId !== student.classroomId) return false;
+  const isTargeted = assignment.recipients.length > 0;
+  if (!isTargeted) return true;
+  return assignment.recipients.some((r) => r.studentId === student.id);
+}
+
 export async function createScheduledAssignment(params: {
   teacherId: number;
   classroomId: number;
@@ -33,6 +49,9 @@ export async function createScheduledAssignment(params: {
 
   numQuestions?: number;
   durationMinutes?: number | null;
+
+  requiredSets?: number | null;
+  minimumScorePercent?: number | null;
 
   studentIds?: number[];
 
@@ -56,6 +75,9 @@ export async function createScheduledAssignment(params: {
     numQuestions = 12,
     durationMinutes = null,
 
+    requiredSets = null,
+    minimumScorePercent = null,
+
     studentIds,
 
     scheduleId = null,
@@ -68,19 +90,14 @@ export async function createScheduledAssignment(params: {
     throw new ConflictError('Invalid opensAt');
   }
 
-  let closesAt: Date | null = params.closesAt === undefined ? null : (params.closesAt ?? null);
+  const closesAt: Date | null = params.closesAt === undefined ? null : (params.closesAt ?? null);
 
   if (targetKind === 'PRACTICE_TIME') {
-    if (
-      typeof durationMinutes !== 'number' ||
-      !Number.isFinite(durationMinutes) ||
-      durationMinutes <= 0
-    ) {
-      throw new ConflictError('durationMinutes is required for PRACTICE_TIME assignments');
-    }
-
     if (!closesAt) {
-      closesAt = new Date(opensAt.getTime() + durationMinutes * 60 * 1000);
+      throw new ConflictError('closesAt is required for PRACTICE_TIME assignments');
+    }
+    if (!(closesAt instanceof Date) || Number.isNaN(closesAt.getTime())) {
+      throw new ConflictError('Invalid closesAt');
     }
   } else {
     // ASSESSMENT
@@ -143,6 +160,8 @@ export async function createScheduledAssignment(params: {
     windowMinutes: true,
     numQuestions: true,
     durationMinutes: true,
+    requiredSets: true,
+    minimumScorePercent: true,
     scheduleId: true,
     runDate: true,
   } satisfies Prisma.AssignmentSelect;
@@ -162,6 +181,8 @@ export async function createScheduledAssignment(params: {
       windowMinutes: a.windowMinutes,
       numQuestions: a.numQuestions ?? 12,
       durationMinutes: a.durationMinutes ?? null,
+      requiredSets: a.requiredSets ?? null,
+      minimumScorePercent: a.minimumScorePercent ?? null,
       scheduleId: a.scheduleId ?? null,
       runDate: toIso(a.runDate),
     };
@@ -183,6 +204,10 @@ export async function createScheduledAssignment(params: {
         numQuestions: targetKind === 'ASSESSMENT' ? numQuestions : 0,
         durationMinutes:
           targetKind === 'PRACTICE_TIME' ? (durationMinutes ?? undefined) : undefined,
+
+        requiredSets: targetKind === 'PRACTICE_TIME' ? (requiredSets ?? undefined) : undefined,
+        minimumScorePercent:
+          targetKind === 'PRACTICE_TIME' ? (minimumScorePercent ?? undefined) : undefined,
 
         parentAssignmentId: parentAssignmentId ?? undefined,
 
@@ -243,6 +268,10 @@ export async function createScheduledAssignment(params: {
         durationMinutes:
           targetKind === 'PRACTICE_TIME' ? (durationMinutes ?? undefined) : undefined,
 
+        requiredSets: targetKind === 'PRACTICE_TIME' ? (requiredSets ?? undefined) : undefined,
+        minimumScorePercent:
+          targetKind === 'PRACTICE_TIME' ? (minimumScorePercent ?? undefined) : undefined,
+
         scheduleId,
         runDate: runDate!,
         parentAssignmentId: parentAssignmentId ?? undefined,
@@ -292,6 +321,8 @@ export async function getLatestAssignmentForClassroom(
       windowMinutes: true,
       numQuestions: true,
       durationMinutes: true,
+      requiredSets: true,
+      minimumScorePercent: true,
       scheduleId: true,
       runDate: true,
     } satisfies Prisma.AssignmentSelect,
@@ -311,6 +342,8 @@ export async function getLatestAssignmentForClassroom(
     windowMinutes: latest.windowMinutes,
     numQuestions: latest.numQuestions ?? 12,
     durationMinutes: latest.durationMinutes ?? null,
+    requiredSets: latest.requiredSets ?? null,
+    minimumScorePercent: latest.minimumScorePercent ?? null,
     scheduleId: latest.scheduleId ?? null,
     runDate: toIso(latest.runDate),
   };

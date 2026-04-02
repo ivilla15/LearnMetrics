@@ -4,6 +4,8 @@ import type {
   AssignmentType,
   OperationCode,
 } from '@/types/enums';
+import type { ProgressionModifier } from './progression';
+import { OperandValue } from './question';
 
 export type StudentMeDTO = {
   id: number;
@@ -30,8 +32,8 @@ export type StudentAssignmentStatus = 'NOT_OPEN' | 'CLOSED' | 'READY' | 'ALREADY
 
 export type StudentQuestionDTO = {
   id: number;
-  operandA: number;
-  operandB: number;
+  operandA: OperandValue;
+  operandB: OperandValue;
   operation: OperationCode;
 };
 
@@ -48,6 +50,17 @@ export type StudentAssignmentDTO = {
   windowMinutes: number | null;
 
   numQuestions: number;
+
+  requiredSets: number | null;
+  minimumScorePercent: number | null;
+};
+
+export type PracticeProgressionDTO = {
+  operation: OperationCode;
+  level: number;
+  maxNumber: number;
+  modifier: ProgressionModifier;
+  numQuestionsPerSet: number;
 };
 
 export type AlreadySubmittedResultDTO = {
@@ -60,7 +73,7 @@ export type AlreadySubmittedResultDTO = {
 export type StudentAssignmentLoadResponse =
   | { status: 'NOT_OPEN'; assignment: StudentAssignmentDTO }
   | { status: 'CLOSED'; assignment: StudentAssignmentDTO }
-  | { status: 'READY_PRACTICE_TIME'; assignment: StudentAssignmentDTO }
+  | { status: 'READY_PRACTICE_TIME'; assignment: StudentAssignmentDTO; progression: PracticeProgressionDTO }
   | {
       status: 'ALREADY_SUBMITTED';
       assignment: StudentAssignmentDTO;
@@ -81,7 +94,8 @@ export type StudentAssignmentLoadResponse =
 
 export type PracticeProgressDTO = {
   assignmentId: number;
-  requiredSeconds: number;
-  completedSeconds: number;
+  requiredSets: number;
+  completedSets: number;
+  minimumScorePercent: number;
   percent: number;
 };

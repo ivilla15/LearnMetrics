@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 import { prisma } from '@/data/prisma';
 import {
   getProgressionSnapshot,
@@ -5,12 +7,16 @@ import {
   getStudentActiveProgress,
   promoteStudentAfterMastery,
   generateQuestions,
-  computeAnswerInt,
+  gradeGeneratedQuestions,
+  resolveModifierForOperationLevel,
+  studentCanAccessAssignment,
+  getMaxUniqueQuestionsFor,
 } from '@/core';
+import { requireStudent } from '@/core/auth';
 import { readJson, handleApiError, type RouteContext } from '@/app/api/_shared';
 import { clampInt, percent, parseId, errorResponse, jsonResponse, getStatus } from '@/utils';
-import { z } from 'zod';
-import { requireStudent } from '@/core/auth';
+import type { AnswerValue } from '@/types';
+import { Prisma } from '@prisma/client';
 
 const submitBodySchema = z.object({
   answers: z
@@ -23,23 +29,46 @@ const submitBodySchema = z.object({
     .min(1),
 });
 
-function studentCanAccessAssignment(params: {
-  assignment: { classroomId: number; recipients: Array<{ studentId: number }> };
-  student: { id: number; classroomId: number };
-}) {
-  const { assignment, student } = params;
-
-  if (assignment.classroomId !== student.classroomId) return false;
-
-  const isTargeted = assignment.recipients.length > 0;
-  if (!isTargeted) return true;
-
-  return assignment.recipients.some((r) => r.studentId === student.id);
+function assignmentSeed(assignmentId: number, studentId: number) {
+  return assignmentId * 100_000 + studentId;
 }
 
-function assignmentSeed(assignmentId: number, studentId: number) {
-  // stable deterministic seed
-  return assignmentId * 100_000 + studentId;
+function parseFractionAnswer(raw: string): AnswerValue | null {
+  const match = raw.match(/^(-?\d+)\s*\/\s*(-?\d+)$/);
+  if (!match) return null;
+
+  const numerator = Number(match[1]);
+  const denominator = Number(match[2]);
+
+  if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) {
+    return null;
+  }
+
+  return {
+    kind: 'fraction',
+    numerator: Math.trunc(numerator),
+    denominator: Math.trunc(denominator),
+  };
+}
+
+function parseSubmittedAnswer(raw: number | string | null): AnswerValue | null {
+  if (raw === null || raw === '') return null;
+
+  if (typeof raw === 'number') {
+    if (!Number.isFinite(raw)) return null;
+    return { kind: 'decimal', value: raw };
+  }
+
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+
+  const fraction = parseFractionAnswer(trimmed);
+  if (fraction) return fraction;
+
+  const numeric = Number(trimmed);
+  if (!Number.isFinite(numeric)) return null;
+
+  return { kind: 'decimal', value: numeric };
 }
 
 type AssignmentRouteParams = { id: string };
@@ -60,23 +89,17 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
       select: {
         id: true,
         classroomId: true,
-
         type: true,
         mode: true,
         targetKind: true,
-
         opensAt: true,
         closesAt: true,
-
         windowMinutes: true,
-
-        // ASSESSMENT
         numQuestions: true,
         operation: true,
-
-        // PRACTICE_TIME
         durationMinutes: true,
-
+        requiredSets: true,
+        minimumScorePercent: true,
         recipients: { select: { studentId: true } },
       },
     });
@@ -92,15 +115,13 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
       type: assignment.type,
       mode: assignment.mode,
       targetKind: assignment.targetKind,
-
       opensAt: assignment.opensAt.toISOString(),
       closesAt: assignment.closesAt ? assignment.closesAt.toISOString() : null,
-
       windowMinutes: assignment.windowMinutes,
-
       numQuestions: assignment.numQuestions,
-
       durationMinutes: assignment.durationMinutes ?? null,
+      requiredSets: assignment.requiredSets ?? null,
+      minimumScorePercent: assignment.minimumScorePercent ?? null,
       operation: assignment.operation ?? null,
     };
 
@@ -119,18 +140,51 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
       return jsonResponse({ status: 'CLOSED', assignment: assignmentPayload }, 200);
     }
 
-    // PRACTICE_TIME: no Attempt / questions to load here.
     if (assignment.targetKind === 'PRACTICE_TIME') {
+      const practiceSnapshot = await getProgressionSnapshot(student.classroomId);
+      const practiceMaxNumber = clampInt(practiceSnapshot.maxNumber, 1, 100);
+      const practiceActive = await getStudentActiveProgress({
+        studentId: student.id,
+        snapshot: practiceSnapshot,
+      });
+      const practiceOperation = assignment.operation ?? practiceActive.operation;
+      const practiceLevel =
+        assignment.operation != null
+          ? await getStudentLevelForOperation({ studentId: student.id, operation: practiceOperation })
+          : practiceActive.level;
+      const practiceModifier =
+        assignment.operation != null
+          ? resolveModifierForOperationLevel({
+              operation: practiceOperation,
+              level: practiceLevel,
+              snapshot: practiceSnapshot,
+            })
+          : practiceActive.modifier;
+      const available = getMaxUniqueQuestionsFor({
+        operation: practiceOperation,
+        level: practiceLevel,
+        maxNumber: practiceMaxNumber,
+        modifier: practiceModifier,
+      });
+      const requestedPerSet = assignment.numQuestions > 0 ? assignment.numQuestions : 10;
+      const numQuestionsPerSet = Math.min(requestedPerSet, available);
+
       return jsonResponse(
         {
           status: 'READY_PRACTICE_TIME',
           assignment: assignmentPayload,
+          progression: {
+            operation: practiceOperation,
+            level: practiceLevel,
+            maxNumber: practiceMaxNumber,
+            modifier: practiceModifier,
+            numQuestionsPerSet,
+          },
         },
         200,
       );
     }
 
-    // ASSESSMENT: if already submitted, return result
     const existingAttempt = await prisma.attempt.findUnique({
       where: { studentId_assignmentId: { studentId: student.id, assignmentId: assignment.id } },
       select: { id: true, score: true, total: true, completedAt: true, startedAt: true },
@@ -153,6 +207,7 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
         200,
       );
     }
+
     const snapshot = await getProgressionSnapshot(student.classroomId);
     const maxNumber = clampInt(snapshot.maxNumber, 1, 100);
 
@@ -164,6 +219,15 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
         ? await getStudentLevelForOperation({ studentId: student.id, operation })
         : active.level;
 
+    const modifier =
+      assignment.operation != null
+        ? resolveModifierForOperationLevel({
+            operation,
+            level,
+            snapshot,
+          })
+        : active.modifier;
+
     const count = clampInt(assignment.numQuestions, 1, 200);
 
     const questions = generateQuestions({
@@ -172,6 +236,7 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
       level,
       maxNumber,
       count,
+      modifier,
     });
 
     return jsonResponse(
@@ -182,6 +247,7 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
           name: student.name,
           operation,
           level,
+          modifier,
         },
         assignment: assignmentPayload,
         questions,
@@ -253,13 +319,21 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
     const maxNumberAtTime = clampInt(snapshot.maxNumber, 1, 100);
 
     const active = await getStudentActiveProgress({ studentId: student.id, snapshot });
-
     const operation = assignment.operation ?? active.operation;
 
     const levelAtTime =
       assignment.operation != null
         ? await getStudentLevelForOperation({ studentId: student.id, operation })
         : active.level;
+
+    const modifierAtTime =
+      assignment.operation != null
+        ? resolveModifierForOperationLevel({
+            operation,
+            level: levelAtTime,
+            snapshot,
+          })
+        : active.modifier;
 
     const total = clampInt(assignment.numQuestions, 1, 200);
 
@@ -269,49 +343,34 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
       level: levelAtTime,
       maxNumber: maxNumberAtTime,
       count: total,
+      modifier: modifierAtTime,
     });
 
-    const answersById = new Map<number, number>();
+    const answersByQuestionId = new Map<number, AnswerValue | null>();
     for (const a of parsed.answers) {
-      const qid = Number(a.questionId);
-      if (!Number.isFinite(qid)) continue;
-
-      const raw = a.givenAnswer;
-      if (raw === null || raw === undefined || raw === '') continue;
-
-      const n = Number(raw);
-      if (Number.isFinite(n)) answersById.set(qid, Math.trunc(n));
+      answersByQuestionId.set(a.questionId, parseSubmittedAnswer(a.givenAnswer));
     }
 
-    let score = 0;
+    const answersByIndex: Record<number, AnswerValue | null> = {};
+    for (let i = 0; i < questions.length; i++) {
+      const q = questions[i];
+      answersByIndex[i] = q ? (answersByQuestionId.get(q.id) ?? null) : null;
+    }
 
-    const items = questions.map((q) => {
-      const correctAnswer = computeAnswerInt(q.operation, q.operandA, q.operandB);
-      const givenAnswer = answersById.get(q.id);
-      const given = givenAnswer === undefined ? -1 : givenAnswer;
-
-      const isCorrect = given !== -1 && given === correctAnswer;
-      if (isCorrect) score += 1;
-
-      return {
-        operation: q.operation,
-        operandA: q.operandA,
-        operandB: q.operandB,
-        correctAnswer,
-        givenAnswer: given,
-        isCorrect,
-      };
+    const graded = gradeGeneratedQuestions({
+      questions,
+      answersByIndex,
     });
 
-    const wasMastery = total > 0 && score === total;
+    const wasMastery = graded.total > 0 && graded.score === graded.total;
 
     const created = await prisma.$transaction(async (tx) => {
       const attempt = await tx.attempt.create({
         data: {
           studentId: student.id,
           assignmentId: assignment.id,
-          score,
-          total,
+          score: graded.score,
+          total: graded.total,
           completedAt: new Date(),
           operationAtTime: operation,
           levelAtTime,
@@ -321,15 +380,18 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
       });
 
       await tx.attemptItem.createMany({
-        data: items.map((it) => ({
-          attemptId: attempt.id,
-          operation: it.operation,
-          operandA: it.operandA,
-          operandB: it.operandB,
-          correctAnswer: it.correctAnswer,
-          givenAnswer: it.givenAnswer,
-          isCorrect: it.isCorrect,
-        })),
+        data: questions.map((q, idx) => {
+          const item = graded.items[idx];
+          return {
+            attemptId: attempt.id,
+            operation: q.operation,
+            operandAValue: q.operandA,
+            operandBValue: q.operandB,
+            correctAnswerValue: item?.correctAnswer ?? null,
+            givenAnswerValue: item?.studentAnswer ?? Prisma.JsonNull,
+            isCorrect: item?.isCorrect ?? false,
+          };
+        }),
       });
 
       return attempt;

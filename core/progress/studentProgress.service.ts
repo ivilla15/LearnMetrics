@@ -12,8 +12,8 @@ import { findStudentById } from '@/data/students.repo';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 
 import type { OperationCode } from '@/types/enums';
-import { median, percent } from '@/utils/math';
-import { trendFromLast3 } from './utils';
+import { isMastery, median, percent } from '@/utils/math';
+import { computeStreaks, trendFromLast3 } from './utils';
 import { getLevelForOp } from '@/types';
 
 import { getPracticeProgressForAssignment } from '@/core/practice/progress';
@@ -90,7 +90,7 @@ export async function getStudentProgress(params: {
 
   const masteryRateRange = attemptsInRange.length
     ? Math.round(
-        (attemptsInRange.filter((a) => a.total > 0 && a.score === a.total).length /
+        (attemptsInRange.filter((a) => isMastery(a.score, a.total)).length /
           attemptsInRange.length) *
           100,
       )
@@ -104,19 +104,7 @@ export async function getStudentProgress(params: {
     ? Math.floor((endAt.getTime() - last.completedAt.getTime()) / (24 * 60 * 60 * 1000))
     : null;
 
-  let masteryStreak = 0;
-  let nonMasteryStreak = 0;
-
-  for (const a of recentAttempts) {
-    const isMastery = a.total > 0 && a.score === a.total;
-    if (isMastery) {
-      if (nonMasteryStreak === 0) masteryStreak++;
-      else break;
-    } else {
-      if (masteryStreak === 0) nonMasteryStreak++;
-      else break;
-    }
-  }
+  const { masteryStreak, nonMasteryStreak } = computeStreaks(recentAttempts);
 
   const last3 = recentAttempts.slice(0, 3).reverse();
   const trendLast3 = trendFromLast3(last3.map((a) => percent(a.score, a.total)));
@@ -149,8 +137,7 @@ export async function getStudentProgress(params: {
     const attemptForStudent = attemptsForLast.find((a) => a.studentId === params.studentId);
     if (attemptForStudent) {
       lastTestAttempted = true;
-      lastTestMastery =
-        attemptForStudent.total > 0 && attemptForStudent.score === attemptForStudent.total;
+      lastTestMastery = isMastery(attemptForStudent.score, attemptForStudent.total);
     }
   }
 
@@ -195,7 +182,7 @@ export async function getStudentProgress(params: {
       score: a.score,
       total: a.total,
       percent: pct,
-      mastered: a.total > 0 && a.score === a.total,
+      mastered: isMastery(a.score, a.total),
       missedCount: Math.max(0, a.total - a.score),
     };
   });
@@ -211,7 +198,7 @@ export async function getStudentProgress(params: {
   }));
 
   let practice: {
-    summary: { requiredSeconds: number; completedSeconds: number; percent: number } | null;
+    summary: { requiredSets: number; completedSets: number; percent: number } | null;
     rows: PracticeProgressDTO[];
   } | null = null;
 
@@ -222,19 +209,19 @@ export async function getStudentProgress(params: {
       ),
     );
 
-    const requiredSeconds = rows.reduce((acc, r) => acc + (r.requiredSeconds ?? 0), 0);
-    const completedSeconds = rows.reduce((acc, r) => acc + (r.completedSeconds ?? 0), 0);
+    const totalRequired = rows.reduce((acc, r) => acc + (r.requiredSets ?? 0), 0);
+    const totalCompleted = rows.reduce((acc, r) => acc + (r.completedSets ?? 0), 0);
 
     const pct =
-      requiredSeconds <= 0
+      totalRequired <= 0
         ? 0
-        : Math.min(100, Math.round((completedSeconds / requiredSeconds) * 100));
+        : Math.min(100, Math.round((totalCompleted / totalRequired) * 100));
 
     practice = {
       summary: rows.length
         ? {
-            requiredSeconds,
-            completedSeconds,
+            requiredSets: totalRequired,
+            completedSets: totalCompleted,
             percent: pct,
           }
         : null,

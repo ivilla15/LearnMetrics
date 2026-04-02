@@ -1,6 +1,7 @@
 import { requireStudent } from '@/core/auth/requireStudent';
 import { getPracticeProgressForAssignment } from '@/core/practice/progress';
-import { jsonResponse } from '@/utils/http';
+import { jsonResponse, errorResponse } from '@/utils/http';
+import { parseId } from '@/utils/parse';
 import { handleApiError } from '@/app/api/_shared';
 
 export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) {
@@ -11,11 +12,8 @@ export async function GET(_: Request, ctx: { params: Promise<{ id: string }> }) 
     }
 
     const { id } = await ctx.params;
-    const assignmentId = Number(id);
-
-    if (!Number.isFinite(assignmentId) || assignmentId <= 0) {
-      return jsonResponse({ error: 'Invalid assignment id' }, 400);
-    }
+    const assignmentId = parseId(id);
+    if (!assignmentId) return errorResponse('Invalid assignment id', 400);
 
     const progress = await getPracticeProgressForAssignment({
       studentId: auth.student.id,

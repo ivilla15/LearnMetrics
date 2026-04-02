@@ -1,11 +1,14 @@
 import { prisma } from '@/data/prisma';
 import { requireStudent } from '@/core/auth/requireStudent';
-import { jsonResponse } from '@/utils/http';
+import { jsonResponse, errorResponse } from '@/utils/http';
+import { parseId } from '@/utils/parse';
 import { handleApiError, type RouteContext } from '@/app/api/_shared';
 import { z } from 'zod';
 
 const bodySchema = z.object({
   sessionId: z.coerce.number().int().positive(),
+  score: z.coerce.number().int().min(0),
+  total: z.coerce.number().int().min(1),
 });
 
 type Params = { id: string };
@@ -16,22 +19,26 @@ export async function POST(req: Request, { params }: RouteContext<Params>) {
     if (!auth.ok) return jsonResponse({ error: auth.error }, auth.status);
 
     const { id } = await params;
-    const assignmentId = Number(id);
-    if (!Number.isFinite(assignmentId) || assignmentId <= 0) {
-      return jsonResponse({ error: 'Invalid assignment id' }, 400);
-    }
+    const assignmentId = parseId(id);
+    if (!assignmentId) return errorResponse('Invalid assignment id', 400);
 
     const parsed = bodySchema.parse(await req.json().catch(() => null));
 
     const assignment = await prisma.assignment.findUnique({
       where: { id: assignmentId },
-      select: { targetKind: true },
+      select: { targetKind: true, minimumScorePercent: true },
     });
 
-    if (!assignment) return jsonResponse({ error: 'Assignment not found' }, 404);
+    if (!assignment) return errorResponse('Assignment not found', 404);
     if (assignment.targetKind !== 'PRACTICE_TIME') {
-      return jsonResponse({ error: 'Not a practice-time assignment' }, 409);
+      return errorResponse('Not a practice-time assignment', 409);
     }
+
+    const threshold = assignment.minimumScorePercent ?? 80;
+    const scorePercent = parsed.total > 0
+      ? Math.round((parsed.score / parsed.total) * 100)
+      : 0;
+    const qualified = scorePercent >= threshold;
 
     const ended = await prisma.practiceSession.updateMany({
       where: {
@@ -39,14 +46,19 @@ export async function POST(req: Request, { params }: RouteContext<Params>) {
         studentId: auth.student.id,
         endedAt: null,
       },
-      data: { endedAt: new Date() },
+      data: {
+        endedAt: new Date(),
+        score: parsed.score,
+        total: parsed.total,
+        qualified,
+      },
     });
 
     if (ended.count === 0) {
-      return jsonResponse({ error: 'Session not found or already ended' }, 404);
+      return errorResponse('Session not found or already ended', 404);
     }
 
-    return jsonResponse({ ok: true }, 200);
+    return jsonResponse({ ok: true, qualified, scorePercent }, 200);
   } catch (err: unknown) {
     return handleApiError(err, { defaultMessage: 'Failed to end practice session' });
   }

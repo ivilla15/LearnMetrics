@@ -5,7 +5,7 @@ export function formatCalendarTypeLabel(params: {
   targetKind: AssignmentTargetKind;
   type: AssignmentType | null;
 }) {
-  if (params.targetKind === 'PRACTICE_TIME') return 'Practice time';
+  if (params.targetKind === 'PRACTICE_TIME') return 'Practice sets';
   return params.type ? formatAssignmentType(params.type) : 'Assignment';
 }
 
@@ -15,7 +15,7 @@ export function formatCalendarTargetLine(params: {
   durationMinutes: number | null;
 }) {
   if (params.targetKind === 'PRACTICE_TIME') {
-    return `${params.durationMinutes ?? 0} minutes`;
+    return 'Practice sets';
   }
 
   return `${params.numQuestions ?? 0} questions`;

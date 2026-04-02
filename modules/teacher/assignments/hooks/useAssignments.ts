@@ -33,10 +33,9 @@ function matchesType(row: TeacherAssignmentListItemDTO, type: AssignmentTypeFilt
 export function useAssignments(initial: TeacherAssignmentsListResponse, classroomId: number) {
   const [data, setData] = React.useState<TeacherAssignmentsListResponse>(initial);
 
-  // product default
-  const [status, setStatus] = React.useState<AssignmentStatusFilter>('finished');
+  const [status, setStatus] = React.useState<AssignmentStatusFilter>('all');
   const [mode, setMode] = React.useState<AssignmentModeFilter>('all');
-  const [type, setType] = React.useState<AssignmentTypeFilter>('TEST');
+  const [type, setType] = React.useState<AssignmentTypeFilter>('all');
 
   const [search, setSearch] = React.useState('');
   const [loading, setLoading] = React.useState(false);

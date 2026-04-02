@@ -7,9 +7,8 @@ import { percent } from '@/utils/math';
 
 import type { AttemptDetailDTO } from '@/types/api/attempts';
 import type { OperationCode } from '@/types/enums';
-
-import { opSymbol } from '@/core';
 import type { StudentAttemptRouteContext } from '@/app/api/_shared/route-types';
+import { opSymbol, formatOperand, parseOperandValue, parseAnswerValue } from '@/types';
 
 export async function GET(_req: Request, { params }: StudentAttemptRouteContext) {
   try {
@@ -44,10 +43,10 @@ export async function GET(_req: Request, { params }: StudentAttemptRouteContext)
           select: {
             id: true,
             operation: true,
-            operandA: true,
-            operandB: true,
-            correctAnswer: true,
-            givenAnswer: true,
+            operandAValue: true,
+            operandBValue: true,
+            correctAnswerValue: true,
+            givenAnswerValue: true,
             isCorrect: true,
           },
         },
@@ -89,13 +88,19 @@ export async function GET(_req: Request, { params }: StudentAttemptRouteContext)
             windowMinutes: attempt.Assignment.windowMinutes ?? null,
           }
         : undefined,
-      items: attempt.AttemptItem.map((it) => ({
-        id: it.id,
-        prompt: `${it.operandA} ${opSymbol(it.operation as OperationCode)} ${it.operandB}`,
-        studentAnswer: it.givenAnswer,
-        correctAnswer: it.correctAnswer,
-        isCorrect: it.isCorrect,
-      })),
+      items: attempt.AttemptItem.map((it) => {
+        const operandA = parseOperandValue(it.operandAValue);
+        const operandB = parseOperandValue(it.operandBValue);
+        const correctAnswer = parseAnswerValue(it.correctAnswerValue);
+
+        return {
+          id: it.id,
+          prompt: `${formatOperand(operandA)} ${opSymbol(it.operation as OperationCode)} ${formatOperand(operandB)}`,
+          studentAnswer: it.givenAnswerValue !== null ? parseAnswerValue(it.givenAnswerValue) : null,
+          correctAnswer,
+          isCorrect: it.isCorrect,
+        };
+      }),
     };
 
     return jsonResponse(dto, 200);
