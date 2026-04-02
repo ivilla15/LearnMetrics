@@ -260,31 +260,29 @@ export function AssignmentsTimeline({
                       >
                         <Card
                           variant="elevated"
-                          tone="primary"
-                          className="transition hover:bg-[hsl(var(--brand)/0.85)]"
+                          className="cursor-pointer border border-[hsl(var(--brand)/0.3)] hover:border-[hsl(var(--brand))] hover:shadow-md"
                         >
-                          <div className="flex items-start justify-between gap-4 px-5 py-4 text-white">
+                          <div className="flex items-start justify-between gap-4 px-5 py-4">
                             <div className="min-w-0">
                               <div className="flex flex-wrap items-center gap-5">
-                                <div className="truncate text-[15px] font-semibold">{title}</div>
+                                <div className="truncate text-[15px] font-semibold text-[hsl(var(--fg))]">
+                                  {title}
+                                </div>
                                 {submitted ? Pill('Submitted', 'primary') : null}
                               </div>
-
-                              <div className="mt-1 text-sm"></div>
-
-                              <div className="mt-1 text-xs text-white/80">
+                              <div className="mt-1 text-sm text-[hsl(var(--fg))]"></div>
+                              <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
                                 {formatWindowLine({ opensAt: row.opensAt, closesAt: row.closesAt })}
                               </div>
                             </div>
 
                             <div className="shrink-0 text-right">
                               {submitted && row.latestAttempt && (
-                                <div className="text-sm font-semibold">
+                                <div className="text-sm font-semibold text-[hsl(var(--fg))]">
                                   {row.latestAttempt.percent}%
                                 </div>
                               )}
-
-                              <div className="mt-1 text-xs text-white/80">
+                              <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
                                 {isPracticeAssignment && !proj && row.requiredSets
                                   ? `${row.requiredSets} sets · ${row.minimumScorePercent ?? 80}% min`
                                   : null}
