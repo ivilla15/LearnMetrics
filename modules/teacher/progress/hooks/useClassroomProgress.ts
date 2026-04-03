@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 import { useToast } from '@/components';
-import type { ClassroomProgressDTO, FactDetailDTO, FilterKey, MissedFactDTO } from '@/types';
+import type { ClassroomProgressDTO, FactDetailDTO, FilterKey, MissedFactDTO, OperationCode } from '@/types';
 
 export function useClassroomProgress(params: {
   classroomId: number;
@@ -16,6 +16,8 @@ export function useClassroomProgress(params: {
 
   const [filter, setFilter] = React.useState<FilterKey>('all');
   const [search, setSearch] = React.useState('');
+
+  const [operationTab, setOperationTab] = React.useState<OperationCode | null>(null);
 
   const [pickerSearch, setPickerSearch] = React.useState('');
 
@@ -35,15 +37,18 @@ export function useClassroomProgress(params: {
     if (data?.range?.days) setDaysText(String(data.range.days));
   }, [data?.range?.days]);
 
-  async function reload(nextDays: number) {
+  async function reload(nextDays: number, operation?: OperationCode | null) {
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/teacher/classrooms/${classroomId}/assignments?days=${nextDays}`,
-        {
-          cache: 'no-store',
-        },
+      const url = new URL(
+        `/api/teacher/classrooms/${classroomId}/assignments`,
+        window.location.origin,
       );
+      url.searchParams.set('days', String(nextDays));
+      const op = operation !== undefined ? operation : operationTab;
+      if (op) url.searchParams.set('primaryOperation', op);
+
+      const res = await fetch(url.toString(), { cache: 'no-store' });
       const json = await res.json().catch(() => null);
 
       if (!res.ok) {
@@ -65,6 +70,12 @@ export function useClassroomProgress(params: {
     setFilter('all');
     setSearch('');
     void reload(safe);
+  }
+
+  function applyOperationTab(op: OperationCode | null) {
+    setOperationTab(op);
+    const days = Number(data?.range?.days) || 30;
+    void reload(days, op);
   }
 
   function scrollToStudentsTable() {
@@ -121,8 +132,8 @@ export function useClassroomProgress(params: {
   );
 
   const hasMissedFacts = missedFacts.some((m) => (m.incorrectCount ?? 0) > 0);
-  const top3Missed = missedFacts.slice(0, 3);
-  const restMissed = missedFacts.slice(3);
+  const top5Missed = missedFacts.slice(0, 5);
+  const restMissed = missedFacts.slice(5);
   const maxIncorrect = missedFacts.reduce((m, r) => Math.max(m, r.incorrectCount ?? 0), 0);
 
   const scoreBuckets = data.charts?.scoreBuckets ?? [];
@@ -130,6 +141,8 @@ export function useClassroomProgress(params: {
 
   const levelBuckets = data.charts?.levelBuckets ?? [];
   const maxLevelBucket = levelBuckets.reduce((m, r) => Math.max(m, r.count), 0);
+
+  const dailyChart = data.charts?.daily ?? [];
 
   const participation = React.useMemo(() => {
     const attemptedIds = new Set<number>();
@@ -219,6 +232,10 @@ export function useClassroomProgress(params: {
     daysText,
     studentsTableRef,
 
+    operationTab,
+    setOperationTab,
+    applyOperationTab,
+
     setFilter,
     setSearch,
     setPickerSearch,
@@ -237,7 +254,7 @@ export function useClassroomProgress(params: {
     students,
     last3Tests,
     missedFacts,
-    top3Missed,
+    top5Missed,
     restMissed,
     hasMissedFacts,
     maxIncorrect,
@@ -245,6 +262,7 @@ export function useClassroomProgress(params: {
     maxBucket,
     levelBuckets,
     maxLevelBucket,
+    dailyChart,
     participation,
     lastTestMeta,
     hasLastTest,

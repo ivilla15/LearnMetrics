@@ -5,19 +5,28 @@ import { useRouter } from 'next/navigation';
 
 import { AssignMakeupTestModal } from '@/modules';
 
-import type { ClassroomProgressDTO } from '@/types';
+import type { ClassroomProgressDTO, OperationCode } from '@/types';
+import { OPERATION_CODES } from '@/types';
 import { useClassroomProgress } from './hooks/useClassroomProgress';
 
 import {
   ProgressSummaryCard,
   ScoreDistributionCard,
   LevelDistributionCard,
+  MasteryTrendCard,
   MostMissedFactsCard,
   MissedFactsTableModal,
   MissedFactDetailModal,
   StudentsTableCard,
   StudentPickerModal,
 } from './_components';
+
+const OP_LABELS: Record<OperationCode, string> = {
+  ADD: 'ADD',
+  SUB: 'SUB',
+  MUL: 'MUL',
+  DIV: 'DIV',
+};
 
 type Props = {
   classroomId: number;
@@ -33,44 +42,66 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
     <div className="space-y-6">
       <ProgressSummaryCard
         days={p.data?.range?.days ?? 30}
-        participationText={`${p.participation.attemptedCount}/${p.participation.total} (${p.participation.pct}%)`}
-        missedLastTestCount={p.missedLastTestCount}
-        masteryStreak2Count={p.masteryStreak2Count}
-        atRiskCount={p.data?.summary?.atRiskCount ?? 0}
-        nonMasteryStreak2Count={p.data?.summary?.nonMasteryStreak2Count ?? 0}
-        lowestRecentPercent={p.data?.summary?.lowestRecentPercent ?? null}
         masteryRateInRange={p.data?.summary?.masteryRateInRange ?? 0}
         avgPercentInRange={p.data?.summary?.avgPercentInRange ?? 0}
-        highestLevel={p.data?.summary?.highestLevel ?? '—'}
-        attemptsInRange={p.data?.summary?.attemptsInRange ?? 0}
-        studentsTotal={p.data?.summary?.studentsTotal ?? p.students.length}
+        activeStudents={p.participation.attemptedCount}
+        totalStudents={p.participation.total}
+        atRiskCount={p.data?.summary?.atRiskCount ?? 0}
         last3Tests={p.last3Tests}
+        loading={p.loading}
         onOpenPicker={() => {
           p.setPickerSearch('');
           p.setPickerOpen(true);
         }}
         onOpenAssign={() => p.setAssignOpen(true)}
         onFilterAtRisk={() => p.setFilter('atRisk')}
-        onFilterMissedLastTest={() => p.setFilter('missedLastTest')}
-        onFilterMasteryStreak2={() => p.setFilter('masteryStreak2')}
-        onFilterNonMasteryStreak2={() => p.setFilter('streak2')}
-        onClearFilters={() => {
-          p.setFilter('all');
-          p.setSearch('');
-        }}
         onScrollToStudents={p.scrollToStudentsTable}
-        onGoStudent={(studentId) =>
-          router.push(`/teacher/classrooms/${classroomId}/students/${studentId}/progress`)
-        }
+        onPrint={() => window.print()}
       />
 
-      <ScoreDistributionCard buckets={p.scoreBuckets} maxBucket={p.maxBucket} />
-      <LevelDistributionCard buckets={p.levelBuckets} maxBucket={p.maxLevelBucket} />
+      {/* Operation Tabs */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={() => p.applyOperationTab(null)}
+          className={[
+            'cursor-pointer rounded-[999px] border px-4 py-1.5 text-sm font-medium transition-colors',
+            p.operationTab === null
+              ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
+              : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
+          ].join(' ')}
+        >
+          All
+        </button>
+        {OPERATION_CODES.map((op) => (
+          <button
+            key={op}
+            type="button"
+            onClick={() => p.applyOperationTab(op)}
+            className={[
+              'cursor-pointer rounded-[999px] border px-4 py-1.5 text-sm font-medium transition-colors',
+              p.operationTab === op
+                ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
+                : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
+            ].join(' ')}
+          >
+            {OP_LABELS[op]}
+          </button>
+        ))}
+      </div>
+
+      {/* Charts — 2-col grid for bar charts, full-width trend */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <ScoreDistributionCard buckets={p.scoreBuckets} loading={p.loading} />
+        <LevelDistributionCard buckets={p.levelBuckets} loading={p.loading} />
+      </div>
+
+      <MasteryTrendCard daily={p.dailyChart} loading={p.loading} />
 
       {p.hasMissedFacts ? (
         <>
           <MostMissedFactsCard
-            top3={p.top3Missed}
+            top5={p.top5Missed}
             restCount={p.restMissed.length}
             maxIncorrect={p.maxIncorrect}
             onOpenAll={() => p.setMissedOpen(true)}

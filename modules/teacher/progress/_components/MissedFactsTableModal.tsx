@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Modal, Button, HelpText } from '@/components';
 import type { MissedFactDTO } from '@/types';
+import { OPERATION_SYMBOL } from '@/types';
 
 export function MissedFactsTableModal({
   open,
@@ -57,7 +58,7 @@ export function MissedFactsTableModal({
                   }}
                 >
                   <td className="py-3 pl-4 pr-3 font-medium text-[hsl(var(--fg))]">
-                    {m.operandA} × {m.operandB} = {m.correctAnswer}
+                    {m.operandA} {OPERATION_SYMBOL[m.operation] ?? '?'} {m.operandB} = {m.correctAnswer}
                   </td>
                   <td className="py-3 px-3 text-right">{m.incorrectCount}</td>
                   <td className="py-3 px-3 text-right">{m.totalCount}</td>

@@ -33,6 +33,15 @@ export function computeStreaks(
   return { masteryStreak, nonMasteryStreak };
 }
 
+export type ProficiencyTier = 'beginning' | 'developing' | 'proficient' | 'advanced';
+
+export function proficiencyTier(masteryRate: number): ProficiencyTier {
+  if (masteryRate < 60) return 'beginning';
+  if (masteryRate < 75) return 'developing';
+  if (masteryRate < 90) return 'proficient';
+  return 'advanced';
+}
+
 /**
  * Bucket a percent into label strings used in charts.
  */

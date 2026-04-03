@@ -1,10 +1,15 @@
 'use client';
 
 import * as React from 'react';
-import type { AttemptDetailDTO, AttemptExplorerFilter, AttemptRowDTO } from '@/types';
+import type { AttemptDetailDTO, AttemptExplorerFilter, AttemptRowDTO, OperationCode } from '@/types';
 import { getApiErrorMessage } from '@/utils/http';
 
-export function useAttemptExplorer(baseUrl: string) {
+export function useAttemptExplorer(
+  baseUrl: string,
+  opts?: { operationFilter?: OperationCode | null },
+) {
+  const operationFilter = opts?.operationFilter ?? null;
+
   const [attempts, setAttempts] = React.useState<AttemptRowDTO[]>([]);
   const [loading, setLoading] = React.useState(true);
 
@@ -25,7 +30,10 @@ export function useAttemptExplorer(baseUrl: string) {
       setLoading(true);
 
       try {
-        const res = await fetch(`${baseUrl}/attempts?filter=${filter}`, { cache: 'no-store' });
+        const qs = new URLSearchParams({ filter });
+        if (operationFilter) qs.set('operation', operationFilter);
+
+        const res = await fetch(`${baseUrl}/attempts?${qs.toString()}`, { cache: 'no-store' });
         const payload: unknown = await res.json().catch(() => null);
         if (cancelled) return;
 
@@ -58,7 +66,7 @@ export function useAttemptExplorer(baseUrl: string) {
     return () => {
       cancelled = true;
     };
-  }, [baseUrl, filter]);
+  }, [baseUrl, filter, operationFilter]);
 
   React.useEffect(() => {
     if (!selectedAttemptId) {
@@ -74,9 +82,10 @@ export function useAttemptExplorer(baseUrl: string) {
 
     setLoadingMore(true);
     try {
-      const res = await fetch(`${baseUrl}/attempts?filter=${filter}&cursor=${nextCursor}`, {
-        cache: 'no-store',
-      });
+      const qs = new URLSearchParams({ filter, cursor: nextCursor });
+      if (operationFilter) qs.set('operation', operationFilter);
+
+      const res = await fetch(`${baseUrl}/attempts?${qs.toString()}`, { cache: 'no-store' });
       const payload: unknown = await res.json().catch(() => null);
 
       if (!res.ok) return;

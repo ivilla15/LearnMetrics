@@ -11,21 +11,27 @@ import {
   MiniBar,
 } from '@/components';
 import type { MissedFactDTO } from '@/types';
+import { OPERATION_SYMBOL } from '@/types';
+
+function formatFact(m: MissedFactDTO): string {
+  const sym = OPERATION_SYMBOL[m.operation] ?? '?';
+  return `${m.operandA} ${sym} ${m.operandB} = ${m.correctAnswer}`;
+}
 
 export function MostMissedFactsCard({
-  top3,
+  top5,
   restCount,
   maxIncorrect,
   onOpenAll,
   onOpenFact,
 }: {
-  top3: MissedFactDTO[];
+  top5: MissedFactDTO[];
   restCount: number;
   maxIncorrect: number;
   onOpenAll: () => void;
   onOpenFact: (fact: MissedFactDTO) => void;
 }) {
-  if (top3.length === 0) return null;
+  if (top5.length === 0) return null;
 
   return (
     <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
@@ -43,7 +49,7 @@ export function MostMissedFactsCard({
       </CardHeader>
 
       <CardContent className="space-y-3">
-        {top3.map((m) => (
+        {top5.map((m) => (
           <button
             key={`${m.operation}:${m.operandA}x${m.operandB}`}
             type="button"
@@ -56,7 +62,7 @@ export function MostMissedFactsCard({
             <div className="flex items-start justify-between gap-3">
               <div>
                 <div className="text-sm font-semibold text-[hsl(var(--fg))]">
-                  {m.operandA} × {m.operandB} = {m.correctAnswer}
+                  {formatFact(m)}
                 </div>
                 <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
                   Incorrect {m.incorrectCount}/{m.totalCount} ({m.errorRate}% error)

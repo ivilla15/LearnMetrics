@@ -21,6 +21,7 @@ export * from './StatTile';
 
 // Charts & visuals
 export * from './LevelProgressChart';
+export * from './MultiOpLevelProgressChart';
 export * from './Bars';
 
 // Layout / page helpers
