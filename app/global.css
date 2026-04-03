@@ -166,6 +166,29 @@
   @page {
     margin: 12mm;
   }
+
+  /* Prevent the card and section containers from splitting across pages */
+  [class*='rounded-[28px]'],
+  [class*='rounded-[18px]'],
+  [class*='rounded-[14px]'] {
+    break-inside: avoid;
+  }
+
+  /* Table rows must not split */
+  tr {
+    break-inside: avoid;
+  }
+
+  /* Recharts SVG containers must not split */
+  .recharts-wrapper,
+  .recharts-responsive-container {
+    break-inside: avoid;
+  }
+
+  /* The styled stat strip, week-group headers, and intervention banners */
+  [class*='rounded-[999px]'] {
+    break-inside: avoid;
+  }
 }
 
 button,

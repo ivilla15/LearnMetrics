@@ -11,7 +11,7 @@ import {
 export function ProgressSectionSkeleton() {
   return (
     <div className="space-y-6">
-      {/* 1. Progress Summary Card - Exact Header Match */}
+      {/* 1. Progress Summary Card */}
       <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
         <CardHeader className="space-y-2">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -24,133 +24,133 @@ export function ProgressSectionSkeleton() {
               <Button variant="secondary" loading>
                 Assign test
               </Button>
+              <Button variant="secondary" loading>
+                Print / Export
+              </Button>
             </div>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-5">
-          {/* StatPills - 3 Rows exactly matching the client grid */}
-          {[...Array(3)].map((_, rowIndex) => (
-            <div key={rowIndex} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="h-[76px] w-full rounded-[18px] bg-[hsl(var(--surface-2))] animate-pulse"
-                />
-              ))}
-            </div>
-          ))}
-
-          <div className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <div className="text-sm font-semibold text-[hsl(var(--fg))]">Today’s Focus</div>
-                <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
-                  Prioritized students who need attention right now.
-                </div>
+          {/* 4-stat summary strip */}
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4"
+              >
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="mt-2 h-8 w-20" />
               </div>
-
-              <Button variant="secondary" size="sm" loading>
-                Filter at-risk
-              </Button>
-            </div>
+            ))}
           </div>
 
-          {/* Last 3 Tests Section */}
+          {/* Recent tests pills */}
           <div className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4">
-            <div className="text-sm font-semibold text-[hsl(var(--fg))]">Last 3 tests</div>
-            <div className="my-1 text-xs text-[hsl(var(--muted-fg))]">
-              Quick snapshot of recent performance.
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-              {[...Array(3)].map((_, i) => (
-                <div
-                  key={i}
-                  className="h-[158px] w-full rounded-[14px] bg-[hsl(var(--surface-2))] animate-pulse"
-                />
+            <div className="text-sm font-semibold text-[hsl(var(--fg))]">Recent Tests</div>
+            <div className="mt-3 flex flex-wrap gap-3">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-16 w-52 rounded-[14px]" />
               ))}
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* 2. Distribution Cards (Score & Level) */}
-      <div className="grid gap-6">
-        {[...Array(2)].map((_, i) => (
+      {/* 2. Operation tabs placeholder */}
+      <div className="flex gap-2">
+        {['All', 'ADD', 'SUB', 'MUL', 'DIV'].map((label) => (
+          <div
+            key={label}
+            className="rounded-[999px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] px-4 py-1.5 text-sm font-medium text-[hsl(var(--fg))]"
+          >
+            {label}
+          </div>
+        ))}
+      </div>
+
+      {/* 3. Charts — 2-col + full-width trend */}
+      <div className="grid gap-6 md:grid-cols-2">
+        {[0, 1].map((i) => (
           <Card key={i} className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
             <CardHeader>
-              <Skeleton className="h-6 w-48" />
-              <Skeleton className="mt-2 h-4 w-72" />
+              <Skeleton className="h-5 w-40" />
+              <Skeleton className="mt-2 h-3.5 w-56" />
             </CardHeader>
-            <CardContent className="space-y-3">
-              {[...Array(5)].map((_, j) => (
-                <Skeleton key={j} className="h-8 w-full rounded-md" />
-              ))}
+            <CardContent>
+              <Skeleton className="h-52 w-full rounded-[14px]" />
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* 3. Students Table Card - Matching columns and padding exactly */}
+      {/* Mastery trend — full width */}
       <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
         <CardHeader>
-          <div className="text-xl font-semibold leading-none tracking-tight">Students</div>
-          <div className="mt-2 text-sm text-[hsl(var(--muted-fg))]">
-            Filters apply only to this table.
-          </div>
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="mt-2 h-3.5 w-64" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-52 w-full rounded-[14px]" />
+        </CardContent>
+      </Card>
+
+      {/* 4. Students Table */}
+      <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
+        <CardHeader>
+          <CardTitle>Students</CardTitle>
+          <CardDescription>Filters apply only to this table.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Filter Bar Skeletons */}
           <div className="flex flex-wrap items-end gap-4">
             <Skeleton className="h-[68px] w-40 rounded-xl" />
             <Skeleton className="h-[68px] w-64 rounded-xl" />
             <Skeleton className="h-[68px] w-full max-w-md rounded-xl" />
           </div>
 
-          <div className="overflow-hidden rounded-[28px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] shadow-[0_4px_10px_rgba(0,0,0,0.08)]">
+          <div className="overflow-hidden rounded-[28px] bg-[hsl(var(--surface))] shadow-[0_4px_10px_rgba(0,0,0,0.08)]">
             <table className="w-full text-sm">
               <thead className="bg-[hsl(var(--surface-2))]">
                 <tr className="text-left border-b border-[hsl(var(--border))]">
                   <th className="py-3 pl-5 pr-3">Student</th>
-                  <th className="py-3 px-3 text-center w-20">Level</th>
-                  <th className="py-3 px-3 w-32">Last attempt</th>
-                  <th className="py-3 px-3 text-center w-20">Last %</th>
-                  <th className="py-3 px-3 text-center w-20">Avg %</th>
-                  <th className="py-3 px-3 text-center w-20">Mastery %</th>
-                  <th className="py-3 px-3 text-center w-20">Streak</th>
-                  <th className="py-3 px-3 w-32">Trend</th>
-                  <th className="py-3 pl-3 pr-5 text-right w-32">Actions</th>
+                  <th className="py-3 px-3 text-center">Level</th>
+                  <th className="py-3 px-3">Mastery Rate</th>
+                  <th className="py-3 px-3 text-center">Avg Score</th>
+                  <th className="py-3 px-3">Trend</th>
+                  <th className="py-3 px-3">Last Active</th>
+                  <th className="py-3 px-3">Status</th>
+                  <th className="py-3 pl-3 pr-5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {[...Array(5)].map((_, i) => (
+                {Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-[hsl(var(--border))] last:border-0">
                     <td className="py-3 pl-5 pr-3">
-                      <Skeleton className="h-14 w-40" />
+                      <div className="space-y-1">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
                     </td>
-                    <td className="py-3 px-3">
+                    <td className="py-3 px-3 text-center">
                       <Skeleton className="h-5 w-8 mx-auto" />
                     </td>
                     <td className="py-3 px-3">
-                      <Skeleton className="h-10 w-24" />
+                      <Skeleton className="h-4 w-20" />
                     </td>
-                    <td className="py-3 px-3">
-                      <Skeleton className="h-6 w-12 mx-auto rounded-full" />
-                    </td>
-                    <td className="py-3 px-3">
-                      <Skeleton className="h-6 w-12 mx-auto rounded-full" />
-                    </td>
-                    <td className="py-3 px-3">
-                      <Skeleton className="h-6 w-12 mx-auto rounded-full" />
-                    </td>
-                    <td className="py-3 px-3">
-                      <Skeleton className="h-6 w-10 mx-auto rounded-full" />
+                    <td className="py-3 px-3 text-center">
+                      <Skeleton className="h-6 w-14 mx-auto rounded-full" />
                     </td>
                     <td className="py-3 px-3">
                       <Skeleton className="h-6 w-24 rounded-full" />
                     </td>
+                    <td className="py-3 px-3">
+                      <Skeleton className="h-4 w-20" />
+                    </td>
+                    <td className="py-3 px-3">
+                      <Skeleton className="h-6 w-16 rounded-full" />
+                    </td>
                     <td className="py-3 pr-5">
-                      <Skeleton className="h-8 w-24 ml-auto rounded-lg" />
+                      <Skeleton className="h-8 w-28 ml-auto rounded-lg" />
                     </td>
                   </tr>
                 ))}

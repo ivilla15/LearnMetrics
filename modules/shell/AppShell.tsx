@@ -50,8 +50,7 @@ export function AppShell({
   }, [menuOpen]);
 
   return (
-    /* Changed min-h-screen to h-screen and overflow-hidden to prevent the whole page from stretching */
-    <div className="h-screen bg-[hsl(var(--bg))] flex flex-col overflow-hidden">
+    <div className="h-screen print:h-auto bg-[hsl(var(--bg))] flex flex-col overflow-hidden print:overflow-visible">
       {/* Topbar for mobile */}
       <header className="flex-none flex items-center justify-between px-4 py-3 border-b border-[hsl(var(--border))] print:hidden md:hidden">
         <LearnMetricsLogo variant="icon-white" href="/" />
@@ -79,7 +78,7 @@ export function AppShell({
       </header>
 
       {/* Body container - now restricted to remaining height */}
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 overflow-hidden print:overflow-visible print:min-h-0">
         {/* Sidebar (desktop only) - Fixed height and sticky */}
         <aside className="hidden md:flex w-60 bg-[hsl(var(--surface))] shadow-[2px_0_24px_rgba(0,0,0,0.08)] flex-col z-10 print:hidden h-full sticky top-0">
           <div
@@ -133,7 +132,7 @@ export function AppShell({
         </aside>
 
         {/* Main content - THE ONLY SCROLLING AREA */}
-        <main className="flex-1 min-w-0 overflow-y-auto bg-[hsl(var(--bg))] h-full scroll-smooth">
+        <main className="flex-1 min-w-0 overflow-y-auto print:overflow-visible bg-[hsl(var(--bg))] h-full print:h-auto scroll-smooth">
           <div className="w-full min-h-full flex flex-col">
             {topSlot ? <div className="w-full flex-none">{topSlot}</div> : null}
 

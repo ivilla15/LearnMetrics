@@ -58,6 +58,9 @@ export type AttemptResultsRowDTO = {
   attemptId: number | null;
   completedAt: string | null;
 
+  operation?: OperationCode;
+  type?: AssignmentType;
+
   score: number | null;
   total: number | null;
   percent: number | null;

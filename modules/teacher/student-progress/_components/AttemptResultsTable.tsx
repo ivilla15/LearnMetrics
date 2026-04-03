@@ -2,13 +2,14 @@
 
 import * as React from 'react';
 
-import { Button, Input, Label, HelpText, Pill, StatusDot } from '@/components';
+import { Button, Input, Label, HelpText, Pill, StatusDot, Badge } from '@/components';
 
 import { formatLocal } from '@/lib/date';
 import {
   masteryTone,
   missedTone,
   pctTone,
+  OPERATION_SYMBOL,
   type AssignmentAttemptsFilter,
   type AttemptResultsRowDTO,
 } from '@/types';
@@ -65,7 +66,7 @@ export function AttemptResultsTable({
     });
   }, [rows, search, canSearch]);
 
-  const colCount = showStudentColumn ? 8 : 7;
+  const colCount = showStudentColumn ? 10 : 9;
 
   return (
     <div className="space-y-4">
@@ -115,6 +116,8 @@ export function AttemptResultsTable({
             <tr className="text-left border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]">
               {showStudentColumn ? <th className="py-3 pl-5 pr-3">Student</th> : null}
               <th className={showStudentColumn ? 'py-3 px-3' : 'py-3 pl-5 pr-3'}>Completed</th>
+              <th className="py-3 px-3 text-center">Operation</th>
+              <th className="py-3 px-3 text-center">Type</th>
               <th className="py-3 px-3 text-center">Score</th>
               <th className="py-3 px-3 text-center">%</th>
               <th className="py-3 px-3 text-center">Missed</th>
@@ -183,6 +186,24 @@ export function AttemptResultsTable({
                               : Pill('Not mastered', 'danger')}
                         </div>
                       ) : null}
+                    </td>
+
+                    <td className="py-3 px-3 text-center">
+                      {r.operation ? (
+                        <span className="font-mono font-medium">
+                          {r.operation} {OPERATION_SYMBOL[r.operation]}
+                        </span>
+                      ) : (
+                        '—'
+                      )}
+                    </td>
+
+                    <td className="py-3 px-3 text-center">
+                      {r.type ? (
+                        <Badge tone="muted">{r.type}</Badge>
+                      ) : (
+                        '—'
+                      )}
                     </td>
 
                     <td className="py-3 px-3 text-center">

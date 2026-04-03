@@ -2,7 +2,17 @@
 
 import * as React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, MiniBar } from '@/components';
-import { MissedFactDTO } from '@/types';
+import type { MissedFactDTO } from '@/types';
+import { OPERATION_SYMBOL } from '@/types';
+
+function formatFact(m: MissedFactDTO): string {
+  const sym = OPERATION_SYMBOL[m.operation] ?? '?';
+  return `${m.operandA} ${sym} ${m.operandB} = ${m.correctAnswer}`;
+}
+
+function formatErrorText(m: MissedFactDTO): string {
+  return `Missed ${m.incorrectCount} of ${m.totalCount} times — ${m.errorRate}% error rate`;
+}
 
 export function MissedFactsCard(props: { missedFacts: MissedFactDTO[] }) {
   const { missedFacts } = props;
@@ -12,6 +22,8 @@ export function MissedFactsCard(props: { missedFacts: MissedFactDTO[] }) {
     [missedFacts],
   );
 
+  const top5 = missedFacts.slice(0, 5);
+
   return (
     <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
       <CardHeader>
@@ -20,10 +32,10 @@ export function MissedFactsCard(props: { missedFacts: MissedFactDTO[] }) {
       </CardHeader>
 
       <CardContent className="space-y-3">
-        {missedFacts.length === 0 ? (
+        {top5.length === 0 ? (
           <div className="text-sm text-[hsl(var(--muted-fg))]">No missed facts in this range.</div>
         ) : (
-          missedFacts.map((m) => (
+          top5.map((m) => (
             <div
               key={`${m.operation}:${m.operandA}:${m.operandB}`}
               className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4"
@@ -31,10 +43,10 @@ export function MissedFactsCard(props: { missedFacts: MissedFactDTO[] }) {
               <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                   <div className="text-sm font-semibold text-[hsl(var(--fg))]">
-                    {m.operandA} × {m.operandB} = {m.correctAnswer}
+                    {formatFact(m)}
                   </div>
                   <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
-                    Incorrect {m.incorrectCount}/{m.totalCount} ({m.errorRate}% error)
+                    {formatErrorText(m)}
                   </div>
                 </div>
 
