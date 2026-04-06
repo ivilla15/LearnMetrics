@@ -5,9 +5,9 @@ import { useRouter } from 'next/navigation';
 
 import { AssignMakeupTestModal } from '@/modules';
 
-import type { ClassroomProgressDTO, OperationCode } from '@/types';
-import { OPERATION_CODES } from '@/types';
+import type { ClassroomProgressDTO } from '@/types';
 import { useClassroomProgress } from './hooks/useClassroomProgress';
+import { Button, Input, Label } from '@/components';
 
 import {
   ProgressSummaryCard,
@@ -17,16 +17,10 @@ import {
   MostMissedFactsCard,
   MissedFactsTableModal,
   MissedFactDetailModal,
+  OperationDistributionCard,
   StudentsTableCard,
   StudentPickerModal,
 } from './_components';
-
-const OP_LABELS: Record<OperationCode, string> = {
-  ADD: 'ADD',
-  SUB: 'SUB',
-  MUL: 'MUL',
-  DIV: 'DIV',
-};
 
 type Props = {
   classroomId: number;
@@ -59,44 +53,35 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
         onPrint={() => window.print()}
       />
 
-      {/* Operation Tabs */}
-      <div className="flex flex-wrap gap-2">
-        <button
-          type="button"
-          onClick={() => p.applyOperationTab(null)}
-          className={[
-            'cursor-pointer rounded-[999px] border px-4 py-1.5 text-sm font-medium transition-colors',
-            p.operationTab === null
-              ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
-              : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
-          ].join(' ')}
-        >
-          All
-        </button>
-        {OPERATION_CODES.map((op) => (
-          <button
-            key={op}
-            type="button"
-            onClick={() => p.applyOperationTab(op)}
-            className={[
-              'cursor-pointer rounded-[999px] border px-4 py-1.5 text-sm font-medium transition-colors',
-              p.operationTab === op
-                ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
-                : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
-            ].join(' ')}
-          >
-            {OP_LABELS[op]}
-          </button>
-        ))}
+      {/* Charts — range control + 2-col bar charts */}
+      <div className="flex items-end gap-3">
+        <div className="grid gap-1">
+          <Label htmlFor="chart-days" className="text-xs">Range (days)</Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="chart-days"
+              inputMode="numeric"
+              value={p.daysText}
+              onChange={(e) => p.setDaysText(e.target.value)}
+              className="w-24"
+            />
+            <Button variant="secondary" onClick={p.applyDays} disabled={p.loading}>
+              {p.loading ? 'Loading…' : 'Apply'}
+            </Button>
+          </div>
+        </div>
       </div>
 
-      {/* Charts — 2-col grid for bar charts, full-width trend */}
       <div className="grid gap-6 md:grid-cols-2">
         <ScoreDistributionCard buckets={p.scoreBuckets} loading={p.loading} />
-        <LevelDistributionCard buckets={p.levelBuckets} loading={p.loading} />
+        <LevelDistributionCard students={p.students} loading={p.loading} />
       </div>
 
-      <MasteryTrendCard daily={p.dailyChart} loading={p.loading} />
+      {/* Trend + operation distribution side by side */}
+      <div className="grid gap-6 md:grid-cols-2">
+        <MasteryTrendCard daily={p.dailyChart} loading={p.loading} />
+        <OperationDistributionCard students={p.students} loading={p.loading} />
+      </div>
 
       {p.hasMissedFacts ? (
         <>

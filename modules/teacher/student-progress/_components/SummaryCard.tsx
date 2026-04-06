@@ -49,6 +49,13 @@ const TIER_CONFIG = {
   },
 } as const;
 
+const OP_LABEL: Record<string, string> = {
+  ADD: 'Addition',
+  SUB: 'Subtraction',
+  MUL: 'Multiplication',
+  DIV: 'Division',
+};
+
 // ── Last Active helper ─────────────────────────────────────────────────────────
 
 function formatLastActive(days: number | null): { text: string; stale: boolean } {
@@ -208,12 +215,19 @@ export function SummaryCard(props: {
         {/* Zone 2 — Growth Snapshot */}
         <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-5">
           {/* Level */}
-          <div className="rounded-[14px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-4 py-3">
-            <div className="text-xs text-[hsl(var(--muted-fg))]">Level</div>
+          <div className="rounded-[14px] bg-[hsl(var(--surface))] px-4 py-3 shadow-[0_4px_10px_rgba(0,0,0,0.08)]">
+            <div className="text-xs text-[hsl(var(--muted-fg))]">Current Stats</div>
+
             {loading ? (
-              <Skeleton className="mt-1 h-7 w-12" />
+              <Skeleton className="mt-2 h-10 w-28" />
             ) : (
-              <div className="mt-1 text-xl font-bold text-[hsl(var(--fg))]">{s.level ?? '—'}</div>
+              <div className="mt-2 space-y-0.5 text-[hsl(var(--fg))]">
+                <div className="text-lg font-semibold">Level {s.activeLevel ?? s.level ?? '—'}</div>
+
+                {s.activeOperation && (
+                  <div className="text-sm">{OP_LABEL[s.activeOperation] ?? s.activeOperation}</div>
+                )}
+              </div>
             )}
           </div>
 

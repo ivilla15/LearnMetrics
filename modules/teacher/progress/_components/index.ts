@@ -1,4 +1,5 @@
 export * from './LevelDistributionCard';
+export * from './OperationDistributionCard';
 export * from './MasteryTrendCard';
 export * from './MissedFactDetailModal';
 export * from './MissedFactsTableModal';

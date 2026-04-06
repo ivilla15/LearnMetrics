@@ -1,4 +1,4 @@
-import { Skeleton, StatTile } from '@/components';
+import { Skeleton, StatTile, Card, CardContent, CardHeader, CardTitle } from '@/components';
 
 export function ClassroomHeaderSkeleton() {
   return (
@@ -22,6 +22,87 @@ export function ClassroomSubNavSkeleton() {
             <Skeleton className="h-4 w-20" />
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+export function ClassroomDashboardSkeleton() {
+  return (
+    <div className="space-y-8">
+      {/* Zone 1 — health strip */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+        {['Class Mastery Rate', 'Avg Score', 'Active This Week', 'At Risk', 'Next Test'].map(
+          (label) => (
+            <div
+              key={label}
+              className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4"
+            >
+              <div className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--muted-fg))]">
+                {label}
+              </div>
+              <Skeleton className="mt-2 h-8 w-20" />
+            </div>
+          ),
+        )}
+      </div>
+
+      {/* Zone 2 — needs attention */}
+      <div className="space-y-3">
+        <div className="h-5 w-36 rounded bg-[hsl(var(--surface-2))]" />
+        {['At Risk', 'No Recent Activity', 'Missed Last Test'].map((label) => (
+          <div
+            key={label}
+            className="rounded-[18px] border border-[hsl(var(--border))] bg-[hsl(var(--surface))] overflow-hidden"
+          >
+            <div className="flex items-center gap-2 px-4 py-3">
+              <span className="text-sm font-semibold text-[hsl(var(--fg))]">{label}</span>
+              <Skeleton className="h-4 w-6 rounded-full" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Zone 3 — weekly snapshot */}
+      <div className="space-y-3">
+        <div className="h-5 w-24 rounded bg-[hsl(var(--surface-2))]" />
+        <div className="grid gap-4 md:grid-cols-3">
+          {['Level Distribution', 'Operation Distribution', 'Top Missed Facts'].map((label) => (
+            <Card
+              key={label}
+              className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0"
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">{label}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-[180px] w-full rounded-[14px]" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </div>
+
+      {/* Zone 4 — coming up */}
+      <div className="space-y-3">
+        <div className="h-5 w-28 rounded bg-[hsl(var(--surface-2))]" />
+        <div className="grid gap-4 md:grid-cols-2">
+          {['Recent Tests', 'Upcoming Assignments'].map((label) => (
+            <Card
+              key={label}
+              className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0"
+            >
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">{label}</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full rounded-[14px]" />
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
       </div>
     </div>
   );

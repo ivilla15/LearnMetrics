@@ -8,6 +8,8 @@ export type ClassroomProgressStudentRowDTO = {
   name: string;
   username: string;
   level: number;
+  activeOperation: OperationCode;
+  activeLevel: number;
 
   mustSetPassword: boolean;
 
@@ -76,7 +78,7 @@ export type FactDetailDTO = {
 
 export type ClassroomProgressDTO = {
   classroom: { id: number; name: string };
-  range: { startAt: string; endAt: string; days: number };
+  range: { startAt: string; endAt: string; days: number; primaryOperation: OperationCode };
 
   recent: { last3Tests: ClassroomProgressLastTestDTO[] };
 
@@ -102,6 +104,7 @@ export type ClassroomProgressDTO = {
     daily: Array<{ date: string; attempts: number; masteryRate: number; avgPercent: number }>;
     scoreBuckets: Array<{ label: string; count: number }>;
     levelBuckets: Array<{ level: number; count: number }>;
+    operationBuckets: Array<{ operation: OperationCode; count: number }>;
   };
 
   insights: { topMissedFacts: MissedFactDTO[] };
@@ -131,6 +134,10 @@ export type TeacherStudentProgressDTO = {
     nonMasteryStreak: number;
     trendLast3: 'improving' | 'regressing' | 'flat' | 'need3';
     daysSinceLastAttempt: number | null;
+
+    operationLevels: Array<{ operation: OperationCode; level: number }>;
+    activeOperation: OperationCode;
+    activeLevel: number;
 
     flags: {
       atRisk: boolean;

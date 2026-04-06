@@ -12,6 +12,18 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Skeleton } from '@/components';
+import type { OperationCode } from '@/types';
+
+const OP_CONFIG: Record<OperationCode, { label: string; short: string }> = {
+  ADD: { label: 'Addition', short: 'ADD' },
+  SUB: { label: 'Subtraction', short: 'SUB' },
+  MUL: { label: 'Multiplication', short: 'MUL' },
+  DIV: { label: 'Division', short: 'DIV' },
+};
+
+const ALL_OPS: OperationCode[] = ['ADD', 'SUB', 'MUL', 'DIV'];
+
+type ActiveStudent = { activeOperation: OperationCode; activeLevel: number };
 
 function computeMedianLevel(buckets: Array<{ level: number; count: number }>): number | null {
   const total = buckets.reduce((s, b) => s + b.count, 0);
@@ -28,40 +40,94 @@ function computeMedianLevel(buckets: Array<{ level: number; count: number }>): n
 }
 
 export function LevelDistributionCard({
-  buckets,
+  students,
   loading,
+  maxLevel = 12,
 }: {
-  buckets: Array<{ level: number; count: number }>;
+  students: ActiveStudent[];
   loading?: boolean;
+  maxLevel?: number;
 }) {
+  const [selectedOp, setSelectedOp] = React.useState<OperationCode | null>(null);
+
+  // Which ops actually have students (to show only active filter buttons)
+  const presentOps = React.useMemo(() => {
+    const s = new Set<OperationCode>();
+    for (const st of students) s.add(st.activeOperation);
+    return s;
+  }, [students]);
+
+  const buckets = React.useMemo(() => {
+    const relevant = selectedOp
+      ? students.filter((s) => s.activeOperation === selectedOp)
+      : students;
+    const map = new Map<number, number>();
+    for (const s of relevant) map.set(s.activeLevel, (map.get(s.activeLevel) ?? 0) + 1);
+    return Array.from({ length: maxLevel }, (_, i) => i + 1).map((level) => ({
+      level,
+      count: map.get(level) ?? 0,
+      label: `Lvl ${level}`,
+    }));
+  }, [students, selectedOp, maxLevel]);
+
   const medianLevel = React.useMemo(() => computeMedianLevel(buckets), [buckets]);
 
-  const chartData = React.useMemo(
-    () => buckets.map((b) => ({ ...b, label: `Lvl ${b.level}` })),
-    [buckets],
-  );
+  const descLabel = selectedOp
+    ? `Students currently active on ${OP_CONFIG[selectedOp].label}`
+    : 'Students by current active level';
 
   return (
     <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
-      <CardHeader>
+      <CardHeader className="pb-2">
         <CardTitle>Level Distribution</CardTitle>
         <CardDescription>
-          Students per level.
+          {descLabel}.
           {medianLevel !== null ? (
             <> Median: <strong>Level {medianLevel}</strong>.</>
           ) : null}
         </CardDescription>
+
+        {/* Operation filter — only show buttons for ops with students present */}
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          <button
+            type="button"
+            onClick={() => setSelectedOp(null)}
+            className={[
+              'cursor-pointer rounded-full border px-3 py-0.5 text-xs font-medium transition-colors',
+              selectedOp === null
+                ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
+                : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
+            ].join(' ')}
+          >
+            All
+          </button>
+          {ALL_OPS.filter((op) => presentOps.has(op)).map((op) => (
+            <button
+              key={op}
+              type="button"
+              onClick={() => setSelectedOp(op)}
+              className={[
+                'cursor-pointer rounded-full border px-3 py-0.5 text-xs font-medium transition-colors',
+                selectedOp === op
+                  ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
+                  : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
+              ].join(' ')}
+            >
+              {OP_CONFIG[op].short}
+            </button>
+          ))}
+        </div>
       </CardHeader>
 
       <CardContent>
         {loading ? (
           <Skeleton className="h-52 w-full rounded-[14px]" />
-        ) : buckets.length === 0 ? (
+        ) : students.length === 0 ? (
           <div className="text-sm text-[hsl(var(--muted-fg))]">No students yet.</div>
         ) : (
-          <div style={{ width: '100%', height: 220 }}>
+          <div style={{ width: '100%', height: 200 }}>
             <ResponsiveContainer>
-              <BarChart data={chartData} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
+              <BarChart data={buckets} margin={{ top: 4, right: 8, bottom: 4, left: 0 }}>
                 <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="4 4" vertical={false} />
                 <XAxis
                   dataKey="label"
