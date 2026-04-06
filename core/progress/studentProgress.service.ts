@@ -17,6 +17,8 @@ import { computeStreaks, trendFromLast3 } from './utils';
 import { getLevelForOp } from '@/types';
 
 import { getPracticeProgressForAssignment } from '@/core/practice/progress';
+import { getProgressionSnapshot } from '@/core/progression/policySnapshot.service';
+import { computeActiveOpAndLevel } from '@/core/progression/getStudentActiveProgress.service';
 import type { PracticeProgressDTO } from '@/types';
 
 export async function getStudentProgress(params: {
@@ -44,7 +46,7 @@ export async function getStudentProgress(params: {
 
   const progressRows = await getProgressForStudent(params.studentId);
 
-  const [attemptsInRangeRaw, recentAttemptsRaw, missedFacts, lastAssignments, practiceAssignments] =
+  const [attemptsInRangeRaw, recentAttemptsRaw, missedFacts, lastAssignments, practiceAssignments, snapshot] =
     await Promise.all([
       getAttemptsForStudentInRange({
         classroomId: params.classroomId,
@@ -77,6 +79,7 @@ export async function getStudentProgress(params: {
         endAt,
         take: 25,
       }),
+      getProgressionSnapshot(params.classroomId),
     ]);
 
   const attemptsInRange = attemptsInRangeRaw.filter((a) => a.completedAt);
@@ -142,6 +145,7 @@ export async function getStudentProgress(params: {
   }
 
   const level = getLevelForOp(progressRows, primaryOp);
+  const active = computeActiveOpAndLevel({ progress: progressRows, snapshot });
 
   const student = {
     id: studentRow.id,
@@ -149,6 +153,9 @@ export async function getStudentProgress(params: {
     username: studentRow.username,
     level,
     mustSetPassword: studentRow.mustSetPassword,
+    operationLevels: progressRows.map((p) => ({ operation: p.operation, level: p.level })),
+    activeOperation: active.operation,
+    activeLevel: active.level,
 
     attemptsInRange: attemptsInRange.length,
     masteryRateInRange: masteryRateRange,

@@ -8,7 +8,7 @@ function getProgressionOrder(snapshot: ProgressionSnapshotDTO): OperationCode[] 
   return ['MUL'];
 }
 
-function computeActiveOpAndLevel(params: {
+export function computeActiveOpAndLevel(params: {
   progress: Array<{ operation: OperationCode; level: number }>;
   snapshot: ProgressionSnapshotDTO;
 }): { operation: OperationCode; level: number } {

@@ -8,6 +8,8 @@ import {
 } from '@/data/teacherProgress.repo';
 
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
+import { getProgressionSnapshot } from '@/core/progression/policySnapshot.service';
+import { computeActiveOpAndLevel } from '@/core/progression/getStudentActiveProgress.service';
 
 import type { OperationCode } from '@/types/enums';
 import { isoDay } from '@/utils/time';
@@ -34,7 +36,7 @@ export async function getClassroomProgress(params: {
   // for streaks + last3 trend
   const recentCutoff = new Date(endAt.getTime() - 180 * 24 * 60 * 60 * 1000);
 
-  const [students, attemptsInRange, recentAttempts, missedFacts, lastAssignments] =
+  const [students, attemptsInRange, recentAttempts, missedFacts, lastAssignments, snapshot] =
     await Promise.all([
       getStudentsForClassroom(params.classroomId),
       getAttemptsForClassroomInRange({ classroomId: params.classroomId, startAt, endAt }),
@@ -48,6 +50,7 @@ export async function getClassroomProgress(params: {
         endAt,
         take: 3,
       }),
+      getProgressionSnapshot(params.classroomId),
     ]);
 
   const lastAssignmentIds = lastAssignments.map((a) => a.id);
@@ -147,16 +150,25 @@ export async function getClassroomProgress(params: {
     count: bucketCounts.get(label) ?? 0,
   }));
 
-  // ---- Charts: level buckets (by primary op) ----
+  // ---- Charts: level buckets and operation buckets (by active progression) ----
+  // computeActiveOpAndLevel gives each student their current operation/level per the progression policy.
   const levelMap = new Map<number, number>();
+  const opCountMap = new Map<OperationCode, number>();
+
   for (const s of students) {
-    const lvl = getLevelForOp(s.progress, primaryOp);
-    levelMap.set(lvl, (levelMap.get(lvl) ?? 0) + 1);
+    const active = computeActiveOpAndLevel({ progress: s.progress, snapshot });
+    levelMap.set(active.level, (levelMap.get(active.level) ?? 0) + 1);
+    opCountMap.set(active.operation, (opCountMap.get(active.operation) ?? 0) + 1);
   }
 
-  const levelBuckets = Array.from({ length: 12 }, (_, i) => i + 1).map((level) => ({
-    level,
-    count: levelMap.get(level) ?? 0,
+  const levelBuckets = Array.from({ length: snapshot.maxNumber }, (_, i) => i + 1).map(
+    (level) => ({ level, count: levelMap.get(level) ?? 0 }),
+  );
+
+  const OP_ORDER: OperationCode[] = ['ADD', 'SUB', 'MUL', 'DIV'];
+  const operationBuckets = OP_ORDER.map((op) => ({
+    operation: op,
+    count: opCountMap.get(op) ?? 0,
   }));
 
   // ---- Per student grouping ----
@@ -220,11 +232,15 @@ export async function getClassroomProgress(params: {
     const lastTestMastery = !!lastTest && lastTestMasteredStudentIds.has(s.id);
     const missedLastTest = !!lastTest && !needsSetup && !lastTestAttemptedStudentIds.has(s.id);
 
+    const active = computeActiveOpAndLevel({ progress: s.progress, snapshot });
+
     return {
       id: s.id,
       name: s.name,
       username: s.username,
       level: getLevelForOp(s.progress, primaryOp),
+      activeOperation: active.operation,
+      activeLevel: active.level,
 
       mustSetPassword: s.mustSetPassword,
 
@@ -319,6 +335,7 @@ export async function getClassroomProgress(params: {
       startAt: startAt.toISOString(),
       endAt: endAt.toISOString(),
       days,
+      primaryOperation: primaryOp,
     },
     recent: { last3Tests },
     summary: {
@@ -342,6 +359,7 @@ export async function getClassroomProgress(params: {
       daily,
       scoreBuckets,
       levelBuckets,
+      operationBuckets,
     },
     insights: {
       topMissedFacts,

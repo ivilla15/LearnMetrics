@@ -8,7 +8,6 @@ import {
   YAxis,
   CartesianGrid,
   Tooltip,
-  Legend,
   ResponsiveContainer,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Skeleton } from '@/components';
@@ -33,7 +32,11 @@ export function MasteryTrendCard({
     <Card className="shadow-[0_20px_60px_rgba(0,0,0,0.08)] rounded-[28px] border-0">
       <CardHeader>
         <CardTitle>Mastery Trend</CardTitle>
-        <CardDescription>Daily mastery rate and average score over the selected period.</CardDescription>
+        <CardDescription>
+          Daily trends over the selected period.{' '}
+          <span style={{ color: 'hsl(var(--brand))' }}>●</span> Mastery rate &nbsp;
+          <span style={{ color: 'hsl(var(--success))' }}>●</span> Avg score
+        </CardDescription>
       </CardHeader>
 
       <CardContent>
@@ -76,11 +79,6 @@ export function MasteryTrendCard({
                   ]}
                   labelFormatter={formatDateTick}
                 />
-                <Legend
-                  formatter={(value) =>
-                    value === 'masteryRate' ? 'Mastery Rate' : 'Avg Score'
-                  }
-                />
                 <Line
                   type="monotone"
                   dataKey="masteryRate"
@@ -92,7 +90,7 @@ export function MasteryTrendCard({
                 <Line
                   type="monotone"
                   dataKey="avgPercent"
-                  stroke="hsl(var(--muted-fg))"
+                  stroke="hsl(var(--success))"
                   strokeWidth={2}
                   dot={false}
                   activeDot={{ r: 5 }}

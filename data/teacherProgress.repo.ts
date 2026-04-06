@@ -138,6 +138,25 @@ export async function getRecentAttemptsForClassroom(params: { classroomId: numbe
   });
 }
 
+export async function getOperationCountsForClassroomInRange(params: {
+  classroomId: number;
+  startAt: Date;
+  endAt: Date;
+}) {
+  const { classroomId, startAt, endAt } = params;
+
+  return prisma.attemptItem.groupBy({
+    by: ['operation'],
+    where: {
+      Attempt: {
+        completedAt: { gte: startAt, lt: endAt },
+        Student: { classroomId },
+      },
+    },
+    _count: { operation: true },
+  });
+}
+
 export async function getMissedFactsInRange(params: {
   classroomId: number;
   startAt: Date;
