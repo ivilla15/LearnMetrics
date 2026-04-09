@@ -1,9 +1,4 @@
-import type {
-  AssignmentMode,
-  AssignmentType,
-  AssignmentTargetKind,
-  OperationCode,
-} from '@/types/enums';
+import type { AssignmentMode, AssignmentType, AssignmentTargetKind } from '@/types/enums';
 
 export type CalendarAssignmentStatsDTO = {
   attemptedCount: number;
@@ -31,8 +26,6 @@ export type CalendarAssignmentRowDTO = {
   requiredSets: number | null;
   minimumScorePercent: number | null;
 
-  operation: OperationCode | null;
-
   stats?: CalendarAssignmentStatsDTO;
   scheduleId?: number | null;
   runDate?: string | null;
@@ -52,7 +45,6 @@ export type CalendarProjectionRowDTO = {
   type: AssignmentType | null;
   numQuestions: number | null;
   windowMinutes: number | null;
-  operation: OperationCode | null;
 
   durationMinutes: number | null;
   requiredSets?: number | null;

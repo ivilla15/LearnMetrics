@@ -3,12 +3,10 @@ import { z } from 'zod';
 import { prisma } from '@/data/prisma';
 import {
   getProgressionSnapshot,
-  getStudentLevelForOperation,
   getStudentActiveProgress,
   promoteStudentAfterMastery,
   generateQuestions,
   gradeGeneratedQuestions,
-  resolveModifierForOperationLevel,
   studentCanAccessAssignment,
   getMaxUniqueQuestionsFor,
 } from '@/core';
@@ -96,7 +94,6 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
         closesAt: true,
         windowMinutes: true,
         numQuestions: true,
-        operation: true,
         durationMinutes: true,
         requiredSets: true,
         minimumScorePercent: true,
@@ -122,7 +119,6 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
       durationMinutes: assignment.durationMinutes ?? null,
       requiredSets: assignment.requiredSets ?? null,
       minimumScorePercent: assignment.minimumScorePercent ?? null,
-      operation: assignment.operation ?? null,
     };
 
     const now = new Date();
@@ -147,19 +143,9 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
         studentId: student.id,
         snapshot: practiceSnapshot,
       });
-      const practiceOperation = assignment.operation ?? practiceActive.operation;
-      const practiceLevel =
-        assignment.operation != null
-          ? await getStudentLevelForOperation({ studentId: student.id, operation: practiceOperation })
-          : practiceActive.level;
-      const practiceModifier =
-        assignment.operation != null
-          ? resolveModifierForOperationLevel({
-              operation: practiceOperation,
-              level: practiceLevel,
-              snapshot: practiceSnapshot,
-            })
-          : practiceActive.modifier;
+      const practiceOperation = practiceActive.operation;
+      const practiceLevel = practiceActive.level;
+      const practiceModifier = practiceActive.modifier;
       const available = getMaxUniqueQuestionsFor({
         operation: practiceOperation,
         level: practiceLevel,
@@ -212,21 +198,9 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
     const maxNumber = clampInt(snapshot.maxNumber, 1, 100);
 
     const active = await getStudentActiveProgress({ studentId: student.id, snapshot });
-    const operation = assignment.operation ?? active.operation;
-
-    const level =
-      assignment.operation != null
-        ? await getStudentLevelForOperation({ studentId: student.id, operation })
-        : active.level;
-
-    const modifier =
-      assignment.operation != null
-        ? resolveModifierForOperationLevel({
-            operation,
-            level,
-            snapshot,
-          })
-        : active.modifier;
+    const operation = active.operation;
+    const level = active.level;
+    const modifier = active.modifier;
 
     const count = clampInt(assignment.numQuestions, 1, 200);
 
@@ -284,7 +258,6 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
         opensAt: true,
         closesAt: true,
         numQuestions: true,
-        operation: true,
         recipients: { select: { studentId: true } },
       },
     });
@@ -319,21 +292,9 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
     const maxNumberAtTime = clampInt(snapshot.maxNumber, 1, 100);
 
     const active = await getStudentActiveProgress({ studentId: student.id, snapshot });
-    const operation = assignment.operation ?? active.operation;
-
-    const levelAtTime =
-      assignment.operation != null
-        ? await getStudentLevelForOperation({ studentId: student.id, operation })
-        : active.level;
-
-    const modifierAtTime =
-      assignment.operation != null
-        ? resolveModifierForOperationLevel({
-            operation,
-            level: levelAtTime,
-            snapshot,
-          })
-        : active.modifier;
+    const operation = active.operation;
+    const levelAtTime = active.level;
+    const modifierAtTime = active.modifier;
 
     const total = clampInt(assignment.numQuestions, 1, 200);
 

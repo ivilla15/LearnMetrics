@@ -1,9 +1,4 @@
-import type {
-  AssignmentType,
-  AssignmentTargetKind,
-  OperationCode,
-  RecipientRule,
-} from '@/types/enums';
+import type { AssignmentType, AssignmentTargetKind, RecipientRule } from '@/types/enums';
 
 export type ScheduleDTO = {
   id: number;
@@ -16,17 +11,14 @@ export type ScheduleDTO = {
 
   targetKind: AssignmentTargetKind;
 
-  // nullable because PRACTICE_TIME schedules may not need it
+  // type is a sub-classification only meaningful for ASSESSMENT schedules
   type: AssignmentType | null;
 
   numQuestions: number;
   durationMinutes: number | null;
   requiredSets: number | null;
   minimumScorePercent: number | null;
-  operation: OperationCode | null;
 
-  dependsOnScheduleId: number | null;
-  offsetMinutes: number;
   recipientRule: RecipientRule;
 };
 

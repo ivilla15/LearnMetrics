@@ -27,7 +27,11 @@ import {
 } from '@/types';
 
 import { usePracticeProgress } from '@/modules/student/assignments/hooks/usePracticeProgress';
-import { generateQuestions, gradeGeneratedQuestions, getMaxUniqueQuestionsFor } from '@/core/questions';
+import {
+  generateQuestions,
+  gradeGeneratedQuestions,
+  getMaxUniqueQuestionsFor,
+} from '@/core/questions';
 
 function PracticeSessionFallback() {
   return (
@@ -152,7 +156,6 @@ async function startPracticeTimeSession(params: {
   return json.sessionId;
 }
 
-
 async function endPracticeTimeSession(params: {
   assignmentId: number;
   sessionId: number;
@@ -205,7 +208,7 @@ function StudentPracticeSessionInner() {
 
   const level = getNumberParam(params, 'level', 3, 1, 12);
   const count = getNumberParam(params, 'count', 30, 6, 40);
-  const minutes = getNumberParam(params, 'minutes', 4, 0, 30);
+  const minutes = getNumberParam(params, 'minutes', 4, 0, 120);
   const maxNumber = getNumberParam(params, 'maxNumber', 12, 1, 100);
 
   const assignmentIdParam = params.get('assignmentId');
@@ -315,6 +318,33 @@ function StudentPracticeSessionInner() {
     };
   }, [assignmentId, isPracticeTimeAssignment, primaryOp, level, maxNumber]);
 
+  // Anti-copy/paste + session integrity for practice-time assignments
+  useEffect(() => {
+    if (!isPracticeTimeAssignment || finished) return;
+
+    function blockClipboard() {
+      return (e: ClipboardEvent) => {
+        const target = e.target as HTMLElement | null;
+        if (target instanceof HTMLInputElement) return;
+        e.preventDefault();
+      };
+    }
+
+    const onCopy = blockClipboard();
+    const onCut = blockClipboard();
+    const onPaste = blockClipboard();
+
+    document.addEventListener('copy', onCopy);
+    document.addEventListener('cut', onCut);
+    document.addEventListener('paste', onPaste);
+
+    return () => {
+      document.removeEventListener('copy', onCopy);
+      document.removeEventListener('cut', onCut);
+      document.removeEventListener('paste', onPaste);
+    };
+  }, [isPracticeTimeAssignment, finished]);
+
   // No heartbeat needed for set-based assignments — score is submitted on set completion.
 
   const jumpTo = useCallback((qId: number) => {
@@ -364,7 +394,16 @@ function StudentPracticeSessionInner() {
     setResult(graded);
     setFinished(true);
     setSubmitting(false);
-  }, [answers, finished, questions, submitting, modifier, isPracticeTimeAssignment, assignmentId, refreshPracticeProgress]);
+  }, [
+    answers,
+    finished,
+    questions,
+    submitting,
+    modifier,
+    isPracticeTimeAssignment,
+    assignmentId,
+    refreshPracticeProgress,
+  ]);
 
   useEffect(() => {
     if (minutes <= 0) return;
@@ -446,7 +485,9 @@ function StudentPracticeSessionInner() {
               <CardHeader>
                 <CardTitle>Next steps</CardTitle>
                 <CardDescription>
-                  {isPracticeTimeAssignment ? 'Keep going or head back' : 'Keep practicing or head back'}
+                  {isPracticeTimeAssignment
+                    ? 'Keep going or head back'
+                    : 'Keep practicing or head back'}
                 </CardDescription>
               </CardHeader>
 
@@ -470,11 +511,13 @@ function StudentPracticeSessionInner() {
 
                     {practiceProgress ? (
                       <div className="text-sm text-[hsl(var(--muted-fg))]">
-                        {practiceProgress.completedSets} / {practiceProgress.requiredSets} qualifying sets · {practiceProgress.minimumScorePercent}% minimum
+                        {practiceProgress.completedSets} / {practiceProgress.requiredSets}{' '}
+                        qualifying sets · {practiceProgress.minimumScorePercent}% minimum
                       </div>
                     ) : null}
 
-                    {practiceProgress && practiceProgress.completedSets >= practiceProgress.requiredSets ? (
+                    {practiceProgress &&
+                    practiceProgress.completedSets >= practiceProgress.requiredSets ? (
                       <div className="text-sm font-medium text-[hsl(var(--brand))]">
                         All qualifying sets completed!
                       </div>
@@ -492,7 +535,13 @@ function StudentPracticeSessionInner() {
                               operation: primaryOp,
                               level,
                               maxNumber,
-                              count: clampedCount({ operation: primaryOp, level, maxNumber, modifier, count }),
+                              count: clampedCount({
+                                operation: primaryOp,
+                                level,
+                                maxNumber,
+                                modifier,
+                                count,
+                              }),
                               modifier,
                             }),
                           );
@@ -544,7 +593,13 @@ function StudentPracticeSessionInner() {
                             operation: primaryOp,
                             level,
                             maxNumber,
-                            count: clampedCount({ operation: primaryOp, level, maxNumber, modifier, count }),
+                            count: clampedCount({
+                              operation: primaryOp,
+                              level,
+                              maxNumber,
+                              modifier,
+                              count,
+                            }),
                             modifier,
                           }),
                         );

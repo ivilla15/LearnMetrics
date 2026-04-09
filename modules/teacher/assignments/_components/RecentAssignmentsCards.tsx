@@ -106,8 +106,6 @@ export function RecentAssignmentsCards({
 
                 {isPracticeTime ? <Badge tone="muted">Practice time</Badge> : null}
                 <Badge tone="muted">{formatTargetBadge(t)}</Badge>
-
-                {t.operation ? <Badge tone="muted">{t.operation}</Badge> : null}
               </div>
 
               <div className="mt-3 grid grid-cols-3 gap-3">

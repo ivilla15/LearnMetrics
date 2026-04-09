@@ -61,6 +61,8 @@ model Assignment {
 
   type          Type                @default(TEST)
   mode          Mode                @default(SCHEDULED)
+  // targetKind is the primary discriminator: ASSESSMENT = graded test, PRACTICE_TIME = timed practice sets
+  // type is a sub-classification only meaningful for ASSESSMENT assignments
   targetKind    AssignmentTargetKind @default(ASSESSMENT)
 
   opensAt       DateTime
@@ -68,8 +70,6 @@ model Assignment {
   windowMinutes Int      @default(4)
 
   numQuestions  Int      @default(12)
-
-  operation     Operation?
 
   durationMinutes Int?
 
@@ -80,14 +80,11 @@ model Assignment {
   Schedule      AssignmentSchedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   runDate       DateTime?
 
-  parentAssignmentId Int?
-  ParentAssignment   Assignment?  @relation("AssignmentParent", fields: [parentAssignmentId], references: [id], onDelete: SetNull)
-  ChildMakeups       Assignment[] @relation("AssignmentParent")
-
   Attempt          Attempt[]
   recipients       AssignmentRecipient[]
   ScheduleRuns     AssignmentScheduleRun[]
   PracticeSessions PracticeSession[]
+  Events           AttemptEvent[]
 
   @@index([classroomId])
   @@index([scheduleId])
@@ -113,18 +110,11 @@ model AssignmentSchedule {
 
   type             Type?
   numQuestions     Int          @default(12)
-  operation        Operation?
 
   durationMinutes  Int?
 
   requiredSets        Int?
   minimumScorePercent Int?
-
-  dependsOnScheduleId Int?
-  DependsOnSchedule   AssignmentSchedule? @relation("ScheduleDependency", fields: [dependsOnScheduleId], references: [id], onDelete: SetNull)
-  Dependents          AssignmentSchedule[] @relation("ScheduleDependency")
-
-  offsetMinutes     Int           @default(0)
 
   recipientRule     RecipientRule @default(ALL)
 
@@ -132,7 +122,6 @@ model AssignmentSchedule {
   Runs        AssignmentScheduleRun[]
 
   @@index([classroomId])
-  @@index([dependsOnScheduleId])
 }
 
 model AssignmentScheduleRun {
@@ -209,6 +198,23 @@ model AttemptItem {
   @@index([attemptId])
 }
 
+// Tracks session-integrity events: tab switches, window blur, copy attempts, etc.
+// Exposed to teachers for exam monitoring. Stored for any ASSESSMENT attempt session.
+model AttemptEvent {
+  id           Int      @id @default(autoincrement())
+  studentId    Int
+  assignmentId Int
+  eventType    String   // TAB_HIDDEN, WINDOW_BLUR, LEFT_PAGE, COPY_BLOCKED, CUT_BLOCKED, PASTE_BLOCKED
+  occurredAt   DateTime @default(now())
+
+  Student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  Assignment Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+
+  @@index([assignmentId])
+  @@index([studentId])
+  @@index([assignmentId, studentId])
+}
+
 model PracticeSession {
   id             Int      @id @default(autoincrement())
   studentId       Int
@@ -268,11 +274,12 @@ model Student {
   setupCodeExpiresAt DateTime?
   mustSetPassword    Boolean  @default(true)
 
-  assignments AssignmentRecipient[]
-  Attempt     Attempt[]
-  progress    StudentProgress[]
-  sessions    StudentSession[]
+  assignments      AssignmentRecipient[]
+  Attempt          Attempt[]
+  progress         StudentProgress[]
+  sessions         StudentSession[]
   practiceSessions PracticeSession[]
+  AttemptEvents    AttemptEvent[]
 
   @@index([classroomId])
 }

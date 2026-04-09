@@ -81,7 +81,6 @@ export async function GET(req: Request) {
       type: true,
       mode: true,
       targetKind: true,
-      operation: true,
       opensAt: true,
       closesAt: true,
       windowMinutes: true,
@@ -127,7 +126,6 @@ export async function GET(req: Request) {
         select: {
           type: true,
           mode: true,
-          operation: true,
         },
       },
     },
@@ -138,8 +136,7 @@ export async function GET(req: Request) {
   for (const a of attempts) {
     if (!a.completedAt) continue;
 
-    const operation: OperationCode | null = (a.operationAtTime ??
-      a.Assignment.operation) as OperationCode | null;
+    const operation: OperationCode | null = a.operationAtTime as OperationCode | null;
 
     if (!operation) continue;
     if (typeof a.levelAtTime !== 'number') continue;
@@ -177,7 +174,6 @@ export async function GET(req: Request) {
       type: a.type,
       mode: a.mode,
       targetKind: a.targetKind,
-      operation: a.operation,
       status,
       opensAt: a.opensAt.toISOString(),
       closesAt: a.closesAt ? a.closesAt.toISOString() : null,

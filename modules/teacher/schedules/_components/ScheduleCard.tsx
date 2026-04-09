@@ -11,13 +11,11 @@ function scheduleSummary(s: ScheduleDTO) {
 
   if (s.targetKind === 'PRACTICE_TIME') {
     const mins = s.durationMinutes ?? s.windowMinutes;
-    const op = s.operation ? `${s.operation} • ` : '';
-    return `${days} • ${time} • ${op}${mins} min`;
+    return `${days} • ${time} • ${mins} min`;
   }
 
   const kind = s.type ?? 'TEST';
-  const op = s.operation ? `${s.operation} • ` : '';
-  return `${days} • ${time} • ${kind} • ${op}${s.numQuestions} Q • ${s.windowMinutes} min`;
+  return `${days} • ${time} • ${kind} • ${s.numQuestions} Q • ${s.windowMinutes} min`;
 }
 
 export function ScheduleCard(props: {
@@ -38,7 +36,6 @@ export function ScheduleCard(props: {
           <div className="flex flex-wrap gap-2">
             {s.isActive ? Pill('Active', 'success') : Pill('Inactive', 'warning')}
             {Pill(kindLabel, 'primary')}
-            {s.operation ? Pill(s.operation, 'muted') : null}
             {Pill(Array.isArray(s.days) && s.days.length ? s.days.join(', ') : '—', 'muted')}
             {Pill(formatTimeAmPm(s.opensAtLocalTime), 'muted')}
             {durationLabel ? Pill(`${durationLabel} min`, 'muted') : null}

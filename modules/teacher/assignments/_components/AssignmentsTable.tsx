@@ -9,7 +9,6 @@ import {
   type TeacherAssignmentListItemDTO,
   formatAssignmentType,
   formatAssignmentMode,
-  formatOperation,
   formatCalendarTargetLine,
 } from '@/types';
 
@@ -128,7 +127,6 @@ export function AssignmentsTable({
 
                       <div className="text-xs text-[hsl(var(--muted-fg))]">
                         {formatCalendarTargetLine(a)}
-                        {a.operation ? ` · ${formatOperation(a.operation)}` : null}
                       </div>
                     </div>
                   </td>

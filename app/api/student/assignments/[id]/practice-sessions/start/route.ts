@@ -34,7 +34,6 @@ export async function POST(req: Request, { params }: RouteContext<Params>) {
         targetKind: true,
         opensAt: true,
         closesAt: true,
-        operation: true,
         recipients: { select: { studentId: true } },
       },
     });
@@ -56,8 +55,8 @@ export async function POST(req: Request, { params }: RouteContext<Params>) {
     if (status === 'NOT_OPEN') return errorResponse('Assignment not open yet', 409);
     if (status === 'CLOSED') return errorResponse('Assignment window closed', 409);
 
-    // Prefer explicit assignment.operation if set, otherwise accept client payload, otherwise MUL
-    const operationAtTime = assignment.operation ?? parsed.operation ?? 'MUL';
+    // Accept client's operation choice (from progression snapshot on practice setup page)
+    const operationAtTime = parsed.operation ?? 'MUL';
 
     // For now we accept the client’s chosen level/maxNumber (bounded),
     // because practice setup page is where that choice happens.

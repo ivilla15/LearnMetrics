@@ -34,7 +34,6 @@ export async function getRecentAssignmentsForClassroomInRange(params: {
       type: true,
       targetKind: true,
 
-      operation: true,
       numQuestions: true,
       durationMinutes: true,
     },

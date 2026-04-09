@@ -9,7 +9,6 @@ import {
   formatAssignmentMode,
   formatCalendarTargetLine,
   formatCalendarTypeLabel,
-  formatOperation,
 } from '@/types';
 import { isProjection, toIso } from '@/utils/calendar';
 
@@ -71,7 +70,7 @@ export function AssignmentDetailsModal(props: {
       : getStudentModeLabel(item.mode) // students
     : null;
   const typeLabel = item ? formatCalendarTypeLabel(item) : '—';
-  const opLabel = item?.operation ? formatOperation(item.operation) : null;
+  const opLabel = null;
 
   const isPractice = item?.targetKind === 'PRACTICE_TIME';
   const stats = !item || proj || isProjection(item) || isPractice ? null : (item.stats ?? null);

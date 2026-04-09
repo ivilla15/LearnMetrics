@@ -88,7 +88,6 @@ export async function saveCalendarItemEdit(params: {
     };
 
     if (proj.type) payload.type = proj.type;
-    if (proj.operation) payload.operation = proj.operation;
 
     if (proj.targetKind === 'PRACTICE_TIME') {
       payload.durationMinutes =

@@ -32,7 +32,6 @@ async function getUpcomingProjections(
         opensAtLocalTime: true,
         targetKind: true,
         type: true,
-        operation: true,
         windowMinutes: true,
         numQuestions: true,
         durationMinutes: true,
@@ -97,7 +96,6 @@ async function getUpcomingProjections(
         type: sched.type ?? null,
         numQuestions: sched.targetKind === 'ASSESSMENT' ? (sched.numQuestions ?? 12) : null,
         windowMinutes: sched.windowMinutes ?? null,
-        operation: sched.operation ?? null,
         durationMinutes:
           sched.targetKind === 'PRACTICE_TIME' ? (sched.durationMinutes ?? null) : null,
       });

@@ -43,7 +43,6 @@ export async function POST(req: Request, { params }: RouteContext<{ id: string }
       type: parsed.targetKind === 'PRACTICE_TIME' ? 'PRACTICE' : (parsed.type ?? 'TEST'),
       targetKind: parsed.targetKind,
 
-      operation: parsed.operation ?? null,
       durationMinutes: parsed.durationMinutes ?? null,
 
       requiredSets: parsed.requiredSets ?? null,

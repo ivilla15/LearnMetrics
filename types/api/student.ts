@@ -50,6 +50,7 @@ export type StudentAssignmentDTO = {
   windowMinutes: number | null;
 
   numQuestions: number;
+  durationMinutes: number | null;
 
   requiredSets: number | null;
   minimumScorePercent: number | null;

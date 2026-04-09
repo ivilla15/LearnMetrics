@@ -16,8 +16,6 @@ export type AssignmentCoreDTO = {
   mode: AssignmentMode;
   targetKind: AssignmentTargetKind;
 
-  operation: OperationCode | null;
-
   opensAt: string;
   closesAt: string | null;
 
@@ -47,8 +45,6 @@ export type TeacherAssignmentListItemDTO = {
   type: AssignmentType;
   mode: AssignmentMode;
   targetKind: AssignmentTargetKind;
-
-  operation: OperationCode | null;
 
   status: 'FINISHED' | 'OPEN' | 'UPCOMING';
 
@@ -120,8 +116,6 @@ export type TeacherAssignmentAttemptsResponse = {
     mode: AssignmentMode;
     targetKind: AssignmentTargetKind;
 
-    operation: OperationCode | null;
-
     opensAt: string;
     closesAt: string | null;
 
@@ -168,8 +162,6 @@ export type TeacherAttemptDetailResponse = {
     mode: AssignmentMode;
     targetKind: AssignmentTargetKind;
 
-    operation: OperationCode | null;
-
     opensAt: string;
     closesAt: string | null;
 
@@ -188,8 +180,6 @@ export type StudentAssignmentListItemDTO = {
   type: AssignmentType;
   mode: AssignmentMode;
   targetKind: AssignmentTargetKind;
-
-  operation: OperationCode | null;
 
   status: AssignmentListFilter;
 
@@ -237,7 +227,6 @@ export type ScheduledOccurrenceDetailsDTO = {
   windowMinutes: number | null;
   numQuestions: number | null;
   durationMinutes: number | null;
-  operation: OperationCode | null;
 
   existingAssignmentId: number | null;
 };

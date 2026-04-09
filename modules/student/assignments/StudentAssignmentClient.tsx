@@ -15,6 +15,19 @@ import {
 import { parseAssignmentId } from '@/utils';
 import type { AttemptDetailDTO, StudentAssignmentLoadResponse } from '@/types';
 
+async function recordEvent(assignmentId: number, eventType: string) {
+  try {
+    await fetch(`/api/student/assignments/${assignmentId}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ eventType }),
+    });
+  } catch {
+    // best-effort, never throw
+  }
+}
+
 export default function StudentAssignmentClient({
   assignmentIdParam,
 }: {
@@ -108,18 +121,43 @@ export default function StudentAssignmentClient({
   }, [assignmentId, toast]);
 
   const [now, setNow] = useState(Date.now());
+  // Track when READY state was first entered so durationMinutes can enforce a per-student limit
+  const sessionStartRef = useRef<number | null>(null);
+
+  // Record session start time once READY (only for ASSESSMENT)
+  useEffect(() => {
+    if (data?.status === 'READY' && sessionStartRef.current === null) {
+      const storageKey = `assignment_start_${assignmentId}`;
+      const stored = typeof window !== 'undefined' ? sessionStorage.getItem(storageKey) : null;
+      if (stored) {
+        sessionStartRef.current = Number(stored);
+      } else {
+        sessionStartRef.current = Date.now();
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem(storageKey, String(sessionStartRef.current));
+        }
+      }
+    }
+  }, [data?.status, assignmentId]);
 
   useEffect(() => {
-    if (!assignment?.closesAt) return;
+    if (!assignment?.closesAt && !assignment?.durationMinutes) return;
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
-  }, [assignment?.closesAt]);
+  }, [assignment?.closesAt, assignment?.durationMinutes]);
 
   const msLeft = useMemo(() => {
-    if (!assignment?.closesAt) return 0;
-    const raw = new Date(assignment.closesAt).getTime() - now;
-    return Math.max(0, raw);
-  }, [assignment?.closesAt, now]);
+    if (!assignment) return 0;
+    const windowDeadline = assignment.closesAt ? new Date(assignment.closesAt).getTime() : Infinity;
+    const durationDeadline =
+      assignment.durationMinutes && sessionStartRef.current
+        ? sessionStartRef.current + assignment.durationMinutes * 60_000
+        : Infinity;
+    // Enforce whichever limit comes first
+    const deadline = Math.min(windowDeadline, durationDeadline);
+    if (!Number.isFinite(deadline)) return 0;
+    return Math.max(0, deadline - now);
+  }, [assignment, now]);
 
   const handleSubmit = useCallback(
     async (isAuto = false) => {
@@ -183,16 +221,56 @@ export default function StudentAssignmentClient({
     void handleSubmit(true);
   }, [msLeft, data?.status, handleSubmit]);
 
+  // Anti-copy/paste + session integrity tracking (only active during READY state)
   useEffect(() => {
+    if (data?.status !== 'READY' || !assignmentId) return;
+
     function onBeforeUnload(e: BeforeUnloadEvent) {
-      if (data?.status !== 'READY') return;
       e.preventDefault();
       e.returnValue = '';
     }
 
+    function blockClipboard(eventType: 'COPY_BLOCKED' | 'CUT_BLOCKED' | 'PASTE_BLOCKED') {
+      return (e: ClipboardEvent) => {
+        // Allow copy inside input elements (students answering)
+        const target = e.target as HTMLElement | null;
+        if (target instanceof HTMLInputElement) return;
+        e.preventDefault();
+        toast('Copying is not allowed during an assignment.', 'error');
+        void recordEvent(assignmentId!, eventType);
+      };
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === 'hidden') {
+        void recordEvent(assignmentId!, 'TAB_HIDDEN');
+      }
+    }
+
+    function onBlur() {
+      void recordEvent(assignmentId!, 'WINDOW_BLUR');
+    }
+
+    const onCopy = blockClipboard('COPY_BLOCKED');
+    const onCut = blockClipboard('CUT_BLOCKED');
+    const onPaste = blockClipboard('PASTE_BLOCKED');
+
     window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [data?.status]);
+    document.addEventListener('copy', onCopy);
+    document.addEventListener('cut', onCut);
+    document.addEventListener('paste', onPaste);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('blur', onBlur);
+
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('copy', onCopy);
+      document.removeEventListener('cut', onCut);
+      document.removeEventListener('paste', onPaste);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, [data?.status, assignmentId, toast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -423,6 +501,8 @@ export default function StudentAssignmentClient({
                           sessionUrl += `&ops=${p.operation}&level=${p.level}&maxNumber=${p.maxNumber}&count=${p.numQuestionsPerSet}`;
                           if (p.modifier === 'DECIMAL') sessionUrl += '&decimals=1';
                           else if (p.modifier === 'FRACTION') sessionUrl += '&fractions=1';
+                          // Pass per-set time limit if configured on the assignment
+                          if (assignment.durationMinutes) sessionUrl += `&minutes=${assignment.durationMinutes}`;
                           router.push(sessionUrl);
                         }}
                         disabled={!assignmentId}

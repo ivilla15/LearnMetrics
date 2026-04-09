@@ -29,6 +29,7 @@ import type {
   AssignmentMode,
   AssignmentType,
 } from '@/types/enums';
+// OperationCode is used for AttemptItem.operation (not removed)
 
 export async function listTeacherAssignmentsForClassroom(params: {
   teacherId: number;
@@ -73,7 +74,6 @@ export async function listTeacherAssignmentsForClassroom(params: {
       type: true,
       mode: true,
       targetKind: true,
-      operation: true,
       opensAt: true,
       closesAt: true,
       windowMinutes: true,
@@ -145,7 +145,6 @@ export async function listTeacherAssignmentsForClassroom(params: {
       type: a.type,
       mode: a.mode,
       targetKind: a.targetKind as AssignmentTargetKind,
-      operation: (a.operation ?? null) as OperationCode | null,
 
       status: derivedStatus,
       opensAt: a.opensAt.toISOString(),
@@ -226,7 +225,6 @@ export async function listTeacherAssignmentAttempts(params: {
       type: true,
       mode: true,
       targetKind: true,
-      operation: true,
       opensAt: true,
       closesAt: true,
       windowMinutes: true,
@@ -321,7 +319,6 @@ export async function listTeacherAssignmentAttempts(params: {
       type: assignment.type,
       mode: assignment.mode,
       targetKind: assignment.targetKind as AssignmentTargetKind,
-      operation: (assignment.operation ?? null) as OperationCode | null,
 
       opensAt: assignment.opensAt.toISOString(),
       closesAt: assignment.closesAt ? assignment.closesAt.toISOString() : null,
@@ -359,7 +356,6 @@ export async function getTeacherAttemptDetail(params: {
           type: true,
           mode: true,
           targetKind: true,
-          operation: true,
           opensAt: true,
           closesAt: true,
           windowMinutes: true,
@@ -427,7 +423,6 @@ export async function getTeacherAttemptDetail(params: {
       type: attempt.Assignment.type,
       mode: attempt.Assignment.mode,
       targetKind: attempt.Assignment.targetKind as AssignmentTargetKind,
-      operation: (attempt.Assignment.operation ?? null) as OperationCode | null,
 
       opensAt: attempt.Assignment.opensAt.toISOString(),
       closesAt: attempt.Assignment.closesAt ? attempt.Assignment.closesAt.toISOString() : null,

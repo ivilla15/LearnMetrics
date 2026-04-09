@@ -63,7 +63,6 @@ export async function findByStudentWithAssignment(studentId: number) {
           type: true,
           mode: true,
           targetKind: true,
-          operation: true,
           opensAt: true,
           closesAt: true,
           windowMinutes: true,

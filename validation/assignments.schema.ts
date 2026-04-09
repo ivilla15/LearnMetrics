@@ -1,15 +1,9 @@
 import { z } from 'zod';
-import {
-  ASSIGNMENT_TARGET_KINDS,
-  ASSIGNMENT_TYPES,
-  ASSIGNMENT_MODES,
-  OPERATION_CODES,
-} from '@/types/enums';
+import { ASSIGNMENT_TARGET_KINDS, ASSIGNMENT_TYPES, ASSIGNMENT_MODES } from '@/types/enums';
 
 const assignmentTargetKindSchema = z.enum(ASSIGNMENT_TARGET_KINDS);
 const assignmentTypeSchema = z.enum(ASSIGNMENT_TYPES);
 const assignmentModeSchema = z.enum(ASSIGNMENT_MODES);
-const operationSchema = z.enum(OPERATION_CODES);
 
 const idSchema = z.coerce.number().int().positive();
 const MAX_LIMIT = 100;
@@ -19,7 +13,6 @@ export const createManualAssignmentRequestBaseSchema = z.object({
 
   type: assignmentTypeSchema.optional(),
   mode: assignmentModeSchema.default('MANUAL'),
-  operation: operationSchema.optional(),
 
   opensAt: z.string().datetime(),
   closesAt: z.string().datetime().nullable(),
@@ -87,13 +80,6 @@ export const createManualAssignmentRequestSchema =
             code: z.ZodIssueCode.custom,
             message: 'type is not valid for PRACTICE_TIME',
             path: ['type'],
-          });
-        }
-        if (v.operation !== undefined) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: 'operation is not valid for PRACTICE_TIME',
-            path: ['operation'],
           });
         }
         if (v.numQuestions !== undefined) {
