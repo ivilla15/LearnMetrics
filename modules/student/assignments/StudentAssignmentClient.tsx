@@ -124,21 +124,13 @@ export default function StudentAssignmentClient({
   // Track when READY state was first entered so durationMinutes can enforce a per-student limit
   const sessionStartRef = useRef<number | null>(null);
 
-  // Record session start time once READY (only for ASSESSMENT)
+  // Use server-recorded session start time (draft Attempt.startedAt) for durationMinutes timer.
+  // This prevents the client from spoofing its own start time.
   useEffect(() => {
     if (data?.status === 'READY' && sessionStartRef.current === null) {
-      const storageKey = `assignment_start_${assignmentId}`;
-      const stored = typeof window !== 'undefined' ? sessionStorage.getItem(storageKey) : null;
-      if (stored) {
-        sessionStartRef.current = Number(stored);
-      } else {
-        sessionStartRef.current = Date.now();
-        if (typeof window !== 'undefined') {
-          sessionStorage.setItem(storageKey, String(sessionStartRef.current));
-        }
-      }
+      sessionStartRef.current = new Date(data.sessionStartedAt).getTime();
     }
-  }, [data?.status, assignmentId]);
+  }, [data]);
 
   useEffect(() => {
     if (!assignment?.closesAt && !assignment?.durationMinutes) return;

@@ -91,6 +91,7 @@ export type StudentAssignmentLoadResponse =
       student: { id: number; name: string; operation: OperationCode; level: number };
       assignment: StudentAssignmentDTO;
       questions: StudentQuestionDTO[];
+      sessionStartedAt: string; // ISO — server-recorded draft attempt start time
     };
 
 export type PracticeProgressDTO = {

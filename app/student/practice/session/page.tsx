@@ -33,6 +33,19 @@ import {
   getMaxUniqueQuestionsFor,
 } from '@/core/questions';
 
+async function recordEvent(assignmentId: number, eventType: string) {
+  try {
+    await fetch(`/api/student/assignments/${assignmentId}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ eventType }),
+    });
+  } catch {
+    // best-effort, never throw
+  }
+}
+
 function PracticeSessionFallback() {
   return (
     <div className="flex min-h-screen w-screen items-center justify-center bg-[hsl(var(--bg))] p-4 md:p-8">
@@ -318,32 +331,58 @@ function StudentPracticeSessionInner() {
     };
   }, [assignmentId, isPracticeTimeAssignment, primaryOp, level, maxNumber]);
 
-  // Anti-copy/paste + session integrity for practice-time assignments
+  // Anti-copy/paste + session integrity tracking for practice-time assignments.
+  // Mirrors the behavior in StudentAssignmentClient for ASSESSMENT sessions.
   useEffect(() => {
-    if (!isPracticeTimeAssignment || finished) return;
+    if (!isPracticeTimeAssignment || finished || !assignmentId) return;
 
-    function blockClipboard() {
+    function blockClipboard(eventType: 'COPY_BLOCKED' | 'CUT_BLOCKED' | 'PASTE_BLOCKED') {
       return (e: ClipboardEvent) => {
         const target = e.target as HTMLElement | null;
         if (target instanceof HTMLInputElement) return;
         e.preventDefault();
+        void recordEvent(assignmentId as number, eventType);
       };
     }
 
-    const onCopy = blockClipboard();
-    const onCut = blockClipboard();
-    const onPaste = blockClipboard();
+    function onVisibilityChange() {
+      if (document.visibilityState === 'hidden') {
+        void recordEvent(assignmentId as number, 'TAB_HIDDEN');
+      }
+    }
+
+    function onBlur() {
+      void recordEvent(assignmentId as number, 'WINDOW_BLUR');
+    }
+
+    function onBeforeUnload() {
+      const blob = new Blob(
+        [JSON.stringify({ eventType: 'LEFT_PAGE' })],
+        { type: 'application/json' },
+      );
+      navigator.sendBeacon(`/api/student/assignments/${assignmentId}/events`, blob);
+    }
+
+    const onCopy = blockClipboard('COPY_BLOCKED');
+    const onCut = blockClipboard('CUT_BLOCKED');
+    const onPaste = blockClipboard('PASTE_BLOCKED');
 
     document.addEventListener('copy', onCopy);
     document.addEventListener('cut', onCut);
     document.addEventListener('paste', onPaste);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('blur', onBlur);
+    window.addEventListener('beforeunload', onBeforeUnload);
 
     return () => {
       document.removeEventListener('copy', onCopy);
       document.removeEventListener('cut', onCut);
       document.removeEventListener('paste', onPaste);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('blur', onBlur);
+      window.removeEventListener('beforeunload', onBeforeUnload);
     };
-  }, [isPracticeTimeAssignment, finished]);
+  }, [isPracticeTimeAssignment, finished, assignmentId]);
 
   // No heartbeat needed for set-based assignments — score is submitted on set completion.
 
