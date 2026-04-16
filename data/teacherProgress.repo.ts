@@ -1,5 +1,6 @@
 import { prisma } from '@/data/prisma';
 import type { OperationCode } from '@/types/enums';
+import type { DomainCode } from '@/types/domain';
 import { parseOperandValue, parseAnswerValue, extractNumericValue } from '@/types';
 
 function keyForFact(fact: {
@@ -73,10 +74,10 @@ export async function getStudentsForClassroom(classroomId: number) {
       mustSetPassword: true,
       progress: {
         select: {
-          operation: true,
+          domain: true,
           level: true,
         },
-        orderBy: { operation: 'asc' },
+        orderBy: { domain: 'asc' },
       },
     },
     orderBy: { name: 'asc' },
@@ -85,14 +86,14 @@ export async function getStudentsForClassroom(classroomId: number) {
 
 export async function getProgressForStudent(
   studentId: number,
-): Promise<Array<{ operation: OperationCode; level: number }>> {
+): Promise<Array<{ domain: DomainCode; level: number }>> {
   const rows = await prisma.studentProgress.findMany({
     where: { studentId },
-    select: { operation: true, level: true },
-    orderBy: { operation: 'asc' },
+    select: { domain: true, level: true },
+    orderBy: { domain: 'asc' },
   });
 
-  return rows.map((r) => ({ operation: r.operation as OperationCode, level: r.level }));
+  return rows.map((r) => ({ domain: r.domain, level: r.level }));
 }
 
 export async function getAttemptsForClassroomInRange(params: {
@@ -402,6 +403,13 @@ export async function getMissedFactsForStudentInRange(params: {
       return b.totalCount - a.totalCount;
     })
     .slice(0, Math.max(1, limit));
+}
+
+export async function findDomainProgressForClassroom(classroomId: number) {
+  return prisma.studentProgress.findMany({
+    where: { student: { classroomId } },
+    select: { studentId: true, domain: true, level: true },
+  });
 }
 
 export async function getPracticeAssignmentsForStudentInRange(params: {

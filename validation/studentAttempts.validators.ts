@@ -25,4 +25,10 @@ export const studentAttemptsQuerySchema = z.object({
       },
     )
     .transform((v) => v as AttemptExplorerFilter),
+
+  domain: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => (v && v.length > 0 ? v : undefined)),
 });

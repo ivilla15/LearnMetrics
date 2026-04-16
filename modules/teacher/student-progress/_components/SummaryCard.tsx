@@ -19,6 +19,8 @@ import {
 
 import type { TeacherStudentProgressDTO } from '@/types';
 import { proficiencyTier } from '@/core/progress/utils';
+import { getDomainLabel } from '@/core/domain';
+import type { DomainCode } from '@/types/domain';
 
 // ── Proficiency tier config ────────────────────────────────────────────────────
 
@@ -224,8 +226,12 @@ export function SummaryCard(props: {
               <div className="mt-2 space-y-0.5 text-[hsl(var(--fg))]">
                 <div className="text-lg font-semibold">Level {s.activeLevel ?? s.level ?? '—'}</div>
 
-                {s.activeOperation && (
-                  <div className="text-sm">{OP_LABEL[s.activeOperation] ?? s.activeOperation}</div>
+                {(s.activeDomain || s.activeOperation) && (
+                  <div className="text-sm">
+                    {s.activeDomain
+                      ? getDomainLabel(s.activeDomain as DomainCode)
+                      : (OP_LABEL[s.activeOperation] ?? s.activeOperation)}
+                  </div>
                 )}
               </div>
             )}

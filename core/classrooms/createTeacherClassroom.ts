@@ -69,6 +69,15 @@ export async function createTeacherClassroom(input: CreateTeacherClassroomInput)
       select: { id: true, name: true, timeZone: true },
     });
 
+    // 5) Seed default progression policy
+    await tx.classroomProgressionPolicy.create({
+      data: {
+        classroomId: classroom.id,
+        enabledDomains: ['ADD_WHOLE', 'SUB_WHOLE', 'MUL_WHOLE', 'DIV_WHOLE'],
+        maxNumber: 12,
+      },
+    });
+
     return classroom;
   });
 }

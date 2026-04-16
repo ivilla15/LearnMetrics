@@ -149,8 +149,19 @@ export function RecentAssignmentsCards({
                 </div>
               </div>
 
-              <div className="mt-3 text-xs text-[hsl(var(--muted-fg))]">
-                Closes: {t.closesAt ? formatLocal(t.closesAt) : '—'}
+              <div className="mt-3 flex items-center justify-between">
+                <span className="text-xs text-[hsl(var(--muted-fg))]">
+                  Closes: {t.closesAt ? formatLocal(t.closesAt) : '—'}
+                </span>
+                {(t.stats?.flaggedCount ?? 0) > 0 ? (
+                  <span className="inline-flex items-center rounded-full bg-[hsl(var(--danger)/0.12)] px-2 py-0.5 text-[11px] font-semibold text-[hsl(var(--danger))]">
+                    {t.stats.flaggedCount} flagged
+                  </span>
+                ) : (t.stats?.integrityEventCount ?? 0) > 0 ? (
+                  <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                    {t.stats.integrityEventCount} event{t.stats.integrityEventCount !== 1 ? 's' : ''}
+                  </span>
+                ) : null}
               </div>
             </button>
           </Tile>

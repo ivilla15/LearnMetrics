@@ -144,9 +144,7 @@ export function ProgressSummaryCard({
               <div
                 className={[
                   'mt-1 text-2xl font-bold',
-                  atRiskCount > 0
-                    ? 'text-[hsl(var(--danger))]'
-                    : 'text-[hsl(var(--fg))]',
+                  atRiskCount > 0 ? 'text-[hsl(var(--danger))]' : 'text-[hsl(var(--fg))]',
                 ].join(' ')}
               >
                 {atRiskCount}

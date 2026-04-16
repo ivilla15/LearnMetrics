@@ -101,6 +101,31 @@ export async function listTeacherAssignmentsForClassroom(params: {
       })
     : [];
 
+  const flaggedGroups = assignmentIds.length
+    ? await prisma.attempt.groupBy({
+        by: ['assignmentId'],
+        where: {
+          assignmentId: { in: assignmentIds },
+          reviewStatus: { in: ['FLAGGED', 'INVALIDATED'] },
+        },
+        _count: { id: true },
+      })
+    : [];
+  const flaggedByAssignment = new Map(
+    flaggedGroups.map((r) => [r.assignmentId, r._count.id]),
+  );
+
+  const eventGroups = assignmentIds.length
+    ? await prisma.attemptEvent.groupBy({
+        by: ['assignmentId'],
+        where: { assignmentId: { in: assignmentIds } },
+        _count: { id: true },
+      })
+    : [];
+  const eventCountByAssignment = new Map(
+    eventGroups.map((r) => [r.assignmentId, r._count.id]),
+  );
+
   const statsByAssignment = new Map<
     number,
     { attemptedCount: number; masteryCount: number; sumPercent: number; total: number }
@@ -165,6 +190,8 @@ export async function listTeacherAssignmentsForClassroom(params: {
         totalStudents,
         masteryRate: derivedStatus === 'FINISHED' ? masteryRate : null,
         avgPercent: derivedStatus === 'FINISHED' ? avgPercent : null,
+        flaggedCount: flaggedByAssignment.get(a.id) ?? 0,
+        integrityEventCount: eventCountByAssignment.get(a.id) ?? 0,
       },
     };
   });
@@ -263,8 +290,17 @@ export async function listTeacherAssignmentAttempts(params: {
       score: true,
       total: true,
       levelAtTime: true,
+      reviewStatus: true,
     },
   });
+
+  const eventCounts = await prisma.attemptEvent.groupBy({
+    by: ['studentId'],
+    where: { assignmentId: assignment.id },
+    _count: { id: true },
+  });
+  const eventCountByStudent = new Map<number, number>();
+  for (const e of eventCounts) eventCountByStudent.set(e.studentId, e._count.id);
 
   const attemptByStudent = new Map<number, (typeof attempts)[number]>();
   for (const a of attempts) attemptByStudent.set(a.studentId, a);
@@ -291,6 +327,8 @@ export async function listTeacherAssignmentAttempts(params: {
 
       wasMastery,
       levelAtTime: a?.levelAtTime ?? null,
+      reviewStatus: (a?.reviewStatus ?? null) as 'VALID' | 'FLAGGED' | 'INVALIDATED' | null,
+      eventCount: eventCountByStudent.get(s.id) ?? 0,
     };
   });
 

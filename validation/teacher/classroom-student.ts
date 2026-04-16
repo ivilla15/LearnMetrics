@@ -8,5 +8,5 @@ export const classroomStudentParamsSchema = z.object({
 export const updateStudentSchema = z.object({
   name: z.string().min(1),
   username: z.string().min(1),
-  level: z.number().int().min(1).max(100),
+  level: z.number().int().min(1).max(100).optional(),
 });

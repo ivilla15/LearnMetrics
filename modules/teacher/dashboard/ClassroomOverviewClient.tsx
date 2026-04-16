@@ -12,6 +12,7 @@ import { ClassHealthStrip } from './_components/ClassHealthStrip';
 import { NeedsAttentionSection } from './_components/NeedsAttentionSection';
 import { WeeklySnapshotSection } from './_components/WeeklySnapshotSection';
 import { ComingUpSection } from './_components/ComingUpSection';
+import { ClassroomIntegritySummary } from './_components/ClassroomIntegritySummary';
 
 type Props = {
   classroomId: number;
@@ -50,6 +51,9 @@ export function ClassroomOverviewClient({
         nextTestOpensAt={nextTestOpensAt}
         onScrollToAtRisk={scrollToAtRisk}
       />
+
+      {/* Zone 1b — Integrity Summary (self-loading) */}
+      <ClassroomIntegritySummary classroomId={classroomId} />
 
       {/* Zone 2 — Needs Attention */}
       <NeedsAttentionSection

@@ -3,8 +3,29 @@
 import * as React from 'react';
 import { Badge, Button, HelpText, Input } from '@/components';
 import type { RosterStudentRowDTO, RosterEditingStateDTO } from '@/types';
-import { getLevelForOp, OPERATION_LABEL } from '@/types';
-import type { OperationCode } from '@/types/enums';
+import { DOMAIN_CONFIG, getDomainLabel } from '@/core/domain';
+import type { DomainCode } from '@/types/domain';
+
+function getLevelForDomain(
+  progress: { domain: string; level: number }[],
+  domain: DomainCode,
+): number {
+  return progress.find((d) => d.domain === domain)?.level ?? 1;
+}
+
+function getActiveDomain(params: {
+  progress: { domain: string; level: number }[];
+  enabledDomains: DomainCode[];
+}): { domain: DomainCode; level: number } {
+  const { progress, enabledDomains } = params;
+  const byDomain = new Map(progress.map((d) => [d.domain, d.level]));
+  for (const domain of enabledDomains) {
+    const maxLevel = DOMAIN_CONFIG[domain]?.maxLevel ?? 12;
+    const level = byDomain.get(domain) ?? 1;
+    if (level <= maxLevel) return { domain, level };
+  }
+  return { domain: enabledDomains[0] ?? 'MUL_WHOLE', level: 1 };
+}
 
 export function RosterTable(props: {
   classroomId: number;
@@ -13,8 +34,7 @@ export function RosterTable(props: {
   busy: boolean;
   bulkDeleteBusy: boolean;
 
-  enabledOperations: OperationCode[];
-  operationOrder: OperationCode[];
+  enabledDomains: DomainCode[];
   maxNumber: number;
 
   editing: RosterEditingStateDTO | null;
@@ -47,57 +67,34 @@ export function RosterTable(props: {
     onGoProgress,
     onOpenConfirmRemove,
     onOpenConfirmReset,
-    enabledOperations,
-    operationOrder,
-    maxNumber,
+    enabledDomains,
     editing,
     setEditing,
     onSaveEditing,
   } = props;
 
-  function getActiveOpAndLevel(params: {
-    progress: Array<{ operation: OperationCode; level: number }>;
-    operationOrder: OperationCode[];
-    enabledOperations: OperationCode[];
-    maxNumber: number;
-  }): { operation: OperationCode; level: number } {
-    const { progress, operationOrder, enabledOperations, maxNumber } = params;
-
-    const order: OperationCode[] =
-      operationOrder.length > 0
-        ? operationOrder
-        : enabledOperations.length > 0
-          ? enabledOperations
-          : (['MUL'] as const);
-
-    const byOp = new Map<OperationCode, number>();
-    for (const row of progress) byOp.set(row.operation, row.level);
-
-    for (const op of order) {
-      const lvl = byOp.get(op) ?? 1;
-      if (lvl < maxNumber) return { operation: op, level: lvl };
-    }
-
-    const lastOp = order[order.length - 1] ?? 'MUL';
-    return { operation: lastOp, level: byOp.get(lastOp) ?? maxNumber };
-  }
-
   function startEditing(student: RosterStudentRowDTO) {
-    const active = getActiveOpAndLevel({
-      progress: student.progress ?? [],
-      operationOrder,
-      enabledOperations,
-      maxNumber,
+    const active = getActiveDomain({
+      progress: student.progress,
+      enabledDomains,
     });
 
     setEditing({
       id: student.id,
       name: student.name,
       username: student.username,
-      operation: active.operation,
+      domain: active.domain,
       level: active.level,
     });
   }
+
+  const [levelInput, setLevelInput] = React.useState('');
+
+  React.useEffect(() => {
+    if (editing) setLevelInput(String(editing.level));
+    else setLevelInput('');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing?.id, editing?.domain]);
 
   function setEditingField<K extends keyof Omit<RosterEditingStateDTO, 'id'>>(
     key: K,
@@ -107,8 +104,9 @@ export function RosterTable(props: {
       if (!prev) return prev;
 
       if (key === 'level') {
+        if (value === '') return prev;
         const n = Number(value);
-        return { ...prev, level: Number.isFinite(n) && n > 0 ? Math.trunc(n) : 1 };
+        return { ...prev, level: Number.isFinite(n) && n > 0 ? Math.trunc(n) : prev.level };
       }
 
       return { ...prev, [key]: value } as RosterEditingStateDTO;
@@ -136,7 +134,7 @@ export function RosterTable(props: {
             <th className="py-3 px-3">Name</th>
             <th className="py-3 px-3">Username</th>
             <th className="py-3 px-3">Status</th>
-            <th className="py-3 px-3 text-center">Operation</th>
+            <th className="py-3 px-3 text-center">Domain</th>
             <th className="py-3 px-3 text-center">Level</th>
             <th className="py-3 pl-3 pr-5 text-right">Actions</th>
           </tr>
@@ -146,7 +144,7 @@ export function RosterTable(props: {
           {students.length === 0 ? (
             <tr>
               <td colSpan={7} className="py-10 px-5 text-center text-[hsl(var(--muted-fg))]">
-                No students yet. Use “Add students” to create your roster.
+                No students yet. Use &quot;Add students&quot; to create your roster.
               </td>
             </tr>
           ) : (
@@ -155,14 +153,12 @@ export function RosterTable(props: {
               const isEditingRow = editing?.id === student.id;
               const disabledRow = busy || bulkDeleteBusy;
 
-              const active = getActiveOpAndLevel({
-                progress: student.progress ?? [],
-                operationOrder,
-                enabledOperations,
-                maxNumber,
+              const active = getActiveDomain({
+                progress: student.progress,
+                enabledDomains,
               });
 
-              const displayOp = isEditingRow && editing ? editing.operation : active.operation;
+              const displayDomain = isEditingRow && editing ? editing.domain : active.domain;
               const displayLevel = isEditingRow && editing ? editing.level : active.level;
 
               return (
@@ -217,26 +213,26 @@ export function RosterTable(props: {
                   <td className="py-3 px-3 text-center">
                     {isEditingRow && editing ? (
                       <select
-                        value={editing.operation}
+                        value={editing.domain}
                         onChange={(e) => {
-                          const nextOp = e.target.value as OperationCode;
-                          const nextLevel = getLevelForOp(student.progress ?? [], nextOp);
+                          const nextDomain = e.target.value as DomainCode;
+                          const nextLevel = getLevelForDomain(student.progress, nextDomain);
                           setEditing((prev) =>
-                            prev ? { ...prev, operation: nextOp, level: nextLevel } : prev,
+                            prev ? { ...prev, domain: nextDomain, level: nextLevel } : prev,
                           );
                         }}
                         disabled={disabledRow}
                         className="h-10 rounded-xl border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] px-3 text-sm"
-                        aria-label="Operation"
+                        aria-label="Domain"
                       >
-                        {enabledOperations.map((op) => (
-                          <option key={op} value={op}>
-                            {OPERATION_LABEL[op]}
+                        {enabledDomains.map((domain) => (
+                          <option key={domain} value={domain}>
+                            {getDomainLabel(domain)}
                           </option>
                         ))}
                       </select>
                     ) : (
-                      <span className="text-[hsl(var(--fg))]">{OPERATION_LABEL[displayOp]}</span>
+                      <span className="text-[hsl(var(--fg))]">{getDomainLabel(displayDomain)}</span>
                     )}
                   </td>
 
@@ -244,8 +240,11 @@ export function RosterTable(props: {
                     {isEditingRow && editing ? (
                       <Input
                         inputMode="numeric"
-                        value={String(editing.level)}
-                        onChange={(e) => setEditingField('level', e.target.value)}
+                        value={levelInput}
+                        onChange={(e) => {
+                          setLevelInput(e.target.value);
+                          setEditingField('level', e.target.value);
+                        }}
                         className="w-24"
                         disabled={disabledRow}
                         aria-label="Level"
@@ -323,7 +322,7 @@ export function RosterTable(props: {
 
       <div className="px-7 py-4">
         <HelpText>
-          Tip: Use checkboxes to remove multiple students at once. “Reset access” generates a new
+          Tip: Use checkboxes to remove multiple students at once. &quot;Reset access&quot; generates a new
           one-time setup code.
         </HelpText>
       </div>

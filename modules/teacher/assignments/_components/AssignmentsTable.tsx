@@ -37,6 +37,7 @@ export function AssignmentsTable({
             <th className="py-4 px-3 text-center font-semibold text-[hsl(var(--fg))]">Attempted</th>
             <th className="py-4 px-3 text-center font-semibold text-[hsl(var(--fg))]">Mastery</th>
             <th className="py-4 px-3 text-center font-semibold text-[hsl(var(--fg))]">Avg</th>
+            <th className="py-4 px-3 text-center font-semibold text-[hsl(var(--fg))]">Integrity</th>
             <th className="py-4 pl-3 pr-5 text-right font-semibold text-[hsl(var(--fg))]">
               Actions
             </th>
@@ -86,6 +87,11 @@ export function AssignmentsTable({
                     <Skeleton className="h-6 w-12 rounded-full" />
                   </div>
                 </td>
+                <td className="py-4 px-3">
+                  <div className="flex justify-center">
+                    <Skeleton className="h-5 w-16 rounded-full" />
+                  </div>
+                </td>
                 <td className="py-4 pl-3 pr-5">
                   <div className="flex justify-end gap-3">
                     <Skeleton className="h-8 w-14 rounded-lg" />
@@ -96,7 +102,7 @@ export function AssignmentsTable({
             ))
           ) : rows.length === 0 ? (
             <tr>
-              <td colSpan={9} className="py-12 px-3 text-center text-[hsl(var(--muted-fg))] italic">
+              <td colSpan={10} className="py-12 px-3 text-center text-[hsl(var(--muted-fg))] italic">
                 No assignments match your filters.
               </td>
             </tr>
@@ -170,6 +176,20 @@ export function AssignmentsTable({
                       <Badge tone={pctTone(avg)}>{avg}%</Badge>
                     ) : (
                       <span className="text-[hsl(var(--muted-fg))]">—</span>
+                    )}
+                  </td>
+
+                  <td className="py-4 px-3 text-center">
+                    {(a.stats?.flaggedCount ?? 0) > 0 ? (
+                      <span className="inline-flex items-center rounded-full bg-[hsl(var(--danger)/0.12)] px-2 py-0.5 text-[11px] font-semibold text-[hsl(var(--danger))]">
+                        {a.stats.flaggedCount} flagged
+                      </span>
+                    ) : (a.stats?.integrityEventCount ?? 0) > 0 ? (
+                      <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                        {a.stats.integrityEventCount} event{a.stats.integrityEventCount !== 1 ? 's' : ''}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-[hsl(var(--success))] font-medium">✓</span>
                     )}
                   </td>
 

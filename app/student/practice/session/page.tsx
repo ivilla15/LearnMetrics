@@ -27,11 +27,8 @@ import {
 } from '@/types';
 
 import { usePracticeProgress } from '@/modules/student/assignments/hooks/usePracticeProgress';
-import {
-  generateQuestions,
-  gradeGeneratedQuestions,
-  getMaxUniqueQuestionsFor,
-} from '@/core/questions';
+import { generateQuestions, gradeGeneratedQuestions } from '@/core/questions';
+import { opModifierToDomain, DOMAIN_CONFIG } from '@/core/domain';
 
 async function recordEvent(assignmentId: number, eventType: string) {
   try {
@@ -201,18 +198,14 @@ async function endPracticeTimeSession(params: {
 
 function clampedCount(params: {
   operation: OperationCode;
-  level: number;
-  maxNumber: number;
   modifier: ProgressionModifier;
   count: number;
 }): number {
-  const available = getMaxUniqueQuestionsFor({
-    operation: params.operation,
-    level: params.level,
-    maxNumber: params.maxNumber,
-    modifier: params.modifier,
-  });
-  return Math.min(params.count, available);
+  const domain = opModifierToDomain(params.operation, params.modifier);
+  if (DOMAIN_CONFIG[domain].progressionStyle === 'FACT_FAMILY') {
+    return Math.min(params.count, 13);
+  }
+  return params.count;
 }
 
 function StudentPracticeSessionInner() {
@@ -235,6 +228,7 @@ function StudentPracticeSessionInner() {
 
   const ops = useMemo(() => parseOpsParam(opsRaw), [opsRaw]);
   const primaryOp = ops[0] ?? 'MUL';
+  const domain = opModifierToDomain(primaryOp, modifier);
 
   const {
     loading: progressLoading,
@@ -244,12 +238,10 @@ function StudentPracticeSessionInner() {
 
   const [questions, setQuestions] = useState<GeneratedQuestionDTO[]>(() =>
     generateQuestions({
-      seed: Date.now(),
-      operation: primaryOp,
+      domain,
       level,
-      maxNumber,
-      count: clampedCount({ operation: primaryOp, level, maxNumber, modifier, count }),
-      modifier,
+      count: clampedCount({ operation: primaryOp, modifier, count }),
+      seed: Date.now(),
     }),
   );
 
@@ -266,18 +258,15 @@ function StudentPracticeSessionInner() {
 
   const sessionIdRef = useRef<number | null>(null);
 
-  // set-qualified result for the most recently ended assignment set
   const [lastSetQualified, setLastSetQualified] = useState<boolean | null>(null);
 
   useEffect(() => {
     setQuestions(
       generateQuestions({
-        seed: Date.now(),
-        operation: primaryOp,
+        domain,
         level,
-        maxNumber,
-        count: clampedCount({ operation: primaryOp, level, maxNumber, modifier, count }),
-        modifier,
+        count: clampedCount({ operation: primaryOp, modifier, count }),
+        seed: Date.now(),
       }),
     );
 
@@ -288,7 +277,7 @@ function StudentPracticeSessionInner() {
 
     setStartedAt(Date.now());
     setNow(Date.now());
-  }, [level, count, minutes, primaryOp, modifier, maxNumber]);
+  }, [level, count, minutes, primaryOp, modifier, maxNumber, domain]);
 
   const msLeft = useMemo(() => {
     if (minutes <= 0) return Infinity;
@@ -331,8 +320,6 @@ function StudentPracticeSessionInner() {
     };
   }, [assignmentId, isPracticeTimeAssignment, primaryOp, level, maxNumber]);
 
-  // Anti-copy/paste + session integrity tracking for practice-time assignments.
-  // Mirrors the behavior in StudentAssignmentClient for ASSESSMENT sessions.
   useEffect(() => {
     if (!isPracticeTimeAssignment || finished || !assignmentId) return;
 
@@ -356,10 +343,9 @@ function StudentPracticeSessionInner() {
     }
 
     function onBeforeUnload() {
-      const blob = new Blob(
-        [JSON.stringify({ eventType: 'LEFT_PAGE' })],
-        { type: 'application/json' },
-      );
+      const blob = new Blob([JSON.stringify({ eventType: 'LEFT_PAGE' })], {
+        type: 'application/json',
+      });
       navigator.sendBeacon(`/api/student/assignments/${assignmentId}/events`, blob);
     }
 
@@ -383,8 +369,6 @@ function StudentPracticeSessionInner() {
       window.removeEventListener('beforeunload', onBeforeUnload);
     };
   }, [isPracticeTimeAssignment, finished, assignmentId]);
-
-  // No heartbeat needed for set-based assignments — score is submitted on set completion.
 
   const jumpTo = useCallback((qId: number) => {
     const el = inputRefs.current[qId];
@@ -570,18 +554,14 @@ function StudentPracticeSessionInner() {
                           setLastSetQualified(null);
                           setQuestions(
                             generateQuestions({
-                              seed: Date.now(),
-                              operation: primaryOp,
+                              domain,
                               level,
-                              maxNumber,
                               count: clampedCount({
                                 operation: primaryOp,
-                                level,
-                                maxNumber,
                                 modifier,
                                 count,
                               }),
-                              modifier,
+                              seed: Date.now(),
                             }),
                           );
                           setStartedAt(Date.now());
@@ -628,18 +608,14 @@ function StudentPracticeSessionInner() {
                         setResult(null);
                         setQuestions(
                           generateQuestions({
-                            seed: Date.now(),
-                            operation: primaryOp,
+                            domain,
                             level,
-                            maxNumber,
                             count: clampedCount({
                               operation: primaryOp,
-                              level,
-                              maxNumber,
                               modifier,
                               count,
                             }),
-                            modifier,
+                            seed: Date.now(),
                           }),
                         );
                         setStartedAt(Date.now());

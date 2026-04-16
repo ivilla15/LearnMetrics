@@ -14,11 +14,11 @@ import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 import type { OperationCode } from '@/types/enums';
 import { isMastery, median, percent } from '@/utils/math';
 import { computeStreaks, trendFromLast3 } from './utils';
-import { getLevelForOp } from '@/types';
 
 import { getPracticeProgressForAssignment } from '@/core/practice/progress';
 import { getProgressionSnapshot } from '@/core/progression/policySnapshot.service';
-import { computeActiveOpAndLevel } from '@/core/progression/getStudentActiveProgress.service';
+import { getStudentActiveDomain } from '@/core/progression/getStudentActiveProgress.service';
+import { domainToOpModifier } from '@/core/domain';
 import type { PracticeProgressDTO } from '@/types';
 
 export async function getStudentProgress(params: {
@@ -144,18 +144,29 @@ export async function getStudentProgress(params: {
     }
   }
 
-  const level = getLevelForOp(progressRows, primaryOp);
-  const active = computeActiveOpAndLevel({ progress: progressRows, snapshot });
+  const { domain: activeDomain, level: activeLevelRaw } = await getStudentActiveDomain({
+    studentId: params.studentId,
+    snapshot,
+  });
+  const { operation: activeOperation } = domainToOpModifier(activeDomain);
+
+  // Cap displayed levels at maxNumber. Graduated sentinel (maxNumber+1) is hidden from UI.
+  const displayMax = snapshot.maxNumber;
+  const levelForPrimaryOp = progressRows.find((p) => p.domain === `${primaryOp}_WHOLE`)?.level ?? 1;
 
   const student = {
     id: studentRow.id,
     name: studentRow.name,
     username: studentRow.username,
-    level,
+    level: Math.min(levelForPrimaryOp, displayMax),
     mustSetPassword: studentRow.mustSetPassword,
-    operationLevels: progressRows.map((p) => ({ operation: p.operation, level: p.level })),
-    activeOperation: active.operation,
-    activeLevel: active.level,
+    domainLevels: progressRows.map((d) => ({
+      domain: d.domain as string,
+      level: Math.min(d.level, displayMax),
+    })),
+    activeOperation,
+    activeDomain,
+    activeLevel: Math.min(activeLevelRaw, displayMax),
 
     attemptsInRange: attemptsInRange.length,
     masteryRateInRange: masteryRateRange,

@@ -133,20 +133,30 @@ export default function StudentAssignmentClient({
   }, [data]);
 
   useEffect(() => {
-    if (!assignment?.closesAt && !assignment?.durationMinutes) return;
+    const hasTimer =
+      assignment?.closesAt ||
+      assignment?.durationMinutes ||
+      (assignment?.targetKind === 'ASSESSMENT' && assignment?.windowMinutes);
+    if (!hasTimer) return;
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
-  }, [assignment?.closesAt, assignment?.durationMinutes]);
+  }, [assignment?.closesAt, assignment?.durationMinutes, assignment?.targetKind, assignment?.windowMinutes]);
 
   const msLeft = useMemo(() => {
     if (!assignment) return 0;
     const windowDeadline = assignment.closesAt ? new Date(assignment.closesAt).getTime() : Infinity;
+    // For ASSESSMENT: windowMinutes is the per-student session limit from their start time.
+    // This is the primary enforcement timer — not closesAt, which is just the outer window.
+    const sessionLimitDeadline =
+      assignment.targetKind === 'ASSESSMENT' && assignment.windowMinutes && sessionStartRef.current
+        ? sessionStartRef.current + assignment.windowMinutes * 60_000
+        : Infinity;
     const durationDeadline =
       assignment.durationMinutes && sessionStartRef.current
         ? sessionStartRef.current + assignment.durationMinutes * 60_000
         : Infinity;
     // Enforce whichever limit comes first
-    const deadline = Math.min(windowDeadline, durationDeadline);
+    const deadline = Math.min(windowDeadline, sessionLimitDeadline, durationDeadline);
     if (!Number.isFinite(deadline)) return 0;
     return Math.max(0, deadline - now);
   }, [assignment, now]);
@@ -218,6 +228,12 @@ export default function StudentAssignmentClient({
     if (data?.status !== 'READY' || !assignmentId) return;
 
     function onBeforeUnload(e: BeforeUnloadEvent) {
+      // Fire LEFT_PAGE via sendBeacon — reliable on page unload, unlike fetch.
+      // sendBeacon is best-effort; failures are silently ignored.
+      const blob = new Blob([JSON.stringify({ eventType: 'LEFT_PAGE' })], {
+        type: 'application/json',
+      });
+      navigator.sendBeacon(`/api/student/assignments/${assignmentId}/events`, blob);
       e.preventDefault();
       e.returnValue = '';
     }

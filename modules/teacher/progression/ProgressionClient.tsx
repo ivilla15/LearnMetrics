@@ -12,14 +12,9 @@ import {
   CardTitle,
 } from '@/components';
 import type { ProgressionPolicyDTO, ProgressionPolicyInputDTO } from '@/types/api/progression';
-import { normalizePolicyInput, toInput } from '@/types/api/progression';
+import type { DomainCode } from '@/types/domain';
 import { fetchProgressionPolicy, saveProgressionPolicy } from './actions';
-import {
-  ProgressionBasicsForm,
-  EnabledOperationsPicker,
-  OperationOrderEditor,
-  ModifierRulesEditor,
-} from './_components';
+import { ProgressionBasicsForm, EnabledDomainsPicker } from './_components';
 import { getApiErrorMessage } from '@/utils/http';
 import { isEqual } from '@/utils';
 
@@ -28,13 +23,17 @@ type Props = {
   initialPolicy: ProgressionPolicyDTO;
 };
 
+function policyToInput(policy: ProgressionPolicyDTO): ProgressionPolicyInputDTO {
+  return {
+    enabledDomains: policy.enabledDomains as DomainCode[],
+    maxNumber: policy.maxNumber,
+  };
+}
+
 export function ProgressionClient({ classroomId, initialPolicy }: Props) {
   const toast = useToast();
 
-  const initialInput = React.useMemo(
-    () => normalizePolicyInput(toInput(initialPolicy)),
-    [initialPolicy],
-  );
+  const initialInput = React.useMemo(() => policyToInput(initialPolicy), [initialPolicy]);
   const [input, setInput] = React.useState<ProgressionPolicyInputDTO>(initialInput);
   const [busy, setBusy] = React.useState(false);
 
@@ -47,24 +46,15 @@ export function ProgressionClient({ classroomId, initialPolicy }: Props) {
       toast('Reset to last loaded values.', 'success');
       return;
     }
-    const next = normalizePolicyInput(toInput(fresh));
-    setInput(next);
+    setInput(policyToInput(fresh));
     toast('Reloaded from server.', 'success');
   }
 
   async function handleSave() {
     setBusy(true);
     try {
-      const normalized = normalizePolicyInput(input);
-
-      const saved = await saveProgressionPolicy({
-        classroomId,
-        input: normalized,
-      });
-
-      const next = normalizePolicyInput(toInput(saved));
-      setInput(next);
-
+      const saved = await saveProgressionPolicy({ classroomId, input });
+      setInput(policyToInput(saved));
       toast('Progression saved.', 'success');
     } catch (err: unknown) {
       toast(getApiErrorMessage(err, 'Failed to save progression.'), 'error');
@@ -78,8 +68,7 @@ export function ProgressionClient({ classroomId, initialPolicy }: Props) {
       <CardHeader>
         <CardTitle>Class progression</CardTitle>
         <CardDescription>
-          Choose which operations are enabled, the order students progress through them, and when
-          decimals/fractions unlock.
+          Choose which domains are enabled and the maximum level students progress to.
         </CardDescription>
       </CardHeader>
 
@@ -90,24 +79,9 @@ export function ProgressionClient({ classroomId, initialPolicy }: Props) {
           disabled={busy}
         />
 
-        <EnabledOperationsPicker
-          enabledOperations={input.enabledOperations}
-          onChange={(enabledOperations) => setInput((p) => ({ ...p, enabledOperations }))}
-          disabled={busy}
-        />
-
-        <OperationOrderEditor
-          enabledOperations={input.enabledOperations}
-          operationOrder={input.operationOrder}
-          onChange={(operationOrder) => setInput((p) => ({ ...p, operationOrder }))}
-          disabled={busy}
-        />
-
-        <ModifierRulesEditor
-          enabledOperations={input.enabledOperations}
-          maxNumber={input.maxNumber}
-          rules={input.modifierRules}
-          onChange={(modifierRules) => setInput((p) => ({ ...p, modifierRules }))}
+        <EnabledDomainsPicker
+          enabledDomains={input.enabledDomains as DomainCode[]}
+          onChange={(enabledDomains) => setInput((p) => ({ ...p, enabledDomains }))}
           disabled={busy}
         />
 

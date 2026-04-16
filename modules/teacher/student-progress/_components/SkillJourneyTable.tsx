@@ -3,10 +3,14 @@
 import * as React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Badge } from '@/components';
 import type { AttemptRowDTO, OperationCode } from '@/types';
-import { OPERATION_SYMBOL } from '@/types';
+import { formatOperation } from '@/types';
 import { trendFromLast3 } from '@/core/progress/utils';
+import { getDomainLabel } from '@/core/domain';
+import type { DomainCode } from '@/types/domain';
 
 type OperationSummary = {
+  // groupKey is DomainCode when domain is known, OperationCode otherwise
+  groupKey: string;
   operation: OperationCode;
   currentLevel: number;
   masteryRate: number;
@@ -15,18 +19,20 @@ type OperationSummary = {
 };
 
 function buildSummaries(attempts: AttemptRowDTO[]): OperationSummary[] {
-  const byOp = new Map<OperationCode, AttemptRowDTO[]>();
+  // Group by domain when available, fall back to operation code
+  const byGroup = new Map<string, AttemptRowDTO[]>();
 
   for (const a of attempts) {
-    const existing = byOp.get(a.operation) ?? [];
+    const key = a.domain ?? a.operation;
+    const existing = byGroup.get(key) ?? [];
     existing.push(a);
-    byOp.set(a.operation, existing);
+    byGroup.set(key, existing);
   }
 
   const summaries: OperationSummary[] = [];
 
-  for (const [operation, opAttempts] of byOp.entries()) {
-    const sorted = [...opAttempts].sort(
+  for (const [groupKey, groupAttempts] of byGroup.entries()) {
+    const sorted = [...groupAttempts].sort(
       (a, b) => new Date(a.completedAt).getTime() - new Date(b.completedAt).getTime(),
     );
 
@@ -44,7 +50,8 @@ function buildSummaries(attempts: AttemptRowDTO[]): OperationSummary[] {
     const trend = trendFromLast3(last3);
 
     summaries.push({
-      operation,
+      groupKey,
+      operation: sorted[0].operation,
       currentLevel,
       masteryRate,
       attempts: sorted.length,
@@ -52,9 +59,14 @@ function buildSummaries(attempts: AttemptRowDTO[]): OperationSummary[] {
     });
   }
 
-  // Sort by operation code order
-  const ORDER: OperationCode[] = ['ADD', 'SUB', 'MUL', 'DIV'];
-  summaries.sort((a, b) => ORDER.indexOf(a.operation) - ORDER.indexOf(b.operation));
+  // Sort: domain groups first (contain '_'), then by operation order within group
+  const OP_ORDER: OperationCode[] = ['ADD', 'SUB', 'MUL', 'DIV'];
+  summaries.sort((a, b) => {
+    const aOp = OP_ORDER.indexOf(a.operation);
+    const bOp = OP_ORDER.indexOf(b.operation);
+    if (aOp !== bOp) return aOp - bOp;
+    return a.groupKey.localeCompare(b.groupKey);
+  });
 
   return summaries;
 }
@@ -68,10 +80,10 @@ const TREND_DISPLAY: Record<OperationSummary['trend'], { icon: string; label: st
 
 export function SkillJourneyTable({
   attempts,
-  onSelectOperation,
+  onSelectDomain,
 }: {
   attempts: AttemptRowDTO[];
-  onSelectOperation?: (op: OperationCode) => void;
+  onSelectDomain?: (domainOrOp: string) => void;
 }) {
   const summaries = React.useMemo(() => buildSummaries(attempts), [attempts]);
 
@@ -82,7 +94,7 @@ export function SkillJourneyTable({
       <CardHeader>
         <CardTitle>Skill Journey</CardTitle>
         <CardDescription>
-          Per-operation progress summary.{onSelectOperation ? ' Click a row to filter by operation.' : ''}
+          Per-skill progress summary.{onSelectDomain ? ' Click a row to filter.' : ''}
         </CardDescription>
       </CardHeader>
 
@@ -91,7 +103,7 @@ export function SkillJourneyTable({
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]">
-                <th className="py-3 pl-5 pr-3">Operation</th>
+                <th className="py-3 pl-5 pr-3">Skill</th>
                 <th className="py-3 px-3 text-center">Current Level</th>
                 <th className="py-3 px-3 text-center">Mastery Rate</th>
                 <th className="py-3 px-3 text-center">Attempts</th>
@@ -102,21 +114,25 @@ export function SkillJourneyTable({
             <tbody>
               {summaries.map((s) => {
                 const trend = TREND_DISPLAY[s.trend];
-                const clickable = !!onSelectOperation;
+                const clickable = !!onSelectDomain;
+                // Use domain label when the groupKey is a DomainCode (contains '_')
+                const label = s.groupKey.includes('_')
+                  ? getDomainLabel(s.groupKey as DomainCode)
+                  : formatOperation(s.operation);
                 return (
                   <tr
-                    key={s.operation}
+                    key={s.groupKey}
                     className={[
                       'border-b border-[hsl(var(--border))] last:border-b-0',
                       clickable
                         ? 'cursor-pointer hover:bg-[hsl(var(--surface-2))]'
                         : '',
                     ].join(' ')}
-                    onClick={clickable ? () => onSelectOperation(s.operation) : undefined}
+                    onClick={clickable ? () => onSelectDomain(s.groupKey) : undefined}
                   >
                     <td className="py-3 pl-5 pr-3">
                       <span className="font-semibold text-[hsl(var(--fg))]">
-                        {OPERATION_SYMBOL[s.operation]} {s.operation}
+                        {label}
                       </span>
                     </td>
 

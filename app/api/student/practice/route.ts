@@ -15,9 +15,7 @@ export async function GET() {
     return NextResponse.json(
       {
         maxNumber: snap.maxNumber,
-        enabledOperations: snap.enabledOperations,
-        operationOrder: snap.operationOrder,
-        primaryOperation: snap.primaryOperation,
+        enabledDomains: snap.enabledDomains,
       },
       { status: 200 },
     );
@@ -28,7 +26,5 @@ export async function GET() {
 
 export type StudentPracticeConfigDTO = {
   maxNumber: number;
-  enabledOperations: string[];
-  operationOrder: string[];
-  primaryOperation: string;
+  enabledDomains: string[];
 };

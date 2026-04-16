@@ -1,10 +1,12 @@
 import {
   getProgressionSnapshot,
   getTeacherStudentProgressRows,
+  placeStudentAtDomainFull,
   requireTeacher,
   setTeacherStudentProgressRows,
 } from '@/core';
-import { upsertStudentProgressSchema } from '@/validation';
+import { DOMAIN_CODES, type DomainCode } from '@/types/domain';
+import type { StudentProgressLiteDTO } from '@/types/api/progression';
 import {
   handleApiError,
   readJson,
@@ -12,6 +14,26 @@ import {
   getTeacherClassroomStudentParams,
 } from '@/app/api/_shared';
 import { jsonResponse, errorResponse } from '@/utils/http';
+import { z } from 'zod';
+
+const domainPlacementSchema = z.object({
+  domain: z
+    .string()
+    .refine((v) => (DOMAIN_CODES as readonly string[]).includes(v), 'Invalid domain')
+    .transform((v) => v as DomainCode),
+  level: z.coerce.number().int().min(0).max(100),
+});
+
+const batchUpdateSchema = z.object({
+  levels: z
+    .array(
+      z.object({
+        domain: z.string().refine((v) => (DOMAIN_CODES as readonly string[]).includes(v), 'Invalid domain'),
+        level: z.coerce.number().int().min(0).max(100),
+      }),
+    )
+    .min(1),
+});
 
 export async function GET(
   _request: Request,
@@ -29,14 +51,7 @@ export async function GET(
       studentId: ctx.studentIdNum,
     });
 
-    return jsonResponse(
-      {
-        studentId: ctx.studentIdNum,
-        policy,
-        progress,
-      },
-      200,
-    );
+    return jsonResponse({ studentId: ctx.studentIdNum, policy, progress }, 200);
   } catch (err: unknown) {
     return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }
@@ -54,25 +69,30 @@ export async function PUT(
     if (!ctx.ok) return ctx.response;
 
     const body = await readJson(request);
-    const input = upsertStudentProgressSchema.parse(body);
-
     const policy = await getProgressionSnapshot(ctx.classroomId);
 
-    const progress = await setTeacherStudentProgressRows({
-      teacherId: ctx.teacher.id,
-      classroomId: ctx.classroomId,
-      studentId: ctx.studentIdNum,
-      levels: input.levels,
-    });
+    let progress: StudentProgressLiteDTO[];
 
-    return jsonResponse(
-      {
+    const placement = domainPlacementSchema.safeParse(body);
+    if (placement.success) {
+      progress = await placeStudentAtDomainFull({
+        teacherId: ctx.teacher.id,
+        classroomId: ctx.classroomId,
         studentId: ctx.studentIdNum,
-        policy,
-        progress,
-      },
-      200,
-    );
+        domain: placement.data.domain,
+        level: placement.data.level,
+      });
+    } else {
+      const batch = batchUpdateSchema.parse(body);
+      progress = await setTeacherStudentProgressRows({
+        teacherId: ctx.teacher.id,
+        classroomId: ctx.classroomId,
+        studentId: ctx.studentIdNum,
+        levels: batch.levels as StudentProgressLiteDTO[],
+      });
+    }
+
+    return jsonResponse({ studentId: ctx.studentIdNum, policy, progress }, 200);
   } catch (err: unknown) {
     return handleApiError(err, { defaultMessage: 'Internal server error', defaultStatus: 500 });
   }

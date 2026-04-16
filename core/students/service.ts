@@ -10,6 +10,7 @@ import { initializeStudentProgressForNewStudent } from '@/core/progression/initS
 import { getClassroomRosterWithLatestAttempt } from './roster.service';
 
 import type { OperationCode } from '@/types/enums';
+import type { DomainCode } from '@/types/domain';
 import type {
   AttemptHistoryItemDTO,
   StudentHistoryResponse,
@@ -92,7 +93,8 @@ export async function bulkCreateClassroomStudents(
     await initializeStudentProgressForNewStudent({
       classroomId,
       studentId: c.id,
-      startingOperation: meta?.op,
+      // Map legacy operation code to whole-number domain (e.g. MUL → MUL_WHOLE)
+      startingDomain: meta?.op ? (`${meta.op}_WHOLE` as DomainCode) : undefined,
       startingLevel: meta?.level,
     });
   }

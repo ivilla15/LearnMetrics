@@ -3,8 +3,7 @@
 import * as React from 'react';
 import { useSearchParams } from 'next/navigation';
 
-import type { TeacherStudentProgressDTO, MissedFactDTO, OperationCode, AttemptRowDTO } from '@/types';
-import { OPERATION_CODES } from '@/types';
+import type { TeacherStudentProgressDTO, MissedFactDTO, AttemptRowDTO } from '@/types';
 import {
   SummaryCard,
   MissedFactsCard,
@@ -14,13 +13,8 @@ import {
   SkillJourneyTable,
 } from './_components';
 import { useStudentProgress } from './hooks';
-
-const OP_LABELS: Record<OperationCode, string> = {
-  ADD: 'ADD',
-  SUB: 'SUB',
-  MUL: 'MUL',
-  DIV: 'DIV',
-};
+import { getDomainLabel } from '@/core/domain';
+import type { DomainCode } from '@/types/domain';
 
 type Props = {
   classroomId: number;
@@ -76,7 +70,7 @@ export function StudentProgressClient({
       {/* Intervention callout — between header and charts */}
       {!printMode ? <InterventionCallout student={data.student} /> : null}
 
-      {/* Operation Tabs — show level per operation so current progress is visible at a glance */}
+      {/* Domain Tabs — show level per domain so current progress is visible at a glance. */}
       {!printMode ? (
         <div className="flex flex-wrap gap-2">
           <button
@@ -91,34 +85,32 @@ export function StudentProgressClient({
           >
             All
           </button>
-          {OPERATION_CODES.map((op) => {
-            const opLevel = data.student.operationLevels?.find((l) => l.operation === op);
-            return (
-              <button
-                key={op}
-                type="button"
-                onClick={() => setOperationTab(op)}
-                className={[
-                  'cursor-pointer rounded-[999px] border px-4 py-1.5 text-sm font-medium transition-colors',
-                  operationTab === op
-                    ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
-                    : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
-                ].join(' ')}
-              >
-                {OP_LABELS[op]}
-                {opLevel ? (
-                  <span
+          {data.student.domainLevels.map((dl) => {
+                const isActive = operationTab === dl.domain;
+                return (
+                  <button
+                    key={dl.domain}
+                    type="button"
+                    onClick={() => setOperationTab(dl.domain)}
                     className={[
-                      'ml-1.5 text-xs',
-                      operationTab === op ? 'opacity-80' : 'text-[hsl(var(--muted-fg))]',
+                      'cursor-pointer rounded-[999px] border px-4 py-1.5 text-sm font-medium transition-colors',
+                      isActive
+                        ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
+                        : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
                     ].join(' ')}
                   >
-                    Lvl {opLevel.level}
-                  </span>
-                ) : null}
-              </button>
-            );
-          })}
+                    {getDomainLabel(dl.domain as DomainCode)}
+                    <span
+                      className={[
+                        'ml-1.5 text-xs',
+                        isActive ? 'opacity-80' : 'text-[hsl(var(--muted-fg))]',
+                      ].join(' ')}
+                    >
+                      Lvl {dl.level}
+                    </span>
+                  </button>
+                );
+              })}
         </div>
       ) : null}
 
@@ -129,7 +121,7 @@ export function StudentProgressClient({
       {explorerAttempts.length > 0 ? (
         <SkillJourneyTable
           attempts={explorerAttempts}
-          onSelectOperation={(op) => setOperationTab(op)}
+          onSelectDomain={(domainOrOp) => setOperationTab(domainOrOp)}
         />
       ) : null}
 
@@ -137,7 +129,8 @@ export function StudentProgressClient({
       <AttemptExplorer
         baseUrl={baseUrl}
         hideControls={printMode}
-        operationFilter={operationTab}
+        printMode={printMode}
+        domainOrOpFilter={operationTab}
         onAttemptsChange={setExplorerAttempts}
         currentLevel={data.student.level ?? undefined}
       />

@@ -6,7 +6,7 @@ import { errorResponse, jsonResponse, parseId } from '@/utils';
 
 type Ctx = RouteContext<{ id: string; assignmentId: string }>;
 
-export async function GET(_req: Request, { params }: Ctx) {
+export async function GET(req: Request, { params }: Ctx) {
   try {
     const auth = await requireTeacher();
     if (!auth.ok) return errorResponse(auth.error, auth.status);
@@ -25,8 +25,15 @@ export async function GET(_req: Request, { params }: Ctx) {
     });
     if (!assignment) return errorResponse('Assignment not found', 404);
 
+    const url = new URL(req.url);
+    const studentIdParam = url.searchParams.get('studentId');
+    const studentId = studentIdParam ? parseInt(studentIdParam, 10) : null;
+
     const events = await prisma.attemptEvent.findMany({
-      where: { assignmentId: aid },
+      where: {
+        assignmentId: aid,
+        ...(studentId && Number.isFinite(studentId) ? { studentId } : {}),
+      },
       orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
       take: 200,
       select: {

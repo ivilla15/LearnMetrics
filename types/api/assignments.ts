@@ -67,6 +67,10 @@ export type TeacherAssignmentListItemDTO = {
     totalStudents: number;
     masteryRate: number | null;
     avgPercent: number | null;
+    /** Count of FLAGGED or INVALIDATED attempts for this assignment. */
+    flaggedCount: number;
+    /** Total AttemptEvent count for this assignment (any integrity signal, before review). */
+    integrityEventCount: number;
   };
 };
 
@@ -91,6 +95,8 @@ export type AssignModalBootstrapResponse = {
   };
 };
 
+export type AttemptReviewStatus = 'VALID' | 'FLAGGED' | 'INVALIDATED';
+
 export type TeacherAssignmentAttemptRowDTO = {
   studentId: number;
   name: string;
@@ -106,6 +112,9 @@ export type TeacherAssignmentAttemptRowDTO = {
 
   wasMastery: boolean | null;
   levelAtTime: number | null;
+
+  reviewStatus: AttemptReviewStatus | null;
+  eventCount: number;
 };
 
 export type TeacherAssignmentAttemptsResponse = {

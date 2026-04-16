@@ -195,28 +195,22 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
     }
 
     const snapshot = await getProgressionSnapshot(student.classroomId);
-    const maxNumber = clampInt(snapshot.maxNumber, 1, 100);
 
     const active = await getStudentActiveProgress({ studentId: student.id, snapshot });
     const operation = active.operation;
     const level = active.level;
     const modifier = active.modifier;
+    const domain = active.domain;
 
     const count = clampInt(assignment.numQuestions, 1, 200);
 
     const questions = generateQuestions({
-      seed: assignmentSeed(assignment.id, student.id),
-      operation,
+      domain,
       level,
-      maxNumber,
       count,
-      modifier,
+      seed: assignmentSeed(assignment.id, student.id),
     });
 
-    // Upsert a draft Attempt to record the session start time server-side.
-    // This is the source of truth for durationMinutes enforcement on submit.
-    // If a draft already exists (student refreshed), we leave its startedAt intact.
-    // Upsert avoids a race condition when two GET requests arrive simultaneously.
     const draft = await prisma.attempt.upsert({
       where: { studentId_assignmentId: { studentId: student.id, assignmentId: assignment.id } },
       create: {
@@ -226,7 +220,7 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
         total: count,
         startedAt: new Date(),
       },
-      update: {}, // preserve existing startedAt on refresh
+      update: {},
       select: { startedAt: true },
     });
     const sessionStartedAt = draft.startedAt;
@@ -276,6 +270,7 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
         targetKind: true,
         opensAt: true,
         closesAt: true,
+        windowMinutes: true,
         numQuestions: true,
         durationMinutes: true,
         recipients: { select: { studentId: true } },
@@ -306,10 +301,17 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
       where: { studentId_assignmentId: { studentId: student.id, assignmentId: assignment.id } },
       select: { id: true, completedAt: true, startedAt: true },
     });
-    if (existingAttempt?.completedAt) return errorResponse('You already submitted this assignment', 409);
+    if (existingAttempt?.completedAt)
+      return errorResponse('You already submitted this assignment', 409);
 
-    // Server-side durationMinutes enforcement: reject if student exceeded their per-session limit.
-    // 30s grace period accounts for network latency on the final submit.
+    if (assignment.windowMinutes && existingAttempt) {
+      const elapsedMs = now.getTime() - existingAttempt.startedAt.getTime();
+      const limitMs = assignment.windowMinutes * 60 * 1000;
+      if (elapsedMs > limitMs + 30_000) {
+        return errorResponse('Time limit exceeded', 409);
+      }
+    }
+
     if (assignment.durationMinutes && existingAttempt) {
       const elapsedMs = now.getTime() - existingAttempt.startedAt.getTime();
       const limitMs = assignment.durationMinutes * 60 * 1000;
@@ -324,17 +326,15 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
     const active = await getStudentActiveProgress({ studentId: student.id, snapshot });
     const operation = active.operation;
     const levelAtTime = active.level;
-    const modifierAtTime = active.modifier;
+    const domain = active.domain;
 
     const total = clampInt(assignment.numQuestions, 1, 200);
 
     const questions = generateQuestions({
-      seed: assignmentSeed(assignment.id, student.id),
-      operation,
+      domain,
       level: levelAtTime,
-      maxNumber: maxNumberAtTime,
       count: total,
-      modifier: modifierAtTime,
+      seed: assignmentSeed(assignment.id, student.id),
     });
 
     const answersByQuestionId = new Map<number, AnswerValue | null>();
@@ -356,7 +356,6 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
     const wasMastery = graded.total > 0 && graded.score === graded.total;
 
     const created = await prisma.$transaction(async (tx) => {
-      // If a draft Attempt exists (created in GET), update it. Otherwise create fresh.
       const attempt = existingAttempt
         ? await tx.attempt.update({
             where: { id: existingAttempt.id },
@@ -367,6 +366,7 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
               operationAtTime: operation,
               levelAtTime,
               maxNumberAtTime,
+              domainAtTime: domain,
             },
             select: { id: true, score: true, total: true, completedAt: true },
           })
@@ -380,6 +380,7 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
               operationAtTime: operation,
               levelAtTime,
               maxNumberAtTime,
+              domainAtTime: domain,
             },
             select: { id: true, score: true, total: true, completedAt: true },
           });
@@ -407,6 +408,7 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
         studentId: student.id,
         classroomId: student.classroomId,
         operation,
+        domain,
       });
     }
 

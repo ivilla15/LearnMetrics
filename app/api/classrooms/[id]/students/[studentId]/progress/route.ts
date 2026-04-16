@@ -7,38 +7,28 @@ import {
 } from '@/validation';
 import { jsonResponse, errorResponse } from '@/utils/http';
 import { handleApiError, readJson, type RouteContext } from '@/app';
-import { OPERATION_CODES, type OperationCode } from '@/types/enums';
+import { DOMAIN_CODES, type DomainCode } from '@/types/domain';
 
 async function ensureStudentProgress(studentId: number) {
   const existing = await prisma.studentProgress.findMany({
     where: { studentId },
-    select: { operation: true },
+    select: { domain: true },
   });
 
-  const have = new Set(existing.map((r) => r.operation as OperationCode));
-  const missing = OPERATION_CODES.filter((op) => !have.has(op));
+  const have = new Set(existing.map((r) => r.domain));
+  const missing = (DOMAIN_CODES as readonly DomainCode[]).filter((d) => !have.has(d));
 
-  if (missing.length === 0) {
-    return prisma.studentProgress.findMany({
-      where: { studentId },
-      select: { operation: true, level: true },
-      orderBy: { operation: 'asc' },
+  if (missing.length > 0) {
+    await prisma.studentProgress.createMany({
+      data: missing.map((domain) => ({ studentId, domain, level: 1 })),
+      skipDuplicates: true,
     });
   }
 
-  // create missing rows in a single transaction
-  await prisma.$transaction(
-    missing.map((op) =>
-      prisma.studentProgress.create({
-        data: { studentId, operation: op, level: 1 },
-      }),
-    ),
-  );
-
   return prisma.studentProgress.findMany({
     where: { studentId },
-    select: { operation: true, level: true },
-    orderBy: { operation: 'asc' },
+    select: { domain: true, level: true },
+    orderBy: { domain: 'asc' },
   });
 }
 
@@ -54,7 +44,6 @@ export async function GET(_request: Request, context: RouteContext<Params>) {
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
     const { studentId: sid } = studentIdParamSchema.parse({ studentId });
 
-    // Ownership + student belongs to classroom
     const classroom = await prisma.classroom.findUnique({
       where: { id: classroomId },
       select: { id: true, teacherId: true },
@@ -87,7 +76,6 @@ export async function PUT(request: Request, context: RouteContext<Params>) {
     const { id: classroomId } = classroomIdParamSchema.parse({ id });
     const { studentId: sid } = studentIdParamSchema.parse({ studentId });
 
-    // Ownership + student belongs to classroom
     const classroom = await prisma.classroom.findUnique({
       where: { id: classroomId },
       select: { id: true, teacherId: true },
@@ -106,14 +94,12 @@ export async function PUT(request: Request, context: RouteContext<Params>) {
     const body = await readJson(request);
     const input = upsertStudentProgressSchema.parse(body);
 
-    // Ensure rows exist first
     await ensureStudentProgress(student.id);
 
-    // Apply updates (transaction)
     await prisma.$transaction(
-      input.levels.map((row: { operation: OperationCode; level: number }) =>
+      input.levels.map((row) =>
         prisma.studentProgress.update({
-          where: { studentId_operation: { studentId: student.id, operation: row.operation } },
+          where: { studentId_domain: { studentId: student.id, domain: row.domain } },
           data: { level: row.level },
         }),
       ),
@@ -121,8 +107,8 @@ export async function PUT(request: Request, context: RouteContext<Params>) {
 
     const progress = await prisma.studentProgress.findMany({
       where: { studentId: student.id },
-      select: { operation: true, level: true },
-      orderBy: { operation: 'asc' },
+      select: { domain: true, level: true },
+      orderBy: { domain: 'asc' },
     });
 
     return jsonResponse({ studentId: student.id, progress }, 200);

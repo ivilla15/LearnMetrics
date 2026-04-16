@@ -38,9 +38,25 @@ enum Operation {
   DIV
 }
 
-enum Modifier {
-  DECIMAL
-  FRACTION
+enum DomainCode {
+  ADD_WHOLE
+  SUB_WHOLE
+  MUL_WHOLE
+  DIV_WHOLE
+  ADD_FRACTION
+  SUB_FRACTION
+  MUL_FRACTION
+  DIV_FRACTION
+  ADD_DECIMAL
+  SUB_DECIMAL
+  MUL_DECIMAL
+  DIV_DECIMAL
+}
+
+enum AttemptReviewStatus {
+  VALID
+  FLAGGED
+  INVALIDATED
 }
 
 enum EntitlementSource {
@@ -170,6 +186,16 @@ model Attempt {
   operationAtTime Operation?
   levelAtTime     Int?
   maxNumberAtTime Int?
+  // Phase 3: explicit domain snapshot alongside legacy operationAtTime.
+  // Null for attempts created before Phase 3 deployment.
+  domainAtTime    DomainCode?
+
+  // Teacher review: VALID (default) | FLAGGED | INVALIDATED.
+  // On INVALIDATED the student's progression is recomputed from remaining valid attempts.
+  reviewStatus        AttemptReviewStatus @default(VALID)
+  reviewedByTeacherId Int?
+  reviewedAt          DateTime?
+  reviewNote          String?
 
   Assignment  Assignment    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
   Student     Student       @relation(fields: [studentId], references: [id], onDelete: Cascade)
@@ -180,6 +206,7 @@ model Attempt {
   @@index([studentId])
   @@index([studentId, completedAt])
   @@index([assignmentId, completedAt])
+  @@index([reviewStatus])
 }
 
 model AttemptItem {
@@ -222,9 +249,10 @@ model PracticeSession {
   endedAt         DateTime?
   durationSeconds Int      @default(0)
 
-  operationAtTime Operation
+  operationAtTime Operation?
   levelAtTime     Int
   maxNumberAtTime Int      @default(12)
+  domainAtTime    DomainCode?
 
   assignmentId Int?
   Assignment   Assignment? @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
@@ -362,11 +390,8 @@ model ClassroomProgressionPolicy {
   classroomId       Int       @unique
   classroom         Classroom @relation(fields: [classroomId], references: [id], onDelete: Cascade)
 
-  enabledOperations Operation[]
-  operationOrder    Operation[]
+  enabledDomains    DomainCode[]
   maxNumber         Int      @default(12)
-
-  modifierRules     ModifierRule[]
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -379,29 +404,12 @@ model StudentProgress {
   studentId Int
   student   Student   @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  operation Operation
+  domain    DomainCode
   level     Int       @default(1)
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
-  @@unique([studentId, operation])
+  @@unique([studentId, domain])
   @@index([studentId])
-}
-
-model ModifierRule {
-  id        Int      @id @default(autoincrement())
-  policyId  Int
-  policy    ClassroomProgressionPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
-
-  modifier   Modifier
-  operations Operation[]
-  minLevel   Int
-  propagate  Boolean  @default(false)
-  enabled    Boolean  @default(true)
-
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  @@index([policyId])
 }

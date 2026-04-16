@@ -7,8 +7,8 @@ import { useToast } from '@/components';
 import { RosterTableCard } from '@/modules/teacher/people';
 
 import type { BulkAddResponseDTO, RosterStudentRowDTO, BulkAddStudentInputDTO } from '@/types';
-import type { OperationCode } from '@/types/enums';
 import type { SetupCodeCardDTO } from '@/types';
+import type { DomainCode } from '@/types/domain';
 
 import { getApiErrorMessage } from '@/utils';
 
@@ -16,16 +16,14 @@ type Props = {
   classroomId: number;
   initialStudents: RosterStudentRowDTO[];
 
-  enabledOperations: OperationCode[];
-  operationOrder: OperationCode[];
+  enabledDomains: DomainCode[];
   maxNumber: number;
 };
 
 export function PeopleClient({
   classroomId,
   initialStudents,
-  enabledOperations,
-  operationOrder,
+  enabledDomains,
   maxNumber,
 }: Props) {
   const toast = useToast();
@@ -123,7 +121,6 @@ export function PeopleClient({
       }
 
       await refreshRoster();
-      toast('Student updated', 'success');
     } catch (err) {
       toast(getApiErrorMessage(err, 'Failed to update student'), 'error');
       throw err;
@@ -134,10 +131,10 @@ export function PeopleClient({
 
   async function updateStudentProgress(params: {
     studentId: number;
-    operation: OperationCode;
+    domain: DomainCode;
     level: number;
   }) {
-    const { studentId, operation, level } = params;
+    const { studentId, domain, level } = params;
 
     setBusy(true);
     try {
@@ -147,7 +144,7 @@ export function PeopleClient({
           method: 'PUT',
           credentials: 'include',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ levels: [{ operation, level }] }),
+          body: JSON.stringify({ domain, level }),
         },
       );
 
@@ -243,8 +240,7 @@ export function PeopleClient({
       classroomId={classroomId}
       students={students}
       busy={busy}
-      enabledOperations={enabledOperations}
-      operationOrder={operationOrder}
+      enabledDomains={enabledDomains}
       maxNumber={maxNumber}
       onBulkAdd={bulkAddStudents}
       onUpdateStudent={updateStudent}

@@ -1,4 +1,5 @@
-import type { AttemptSummaryDTO, OperationCode, StudentProgressLiteDTO } from '@/types';
+import type { AttemptSummaryDTO, StudentProgressLiteDTO } from '@/types';
+import type { DomainCode } from '@/types/domain';
 
 export type RosterClassroomDTO = {
   id: number;
@@ -13,6 +14,7 @@ export type RosterStudentRowDTO = {
   mustSetPassword: boolean;
   lastAttempt: AttemptSummaryDTO | null;
 
+  // Domain-keyed progress rows (one per DomainCode).
   progress: StudentProgressLiteDTO[];
 };
 
@@ -40,6 +42,6 @@ export type RosterEditingStateDTO = {
   name: string;
   username: string;
 
-  operation: OperationCode;
+  domain: DomainCode;
   level: number;
 };

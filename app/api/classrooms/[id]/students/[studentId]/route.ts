@@ -13,19 +13,11 @@ import {
 
 import { jsonResponse, errorResponse } from '@/utils/http';
 import { handleApiError, readJson, type RouteContext } from '@/app';
-import { OPERATION_CODES, type OperationCode } from '@/types/enums';
 
 type ClassroomStudentParams = {
   id: string;
   studentId: string;
 };
-
-function coercePrimaryOperation(raw: unknown): OperationCode {
-  if (typeof raw === 'string' && (OPERATION_CODES as readonly string[]).includes(raw)) {
-    return raw as OperationCode;
-  }
-  return 'MUL';
-}
 
 async function getTeacherClassroomAndStudentId(
   params: RouteContext<ClassroomStudentParams>['params'],
@@ -57,10 +49,6 @@ export async function PATCH(request: Request, { params }: RouteContext<Classroom
       classroomId: ctx.classroomId,
     });
 
-    // Prisma enums → safely coerced OperationCode
-    const primaryRaw = policy.operationOrder[0] ?? policy.enabledOperations[0] ?? null;
-    const primaryOp = coercePrimaryOperation(primaryRaw);
-
     const student = await updateClassroomStudentById({
       teacherId: ctx.teacher.id,
       classroomId: ctx.classroomId,
@@ -68,13 +56,15 @@ export async function PATCH(request: Request, { params }: RouteContext<Classroom
       input: { name: input.name, username: input.username },
     });
 
-    // Update StudentProgress for the primary operation
-    await setTeacherStudentProgressRows({
-      teacherId: ctx.teacher.id,
-      classroomId: ctx.classroomId,
-      studentId: ctx.studentId,
-      levels: [{ operation: primaryOp, level: input.level }],
-    });
+    if (input.level !== undefined) {
+      const primaryDomain = policy.enabledDomains[0] ?? 'MUL_WHOLE';
+      await setTeacherStudentProgressRows({
+        teacherId: ctx.teacher.id,
+        classroomId: ctx.classroomId,
+        studentId: ctx.studentId,
+        levels: [{ domain: primaryDomain, level: input.level }],
+      });
+    }
 
     return jsonResponse({ student } as const, 200);
   } catch (err: unknown) {
