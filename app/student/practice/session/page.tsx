@@ -18,17 +18,16 @@ import { cn } from '@/lib';
 import { getNumberParam } from '@/utils';
 
 import {
-  OPERATION_CODES,
-  type OperationCode,
   type GeneratedQuestionDTO,
   type GradeResultDTO,
   type AnswerValue,
-  ProgressionModifier,
+  type ProgressionModifier,
 } from '@/types';
 
 import { usePracticeProgress } from '@/modules/student/assignments/hooks/usePracticeProgress';
 import { generateQuestions, gradeGeneratedQuestions } from '@/core/questions';
-import { opModifierToDomain, DOMAIN_CONFIG } from '@/core/domain';
+import { DOMAIN_CONFIG, getDomainLabel } from '@/core/domain';
+import { DOMAIN_CODES, type DomainCode } from '@/types/domain';
 
 async function recordEvent(assignmentId: number, eventType: string) {
   try {
@@ -53,20 +52,33 @@ function PracticeSessionFallback() {
   );
 }
 
-function isOperationCode(v: string): v is OperationCode {
-  return (OPERATION_CODES as readonly string[]).includes(v);
+/**
+ * Reads a DomainCode from URL params.
+ * Accepts `domain=MUL_WHOLE` (new format) or falls back to legacy
+ * `ops=MUL&fractions=0&decimals=0` for backward compat with the assignment client.
+ */
+function parseDomainParam(params: ReturnType<typeof useSearchParams>): DomainCode {
+  const domainRaw = params.get('domain');
+  if (domainRaw && (DOMAIN_CODES as readonly string[]).includes(domainRaw)) {
+    return domainRaw as DomainCode;
+  }
+  // Legacy: ops + fractions/decimals flags → domain
+  const opStr = (params.get('ops') ?? '').split(',')[0]?.trim().toUpperCase() ?? '';
+  const suffix = params.get('fractions') === '1'
+    ? '_FRACTION'
+    : params.get('decimals') === '1'
+      ? '_DECIMAL'
+      : '_WHOLE';
+  const candidate = `${opStr}${suffix}`;
+  return (DOMAIN_CODES as readonly string[]).includes(candidate)
+    ? (candidate as DomainCode)
+    : 'MUL_WHOLE';
 }
 
-function parseOpsParam(raw: string | null): OperationCode[] {
-  if (!raw) return ['MUL'];
-
-  const ops = raw
-    .split(',')
-    .map((s) => s.trim().toUpperCase())
-    .filter(Boolean)
-    .filter(isOperationCode);
-
-  return ops.length > 0 ? ops : ['MUL'];
+function modifierFromDomain(domain: DomainCode): ProgressionModifier {
+  if (domain.endsWith('_FRACTION')) return 'FRACTION';
+  if (domain.endsWith('_DECIMAL')) return 'DECIMAL';
+  return null;
 }
 
 function formatClock(totalSeconds: number) {
@@ -77,13 +89,12 @@ function formatClock(totalSeconds: number) {
   return `${mm}:${String(ss).padStart(2, '0')}`;
 }
 
-function getModifierFromFlags(params: {
-  fractionsFlag: boolean;
-  decimalsFlag: boolean;
-}): ProgressionModifier {
-  if (params.fractionsFlag) return 'FRACTION';
-  if (params.decimalsFlag) return 'DECIMAL';
-  return null;
+function clampedCount(domain: DomainCode, count: number): number {
+  // FACT_FAMILY pools have exactly 13 entries (0–12); cap to avoid repetition on short sets
+  if (DOMAIN_CONFIG[domain].progressionStyle === 'FACT_FAMILY') {
+    return Math.min(count, 13);
+  }
+  return count;
 }
 
 function parseFractionInput(raw: string): AnswerValue | null {
@@ -136,7 +147,6 @@ function formatAnswerValue(value: AnswerValue | null): string {
 
 async function startPracticeTimeSession(params: {
   assignmentId: number;
-  operation: OperationCode;
   level: number;
   maxNumber: number;
 }) {
@@ -147,7 +157,6 @@ async function startPracticeTimeSession(params: {
       headers: { 'content-type': 'application/json' },
       credentials: 'include',
       body: JSON.stringify({
-        operation: params.operation,
         level: params.level,
         maxNumber: params.maxNumber,
       }),
@@ -196,21 +205,12 @@ async function endPracticeTimeSession(params: {
   };
 }
 
-function clampedCount(params: {
-  operation: OperationCode;
-  modifier: ProgressionModifier;
-  count: number;
-}): number {
-  const domain = opModifierToDomain(params.operation, params.modifier);
-  if (DOMAIN_CONFIG[domain].progressionStyle === 'FACT_FAMILY') {
-    return Math.min(params.count, 13);
-  }
-  return params.count;
-}
-
 function StudentPracticeSessionInner() {
   const router = useRouter();
   const params = useSearchParams();
+
+  const domain = parseDomainParam(params);
+  const modifier = modifierFromDomain(domain);
 
   const level = getNumberParam(params, 'level', 3, 1, 12);
   const count = getNumberParam(params, 'count', 30, 6, 40);
@@ -220,15 +220,6 @@ function StudentPracticeSessionInner() {
   const assignmentIdParam = params.get('assignmentId');
   const assignmentId = assignmentIdParam ? Number(assignmentIdParam) : null;
   const isPracticeTimeAssignment = Number.isFinite(assignmentId) && (assignmentId ?? 0) > 0;
-
-  const opsRaw = params.get('ops');
-  const fractionsFlag = params.get('fractions') === '1';
-  const decimalsFlag = params.get('decimals') === '1';
-  const modifier = getModifierFromFlags({ fractionsFlag, decimalsFlag });
-
-  const ops = useMemo(() => parseOpsParam(opsRaw), [opsRaw]);
-  const primaryOp = ops[0] ?? 'MUL';
-  const domain = opModifierToDomain(primaryOp, modifier);
 
   const {
     loading: progressLoading,
@@ -240,7 +231,7 @@ function StudentPracticeSessionInner() {
     generateQuestions({
       domain,
       level,
-      count: clampedCount({ operation: primaryOp, modifier, count }),
+      count: clampedCount(domain, count),
       seed: Date.now(),
     }),
   );
@@ -265,7 +256,7 @@ function StudentPracticeSessionInner() {
       generateQuestions({
         domain,
         level,
-        count: clampedCount({ operation: primaryOp, modifier, count }),
+        count: clampedCount(domain, count),
         seed: Date.now(),
       }),
     );
@@ -277,7 +268,7 @@ function StudentPracticeSessionInner() {
 
     setStartedAt(Date.now());
     setNow(Date.now());
-  }, [level, count, minutes, primaryOp, modifier, maxNumber, domain]);
+  }, [level, count, minutes, maxNumber, domain]);
 
   const msLeft = useMemo(() => {
     if (minutes <= 0) return Infinity;
@@ -303,7 +294,6 @@ function StudentPracticeSessionInner() {
       try {
         const sessionId = await startPracticeTimeSession({
           assignmentId: assignmentId as number,
-          operation: primaryOp,
           level,
           maxNumber,
         });
@@ -318,7 +308,7 @@ function StudentPracticeSessionInner() {
     return () => {
       cancelled = true;
     };
-  }, [assignmentId, isPracticeTimeAssignment, primaryOp, level, maxNumber]);
+  }, [assignmentId, isPracticeTimeAssignment, level, maxNumber]);
 
   useEffect(() => {
     if (!isPracticeTimeAssignment || finished || !assignmentId) return;
@@ -443,6 +433,8 @@ function StudentPracticeSessionInner() {
     });
   }, [questions]);
 
+  const domainLabel = getDomainLabel(domain);
+
   if (finished && result) {
     const incorrect = result.items.filter((item) => !item.isCorrect);
 
@@ -462,7 +454,7 @@ function StudentPracticeSessionInner() {
               <CardHeader>
                 <CardTitle>Your score</CardTitle>
                 <CardDescription>
-                  {primaryOp} · Level {level} · {count} questions ·{' '}
+                  {domainLabel} · Level {level} · {count} questions ·{' '}
                   {minutes === 0 ? 'Timer off' : `${minutes} minutes`}
                 </CardDescription>
               </CardHeader>
@@ -556,11 +548,7 @@ function StudentPracticeSessionInner() {
                             generateQuestions({
                               domain,
                               level,
-                              count: clampedCount({
-                                operation: primaryOp,
-                                modifier,
-                                count,
-                              }),
+                              count: clampedCount(domain, count),
                               seed: Date.now(),
                             }),
                           );
@@ -571,7 +559,6 @@ function StudentPracticeSessionInner() {
                             try {
                               const sessionId = await startPracticeTimeSession({
                                 assignmentId,
-                                operation: primaryOp,
                                 level,
                                 maxNumber,
                               });
@@ -610,11 +597,7 @@ function StudentPracticeSessionInner() {
                           generateQuestions({
                             domain,
                             level,
-                            count: clampedCount({
-                              operation: primaryOp,
-                              modifier,
-                              count,
-                            }),
+                            count: clampedCount(domain, count),
                             seed: Date.now(),
                           }),
                         );
@@ -645,9 +628,7 @@ function StudentPracticeSessionInner() {
   return (
     <AppPage
       title="Practice"
-      subtitle={`${primaryOp} · Level ${level} · ${count} questions${
-        modifier === 'FRACTION' ? ' · Fractions' : modifier === 'DECIMAL' ? ' · Decimals' : ''
-      }${minutes > 0 ? ` · ${minutes} min` : ''}`}
+      subtitle={`${domainLabel} · Level ${level} · ${count} questions${minutes > 0 ? ` · ${minutes} min` : ''}`}
       width="wide"
     >
       <Section>

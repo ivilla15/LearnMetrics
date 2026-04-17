@@ -17,10 +17,7 @@ import { jsonResponse } from '@/utils/http';
 const updateStudentSchema = z.object({
   name: z.string().min(1),
   username: z.string().min(1),
-  domain: z
-    .string()
-    .refine((v) => (DOMAIN_CODES as readonly string[]).includes(v), 'Invalid domain')
-    .optional(),
+  domain: z.enum(DOMAIN_CODES).optional(),
   level: z.coerce.number().int().min(0).max(100).optional(),
 });
 

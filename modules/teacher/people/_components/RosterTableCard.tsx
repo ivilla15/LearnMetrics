@@ -149,7 +149,6 @@ export function RosterTableCard(props: {
     try {
       setBulkError(null);
 
-      console.log('RAW BULK INPUT:', bulkNamesText);
       const payload = parseBulkStudentsText(bulkNamesText, existingUsernames);
       if (!payload.length) {
         setBulkError('Please enter at least one valid "First Last" line.');
@@ -160,7 +159,7 @@ export function RosterTableCard(props: {
         firstName: p.firstName,
         lastName: p.lastName,
         username: p.username,
-        startingOperation: p.startingOperation,
+        startingDomain: p.startingDomain,
         startingLevel: p.startingLevel,
       }));
 

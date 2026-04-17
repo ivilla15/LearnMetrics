@@ -9,7 +9,6 @@ import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 import { initializeStudentProgressForNewStudent } from '@/core/progression/initStudentProgress.service';
 import { getClassroomRosterWithLatestAttempt } from './roster.service';
 
-import type { OperationCode } from '@/types/enums';
 import type { DomainCode } from '@/types/domain';
 import type {
   AttemptHistoryItemDTO,
@@ -77,24 +76,21 @@ export async function bulkCreateClassroomStudents(
 
   const { created } = await StudentsRepo.createManyForClassroom(classroomId, createInputs);
 
-  // Map username -> starting meta (so we can init StudentProgress correctly)
-  const inputByUsername = new Map<string, { op?: OperationCode; level?: number }>();
+  const inputByUsername = new Map<string, { domain?: DomainCode; level?: number }>();
   for (const s of students) {
     inputByUsername.set(s.username, {
-      op: s.startingOperation,
+      domain: s.startingDomain,
       level: s.startingLevel,
     });
   }
 
-  // Initialize StudentProgress rows for each created student (policy-aware)
   for (const c of created) {
     const meta = inputByUsername.get(c.username);
 
     await initializeStudentProgressForNewStudent({
       classroomId,
       studentId: c.id,
-      // Map legacy operation code to whole-number domain (e.g. MUL → MUL_WHOLE)
-      startingDomain: meta?.op ? (`${meta.op}_WHOLE` as DomainCode) : undefined,
+      startingDomain: meta?.domain,
       startingLevel: meta?.level,
     });
   }
