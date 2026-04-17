@@ -3,7 +3,6 @@ import type {
   AssignmentMode,
   AssignmentTargetKind,
   AssignmentType,
-  OperationCode,
 } from '@/types/enums';
 
 export async function findAssignmentById(assignmentId: number) {
@@ -33,7 +32,6 @@ export async function createAssignment(args: {
   mode: AssignmentMode;
 
   targetKind: AssignmentTargetKind;
-  operation?: OperationCode | null;
 
   opensAt: Date;
   closesAt?: Date | null;
@@ -49,7 +47,6 @@ export async function createAssignment(args: {
   scheduleId?: number | null;
   runDate?: Date | null;
 
-  parentAssignmentId?: number | null;
 }) {
   return prisma.assignment.create({
     data: {
@@ -58,8 +55,6 @@ export async function createAssignment(args: {
       type: args.type,
       mode: args.mode,
       targetKind: args.targetKind,
-
-      operation: args.operation ?? null,
 
       opensAt: args.opensAt,
       closesAt: args.closesAt ?? null,
@@ -72,8 +67,6 @@ export async function createAssignment(args: {
 
       scheduleId: args.scheduleId ?? null,
       runDate: args.runDate ?? null,
-
-      parentAssignmentId: args.parentAssignmentId ?? null,
     },
   });
 }

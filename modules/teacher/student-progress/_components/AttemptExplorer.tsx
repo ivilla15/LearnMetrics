@@ -15,17 +15,14 @@ import {
 import { AttemptDetailModal } from './AttemptDetailModal';
 import { AttemptResultsTable } from './AttemptResultsTable';
 import { AttemptExplorerSkeleton } from '../../../skeletons/teacher/AttemptExplorerSkeleton';
-import type { AttemptResultsRowDTO, AttemptExplorerFilter, AttemptRowDTO, OperationCode } from '@/types';
+import type { AttemptResultsRowDTO, AttemptExplorerFilter, AttemptRowDTO } from '@/types';
 import type { AttemptRowForChart } from '@/components/MultiOpLevelProgressChart';
 import { useAttemptExplorer } from '../hooks';
 
-// ── Week grouping ──────────────────────────────────────────────────────────────
-
 function getWeekKey(dateStr: string): string {
   const d = new Date(dateStr);
-  // Get Monday of this week
   const day = d.getDay();
-  const diffToMon = (day === 0 ? -6 : 1 - day);
+  const diffToMon = day === 0 ? -6 : 1 - day;
   const mon = new Date(d);
   mon.setDate(d.getDate() + diffToMon);
   mon.setHours(0, 0, 0, 0);
@@ -37,8 +34,7 @@ function formatWeekRange(weekKey: string): string {
   const sun = new Date(mon);
   sun.setDate(mon.getDate() + 6);
 
-  const fmt = (d: Date) =>
-    d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const fmt = (d: Date) => d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 
   return `${fmt(mon)} – ${fmt(sun)}`;
 }
@@ -83,21 +79,23 @@ function groupByWeek(attempts: AttemptRowDTO[]): WeekGroup[] {
 export function AttemptExplorer({
   baseUrl,
   hideControls = false,
+  printMode = false,
   title = 'Attempts',
   description = 'Select one to view details.',
   chartTitle = 'Level progression',
   chartDescription = 'Each point shows the level after the test (mastery increases your level).',
-  operationFilter,
+  domainOrOpFilter,
   onAttemptsChange,
   currentLevel,
 }: {
   baseUrl: string;
   hideControls?: boolean;
+  printMode?: boolean;
   title?: string;
   description?: string;
   chartTitle?: string;
   chartDescription?: string;
-  operationFilter?: OperationCode | null;
+  domainOrOpFilter?: string | null;
   onAttemptsChange?: (attempts: AttemptRowDTO[]) => void;
   currentLevel?: number;
 }) {
@@ -125,7 +123,7 @@ export function AttemptExplorer({
 
     showIncorrectOnly,
     setShowIncorrectOnly,
-  } = useAttemptExplorer(baseUrl, { operationFilter });
+  } = useAttemptExplorer(baseUrl, { domainOrOpFilter });
 
   // Notify parent when attempts change
   React.useEffect(() => {
@@ -174,6 +172,8 @@ export function AttemptExplorer({
       missed,
       wasMastery: a.wasMastery,
       levelAtTime: a.levelAtTime,
+      reviewStatus: a.reviewStatus ?? null,
+      eventCount: a.eventCount ?? 0,
     };
   }
 
@@ -189,10 +189,7 @@ export function AttemptExplorer({
               <CardDescription>{chartDescription}</CardDescription>
             </CardHeader>
             <CardContent>
-              <MultiOpLevelProgressChart
-                attempts={chartAttempts}
-                currentLevel={currentLevel}
-              />
+              <MultiOpLevelProgressChart attempts={chartAttempts} currentLevel={currentLevel} />
             </CardContent>
           </Card>
 
@@ -232,7 +229,7 @@ export function AttemptExplorer({
                   {/* Week-grouped rows */}
                   <div className="space-y-2">
                     {weekGroups.map((group) => {
-                      const isExpanded = expandedWeeks.has(group.weekKey);
+                      const isExpanded = printMode || expandedWeeks.has(group.weekKey);
                       return (
                         <div key={group.weekKey}>
                           {/* Week header */}
@@ -246,7 +243,8 @@ export function AttemptExplorer({
                                 {group.label}
                               </span>
                               <span className="text-xs text-[hsl(var(--muted-fg))]">
-                                {group.attempts.length} attempt{group.attempts.length !== 1 ? 's' : ''}
+                                {group.attempts.length} attempt
+                                {group.attempts.length !== 1 ? 's' : ''}
                               </span>
                               <span
                                 className={[

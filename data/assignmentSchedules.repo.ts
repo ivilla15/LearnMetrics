@@ -33,14 +33,11 @@ export async function findAllActiveSchedulesWithTimezone() {
 
       type: true,
       numQuestions: true,
-      operation: true,
 
       durationMinutes: true,
       requiredSets: true,
       minimumScorePercent: true,
 
-      dependsOnScheduleId: true,
-      offsetMinutes: true,
       recipientRule: true,
 
       Classroom: { select: { id: true, teacherId: true, timeZone: true } },

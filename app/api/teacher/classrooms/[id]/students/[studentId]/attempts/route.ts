@@ -8,7 +8,13 @@ import {
   studentIdParamSchema,
   studentAttemptsQuerySchema,
 } from '@/validation';
-import type { AttemptRowDTO, AttemptExplorerFilter, OperationCode } from '@/types';
+import type {
+  AttemptRowDTO,
+  AttemptExplorerFilter,
+  OperationCode,
+  AttemptReviewStatus,
+  DomainCode,
+} from '@/types';
 
 export async function GET(req: Request, context: RouteContext<{ id: string; studentId: string }>) {
   try {
@@ -31,16 +37,21 @@ export async function GET(req: Request, context: RouteContext<{ id: string; stud
     const parsed = studentAttemptsQuerySchema.parse({
       cursor: url.searchParams.get('cursor') ?? undefined,
       filter: url.searchParams.get('filter') ?? undefined,
+      domain: url.searchParams.get('domain') ?? undefined,
     });
 
     const cursor = parseCursor(parsed.cursor ?? null);
     const filter: AttemptExplorerFilter = parsed.filter;
+    const domainFilter: DomainCode | null = (parsed.domain as DomainCode) ?? null;
 
     const limit = 10;
-    const take = limit * 5 + 1; // overfetch so filtering doesn’t empty pages
+    const take = limit * 5 + 1;
 
     const rows = await prisma.attempt.findMany({
-      where: { studentId: sid },
+      where: {
+        studentId: sid,
+        ...(domainFilter ? { domainAtTime: domainFilter } : {}),
+      },
       take,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: { id: 'desc' },
@@ -51,38 +62,53 @@ export async function GET(req: Request, context: RouteContext<{ id: string; stud
         total: true,
         completedAt: true,
         operationAtTime: true,
+        domainAtTime: true,
         levelAtTime: true,
+        reviewStatus: true,
         Assignment: { select: { type: true, mode: true } },
       },
     });
 
-    const mapped: AttemptRowDTO[] = rows
-      .filter((a) => a.completedAt !== null)
-      .map((a) => {
-        const pct = percent(a.score, a.total);
-        const wasMastery = a.total > 0 && a.score === a.total;
+    const completedRows = rows.filter((a) => a.completedAt !== null);
 
-        if (!a.operationAtTime || a.levelAtTime == null) {
-          throw new Error('Attempt snapshot missing operationAtTime/levelAtTime');
-        }
+    const assignmentIdsForEvents = [...new Set(completedRows.map((a) => a.assignmentId))];
+    const eventGroups = assignmentIdsForEvents.length
+      ? await prisma.attemptEvent.groupBy({
+          by: ['assignmentId'],
+          where: { studentId: sid, assignmentId: { in: assignmentIdsForEvents } },
+          _count: { id: true },
+        })
+      : [];
+    const eventCountByAssignment = new Map(eventGroups.map((r) => [r.assignmentId, r._count.id]));
 
-        const op = a.operationAtTime as OperationCode;
-        const lvl = a.levelAtTime;
+    const mapped: AttemptRowDTO[] = completedRows.map((a) => {
+      const pct = percent(a.score, a.total);
+      const wasMastery = a.total > 0 && a.score === a.total;
 
-        return {
-          attemptId: a.id,
-          assignmentId: a.assignmentId,
-          completedAt: a.completedAt!.toISOString(),
-          type: a.Assignment.type,
-          mode: a.Assignment.mode,
-          operation: op,
-          levelAtTime: lvl,
-          score: a.score,
-          total: a.total,
-          percent: pct,
-          wasMastery,
-        };
-      });
+      if (!a.operationAtTime || a.levelAtTime == null) {
+        throw new Error('Attempt snapshot missing operationAtTime/levelAtTime');
+      }
+
+      const op = a.operationAtTime as OperationCode;
+      const lvl = a.levelAtTime;
+
+      return {
+        attemptId: a.id,
+        assignmentId: a.assignmentId,
+        completedAt: a.completedAt!.toISOString(),
+        type: a.Assignment.type,
+        mode: a.Assignment.mode,
+        operation: op,
+        domain: a.domainAtTime ?? null,
+        levelAtTime: lvl,
+        score: a.score,
+        total: a.total,
+        percent: pct,
+        wasMastery,
+        reviewStatus: (a.reviewStatus as AttemptReviewStatus) ?? null,
+        eventCount: eventCountByAssignment.get(a.assignmentId) ?? 0,
+      };
+    });
 
     let filtered: AttemptRowDTO[] = mapped;
     if (filter === 'MASTERY') filtered = mapped.filter((r) => r.wasMastery);

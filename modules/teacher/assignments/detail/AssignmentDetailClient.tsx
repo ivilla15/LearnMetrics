@@ -43,6 +43,8 @@ export function AssignmentDetailClient(props: {
         missed: r.missed ?? null,
         wasMastery: r.wasMastery ?? null,
         levelAtTime: r.levelAtTime ?? null,
+        reviewStatus: r.reviewStatus ?? null,
+        eventCount: r.eventCount ?? 0,
       })),
     [a.rows],
   );
@@ -54,6 +56,16 @@ export function AssignmentDetailClient(props: {
     );
     if (original) void detail.openAttempt(original);
   }
+
+  function handleReviewChanged() {
+    void a.reload(a.filter);
+  }
+
+  const selectedReviewStatus = detail.selected?.attemptId
+    ? ((a.rows as TeacherAssignmentAttemptRowDTO[]).find(
+        (r) => r.attemptId === detail.selected?.attemptId,
+      )?.reviewStatus ?? null)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -102,6 +114,9 @@ export function AssignmentDetailClient(props: {
         open={detail.open}
         onClose={detail.close}
         title="Attempt details"
+        classroomId={classroomId}
+        assignmentId={assignmentId}
+        attemptId={detail.selected?.attemptId ?? null}
         studentId={detail.selected?.studentId ?? null}
         studentName={detail.selected?.studentName ?? null}
         studentUsername={detail.selected?.studentUsername ?? null}
@@ -110,6 +125,8 @@ export function AssignmentDetailClient(props: {
         error={detail.detailError}
         showIncorrectOnly={detail.showIncorrectOnly}
         onToggleIncorrectOnly={detail.setShowIncorrectOnly}
+        initialReviewStatus={selectedReviewStatus}
+        onReviewChanged={handleReviewChanged}
       />
     </div>
   );

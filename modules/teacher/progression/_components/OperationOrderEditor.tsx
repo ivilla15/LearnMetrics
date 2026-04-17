@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { Button, HelpText } from '@/components';
 import type { OperationCode } from '@/types';
+import { formatOperation } from '@/types/display';
 
 function move<T>(arr: T[], from: number, to: number) {
   const next = arr.slice();
@@ -40,7 +41,7 @@ export function OperationOrderEditor(props: {
             className="flex items-center justify-between rounded-(--radius) bg-[hsl(var(--surface-2))] px-3 py-2"
           >
             <div className="text-sm">
-              <span className="font-mono">{op}</span>
+              <span>{formatOperation(op)}</span>
             </div>
 
             <div className="flex gap-2">

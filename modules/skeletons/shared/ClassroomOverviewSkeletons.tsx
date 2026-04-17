@@ -38,9 +38,7 @@ export function ClassroomDashboardSkeleton() {
               key={label}
               className="rounded-[18px] border-0 shadow-[0_4px_10px_rgba(0,0,0,0.08)] bg-[hsl(var(--surface))] p-4"
             >
-              <div className="text-xs font-semibold uppercase tracking-wider text-[hsl(var(--muted-fg))]">
-                {label}
-              </div>
+              <h2 className="text-base font-semibold text-[hsl(var(--fg))]">{label}</h2>
               <Skeleton className="mt-2 h-8 w-20" />
             </div>
           ),

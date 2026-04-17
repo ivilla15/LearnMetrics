@@ -89,11 +89,14 @@ function getItemStatus(row: TimelineItem): 'OPEN' | 'UPCOMING' | 'FINISHED' {
   return 'OPEN';
 }
 
-function formatWindowLine(params: { opensAt: string; closesAt: string | null }) {
+function formatWindowLine(params: { opensAt: string; closesAt: string | null; status?: string }) {
   const now = Date.now();
   const closesMs = params.closesAt ? new Date(params.closesAt).getTime() : null;
   if (closesMs !== null && Number.isFinite(closesMs) && closesMs < now) {
     return `Closed at: ${formatLocal(params.closesAt!)}`;
+  }
+  if (params.status === 'OPEN' && params.closesAt) {
+    return `Closes: ${formatLocal(params.closesAt)}`;
   }
   if (params.closesAt) {
     return `Opens: ${formatLocal(params.opensAt)} · Closes: ${formatLocal(params.closesAt)}`;
@@ -244,6 +247,9 @@ export function AssignmentsTimeline({
                         : formatAssignmentType(row.type);
                     const href = proj ? null : `/student/assignments/${row.assignmentId}`;
 
+                    const rowStatus = getItemStatus(row);
+                    const isOpenNow = rowStatus === 'OPEN';
+
                     return (
                       <button
                         key={proj ? `${row.scheduleId}|${row.runDate}` : row.assignmentId}
@@ -260,33 +266,61 @@ export function AssignmentsTimeline({
                       >
                         <Card
                           variant="elevated"
-                          className="cursor-pointer border border-[hsl(var(--brand)/0.3)] hover:border-[hsl(var(--brand))] hover:shadow-md"
+                          className={[
+                            'cursor-pointer transition-shadow hover:shadow-md',
+                            isOpenNow
+                              ? 'border-2 border-[hsl(var(--brand))]'
+                              : 'border border-[hsl(var(--brand)/0.3)] hover:border-[hsl(var(--brand))]',
+                          ].join(' ')}
                         >
                           <div className="flex items-start justify-between gap-4 px-5 py-4">
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-5">
-                                <div className="truncate text-[15px] font-semibold text-[hsl(var(--fg))]">
+                            <div className="min-w-0 flex-1">
+                              <div className="flex flex-wrap items-center gap-2">
+                                <div className={[
+                                  'truncate text-[hsl(var(--fg))]',
+                                  isOpenNow ? 'text-base font-bold' : 'text-[15px] font-semibold',
+                                ].join(' ')}>
                                   {title}
                                 </div>
+                                {isOpenNow && !submitted ? (
+                                  <span className="inline-flex items-center rounded-full bg-[hsl(var(--brand))] px-2.5 py-0.5 text-xs font-extrabold uppercase tracking-widest text-white shadow-sm">
+                                    Open Now
+                                  </span>
+                                ) : null}
                                 {submitted ? Pill('Submitted', 'primary') : null}
                               </div>
-                              <div className="mt-1 text-sm text-[hsl(var(--fg))]"></div>
-                              <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
-                                {formatWindowLine({ opensAt: row.opensAt, closesAt: row.closesAt })}
+
+                              <div className={[
+                                'mt-1.5 text-xs',
+                                isOpenNow
+                                  ? 'font-semibold text-[hsl(var(--fg))]'
+                                  : 'font-medium text-[hsl(var(--muted-fg))]',
+                              ].join(' ')}>
+                                {formatWindowLine({ opensAt: row.opensAt, closesAt: row.closesAt, status: rowStatus })}
                               </div>
+
+                              {!proj && !submitted ? (
+                                <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
+                                  {isPracticeAssignment && !isProjectionRow(row) && row.requiredSets
+                                    ? `${row.requiredSets} qualifying sets · ${row.minimumScorePercent ?? 80}% min score`
+                                    : !isPracticeAssignment && !isProjectionRow(row) && row.numQuestions
+                                      ? `${row.numQuestions} questions`
+                                      : null}
+                                </div>
+                              ) : null}
                             </div>
 
                             <div className="shrink-0 text-right">
-                              {submitted && row.latestAttempt && (
-                                <div className="text-sm font-semibold text-[hsl(var(--fg))]">
+                              {submitted && !isProjectionRow(row) && row.latestAttempt ? (
+                                <div className="text-base font-bold text-[hsl(var(--fg))]">
                                   {row.latestAttempt.percent}%
                                 </div>
-                              )}
-                              <div className="mt-1 text-xs text-[hsl(var(--muted-fg))]">
-                                {isPracticeAssignment && !proj && row.requiredSets
-                                  ? `${row.requiredSets} sets · ${row.minimumScorePercent ?? 80}% min`
-                                  : null}
-                              </div>
+                              ) : null}
+                              {isOpenNow && !submitted && !proj ? (
+                                <div className="mt-1 text-xs font-semibold text-[hsl(var(--brand))]">
+                                  Go →
+                                </div>
+                              ) : null}
                             </div>
                           </div>
                         </Card>

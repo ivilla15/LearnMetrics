@@ -2,19 +2,83 @@
 
 import * as React from 'react';
 
-import { Button, Input, Label, HelpText, Pill, StatusDot, Badge } from '@/components';
+import {
+  Button,
+  Input,
+  Label,
+  HelpText,
+  Pill,
+  StatusDot,
+  Badge,
+  Card,
+  CardHeader,
+} from '@/components';
 
 import { formatLocal } from '@/lib/date';
 import {
   masteryTone,
   missedTone,
   pctTone,
-  OPERATION_SYMBOL,
+  formatOperation,
   type AssignmentAttemptsFilter,
   type AttemptResultsRowDTO,
 } from '@/types';
+import { getDomainLabel } from '@/core/domain';
+import type { DomainCode } from '@/types/domain';
 
 type FilterOption = Readonly<{ key: AssignmentAttemptsFilter; label: string }>;
+
+function IntegrityCell({
+  reviewStatus,
+  eventCount,
+}: {
+  reviewStatus: 'VALID' | 'FLAGGED' | 'INVALIDATED' | null;
+  eventCount: number;
+}) {
+  if (reviewStatus === 'INVALIDATED') {
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <span className="rounded-full bg-[hsl(var(--danger)/0.15)] px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-[hsl(var(--danger))]">
+          INVALIDATED
+        </span>
+        {eventCount > 0 ? (
+          <span className="text-[10px] text-[hsl(var(--danger)/0.7)]">
+            {eventCount} event{eventCount !== 1 ? 's' : ''}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+  if (reviewStatus === 'FLAGGED') {
+    return (
+      <div className="flex flex-col items-center gap-0.5">
+        <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold tracking-wide text-amber-700">
+          FLAGGED
+        </span>
+        {eventCount > 0 ? (
+          <span className="text-[10px] text-amber-600">
+            {eventCount} event{eventCount !== 1 ? 's' : ''}
+          </span>
+        ) : null}
+      </div>
+    );
+  }
+  if (eventCount > 0) {
+    return (
+      <span className="inline-block rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-600">
+        {eventCount} event{eventCount !== 1 ? 's' : ''}
+      </span>
+    );
+  }
+  return (
+    <Card>
+      <CardHeader className="flex items-center gap-1.5">
+        <span className="text-2xl font-bold text-[hsl(var(--success))]">✓</span>
+        <span className="text-sm text-[hsl(var(--success))] font-medium">Clean</span>
+      </CardHeader>
+    </Card>
+  );
+}
 
 function safeLower(s: string | undefined | null) {
   return (s ?? '').trim().toLowerCase();
@@ -66,7 +130,7 @@ export function AttemptResultsTable({
     });
   }, [rows, search, canSearch]);
 
-  const colCount = showStudentColumn ? 10 : 9;
+  const colCount = showStudentColumn ? 11 : 10;
 
   return (
     <div className="space-y-4">
@@ -123,6 +187,7 @@ export function AttemptResultsTable({
               <th className="py-3 px-3 text-center">Missed</th>
               <th className="py-3 px-3 text-center">Mastery</th>
               <th className="py-3 px-3 text-center">Level at time</th>
+              <th className="py-3 px-3 text-center">Integrity</th>
               <th className="py-3 pl-3 pr-5 text-right">Actions</th>
             </tr>
           </thead>
@@ -191,7 +256,9 @@ export function AttemptResultsTable({
                     <td className="py-3 px-3 text-center">
                       {r.operation ? (
                         <span className="font-mono font-medium">
-                          {r.operation} {OPERATION_SYMBOL[r.operation]}
+                          {r.domain
+                            ? getDomainLabel(r.domain as DomainCode)
+                            : formatOperation(r.operation)}
                         </span>
                       ) : (
                         '—'
@@ -199,11 +266,7 @@ export function AttemptResultsTable({
                     </td>
 
                     <td className="py-3 px-3 text-center">
-                      {r.type ? (
-                        <Badge tone="muted">{r.type}</Badge>
-                      ) : (
-                        '—'
-                      )}
+                      {r.type ? <Badge tone="muted">{r.type}</Badge> : '—'}
                     </td>
 
                     <td className="py-3 px-3 text-center">
@@ -251,6 +314,17 @@ export function AttemptResultsTable({
 
                     <td className="py-3 px-3 text-center">
                       {r.levelAtTime === null ? '—' : `Level ${r.levelAtTime}`}
+                    </td>
+
+                    <td className="py-3 px-3 text-center">
+                      {r.attemptId ? (
+                        <IntegrityCell
+                          reviewStatus={r.reviewStatus ?? null}
+                          eventCount={r.eventCount ?? 0}
+                        />
+                      ) : (
+                        <span className="text-xs text-[hsl(var(--muted-fg))]">—</span>
+                      )}
                     </td>
 
                     <td className="py-3 pl-3 pr-5 text-right">

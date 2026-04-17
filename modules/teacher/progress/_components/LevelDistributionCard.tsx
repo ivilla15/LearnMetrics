@@ -12,18 +12,15 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, Skeleton } from '@/components';
+import { getDomainLabel, opModifierToDomain } from '@/core/domain';
+import type { DomainCode } from '@/types/domain';
 import type { OperationCode } from '@/types';
 
-const OP_CONFIG: Record<OperationCode, { label: string; short: string }> = {
-  ADD: { label: 'Addition', short: 'ADD' },
-  SUB: { label: 'Subtraction', short: 'SUB' },
-  MUL: { label: 'Multiplication', short: 'MUL' },
-  DIV: { label: 'Division', short: 'DIV' },
+type ActiveStudent = {
+  activeDomain?: string | null;
+  activeOperation: OperationCode;
+  activeLevel: number;
 };
-
-const ALL_OPS: OperationCode[] = ['ADD', 'SUB', 'MUL', 'DIV'];
-
-type ActiveStudent = { activeOperation: OperationCode; activeLevel: number };
 
 function computeMedianLevel(buckets: Array<{ level: number; count: number }>): number | null {
   const total = buckets.reduce((s, b) => s + b.count, 0);
@@ -48,32 +45,53 @@ export function LevelDistributionCard({
   loading?: boolean;
   maxLevel?: number;
 }) {
-  const [selectedOp, setSelectedOp] = React.useState<OperationCode | null>(null);
+  const [selectedDomain, setSelectedDomain] = React.useState<DomainCode | null>(null);
 
-  // Which ops actually have students (to show only active filter buttons)
-  const presentOps = React.useMemo(() => {
-    const s = new Set<OperationCode>();
-    for (const st of students) s.add(st.activeOperation);
-    return s;
+  // Compute all distinct domains present across students.
+  const presentDomains = React.useMemo(() => {
+    const seen = new Map<DomainCode, string>();
+    for (const s of students) {
+      const domain: DomainCode =
+        s.activeDomain && s.activeDomain.length > 0
+          ? (s.activeDomain as DomainCode)
+          : opModifierToDomain(s.activeOperation, null);
+      seen.set(domain, getDomainLabel(domain));
+    }
+    return seen;
   }, [students]);
 
+  // When the selected domain is no longer present (e.g. after data reload), reset.
+  React.useEffect(() => {
+    if (selectedDomain !== null && !presentDomains.has(selectedDomain)) {
+      setSelectedDomain(null);
+    }
+  }, [presentDomains, selectedDomain]);
+
   const buckets = React.useMemo(() => {
-    const relevant = selectedOp
-      ? students.filter((s) => s.activeOperation === selectedOp)
+    const relevant = selectedDomain
+      ? students.filter((s) => {
+          const d: DomainCode =
+            s.activeDomain && s.activeDomain.length > 0
+              ? (s.activeDomain as DomainCode)
+              : opModifierToDomain(s.activeOperation, null);
+          return d === selectedDomain;
+        })
       : students;
+
     const map = new Map<number, number>();
     for (const s of relevant) map.set(s.activeLevel, (map.get(s.activeLevel) ?? 0) + 1);
+
     return Array.from({ length: maxLevel }, (_, i) => i + 1).map((level) => ({
       level,
       count: map.get(level) ?? 0,
       label: `Lvl ${level}`,
     }));
-  }, [students, selectedOp, maxLevel]);
+  }, [students, selectedDomain, maxLevel]);
 
   const medianLevel = React.useMemo(() => computeMedianLevel(buckets), [buckets]);
 
-  const descLabel = selectedOp
-    ? `Students currently active on ${OP_CONFIG[selectedOp].label}`
+  const descLabel = selectedDomain
+    ? `Students currently active on ${getDomainLabel(selectedDomain)}`
     : 'Students by current active level';
 
   return (
@@ -87,33 +105,33 @@ export function LevelDistributionCard({
           ) : null}
         </CardDescription>
 
-        {/* Operation filter — only show buttons for ops with students present */}
+        {/* Domain filter — only show buttons for domains with students present */}
         <div className="flex flex-wrap gap-1.5 pt-1">
           <button
             type="button"
-            onClick={() => setSelectedOp(null)}
+            onClick={() => setSelectedDomain(null)}
             className={[
               'cursor-pointer rounded-full border px-3 py-0.5 text-xs font-medium transition-colors',
-              selectedOp === null
+              selectedDomain === null
                 ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
                 : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
             ].join(' ')}
           >
             All
           </button>
-          {ALL_OPS.filter((op) => presentOps.has(op)).map((op) => (
+          {Array.from(presentDomains.entries()).map(([domain, label]) => (
             <button
-              key={op}
+              key={domain}
               type="button"
-              onClick={() => setSelectedOp(op)}
+              onClick={() => setSelectedDomain(domain)}
               className={[
                 'cursor-pointer rounded-full border px-3 py-0.5 text-xs font-medium transition-colors',
-                selectedOp === op
+                selectedDomain === domain
                   ? 'border-[hsl(var(--brand))] bg-[hsl(var(--brand))] text-white'
                   : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
               ].join(' ')}
             >
-              {OP_CONFIG[op].short}
+              {label}
             </button>
           ))}
         </div>

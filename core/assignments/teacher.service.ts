@@ -29,6 +29,7 @@ import type {
   AssignmentMode,
   AssignmentType,
 } from '@/types/enums';
+// OperationCode is used for AttemptItem.operation (not removed)
 
 export async function listTeacherAssignmentsForClassroom(params: {
   teacherId: number;
@@ -73,7 +74,6 @@ export async function listTeacherAssignmentsForClassroom(params: {
       type: true,
       mode: true,
       targetKind: true,
-      operation: true,
       opensAt: true,
       closesAt: true,
       windowMinutes: true,
@@ -100,6 +100,31 @@ export async function listTeacherAssignmentsForClassroom(params: {
         select: { assignmentId: true, score: true, total: true },
       })
     : [];
+
+  const flaggedGroups = assignmentIds.length
+    ? await prisma.attempt.groupBy({
+        by: ['assignmentId'],
+        where: {
+          assignmentId: { in: assignmentIds },
+          reviewStatus: { in: ['FLAGGED', 'INVALIDATED'] },
+        },
+        _count: { id: true },
+      })
+    : [];
+  const flaggedByAssignment = new Map(
+    flaggedGroups.map((r) => [r.assignmentId, r._count.id]),
+  );
+
+  const eventGroups = assignmentIds.length
+    ? await prisma.attemptEvent.groupBy({
+        by: ['assignmentId'],
+        where: { assignmentId: { in: assignmentIds } },
+        _count: { id: true },
+      })
+    : [];
+  const eventCountByAssignment = new Map(
+    eventGroups.map((r) => [r.assignmentId, r._count.id]),
+  );
 
   const statsByAssignment = new Map<
     number,
@@ -145,7 +170,6 @@ export async function listTeacherAssignmentsForClassroom(params: {
       type: a.type,
       mode: a.mode,
       targetKind: a.targetKind as AssignmentTargetKind,
-      operation: (a.operation ?? null) as OperationCode | null,
 
       status: derivedStatus,
       opensAt: a.opensAt.toISOString(),
@@ -166,6 +190,8 @@ export async function listTeacherAssignmentsForClassroom(params: {
         totalStudents,
         masteryRate: derivedStatus === 'FINISHED' ? masteryRate : null,
         avgPercent: derivedStatus === 'FINISHED' ? avgPercent : null,
+        flaggedCount: flaggedByAssignment.get(a.id) ?? 0,
+        integrityEventCount: eventCountByAssignment.get(a.id) ?? 0,
       },
     };
   });
@@ -226,7 +252,6 @@ export async function listTeacherAssignmentAttempts(params: {
       type: true,
       mode: true,
       targetKind: true,
-      operation: true,
       opensAt: true,
       closesAt: true,
       windowMinutes: true,
@@ -265,8 +290,17 @@ export async function listTeacherAssignmentAttempts(params: {
       score: true,
       total: true,
       levelAtTime: true,
+      reviewStatus: true,
     },
   });
+
+  const eventCounts = await prisma.attemptEvent.groupBy({
+    by: ['studentId'],
+    where: { assignmentId: assignment.id },
+    _count: { id: true },
+  });
+  const eventCountByStudent = new Map<number, number>();
+  for (const e of eventCounts) eventCountByStudent.set(e.studentId, e._count.id);
 
   const attemptByStudent = new Map<number, (typeof attempts)[number]>();
   for (const a of attempts) attemptByStudent.set(a.studentId, a);
@@ -293,6 +327,8 @@ export async function listTeacherAssignmentAttempts(params: {
 
       wasMastery,
       levelAtTime: a?.levelAtTime ?? null,
+      reviewStatus: (a?.reviewStatus ?? null) as 'VALID' | 'FLAGGED' | 'INVALIDATED' | null,
+      eventCount: eventCountByStudent.get(s.id) ?? 0,
     };
   });
 
@@ -321,7 +357,6 @@ export async function listTeacherAssignmentAttempts(params: {
       type: assignment.type,
       mode: assignment.mode,
       targetKind: assignment.targetKind as AssignmentTargetKind,
-      operation: (assignment.operation ?? null) as OperationCode | null,
 
       opensAt: assignment.opensAt.toISOString(),
       closesAt: assignment.closesAt ? assignment.closesAt.toISOString() : null,
@@ -359,7 +394,6 @@ export async function getTeacherAttemptDetail(params: {
           type: true,
           mode: true,
           targetKind: true,
-          operation: true,
           opensAt: true,
           closesAt: true,
           windowMinutes: true,
@@ -427,7 +461,6 @@ export async function getTeacherAttemptDetail(params: {
       type: attempt.Assignment.type,
       mode: attempt.Assignment.mode,
       targetKind: attempt.Assignment.targetKind as AssignmentTargetKind,
-      operation: (attempt.Assignment.operation ?? null) as OperationCode | null,
 
       opensAt: attempt.Assignment.opensAt.toISOString(),
       closesAt: attempt.Assignment.closesAt ? attempt.Assignment.closesAt.toISOString() : null,

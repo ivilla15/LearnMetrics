@@ -9,12 +9,13 @@ import {
 
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
 import { getProgressionSnapshot } from '@/core/progression/policySnapshot.service';
-import { computeActiveOpAndLevel } from '@/core/progression/getStudentActiveProgress.service';
+import { computeActiveDomainAndLevel } from '@/core/progression/domainProgress.service';
+import { domainToOpModifier } from '@/core/domain';
+import type { DomainCode } from '@/types/domain';
 
 import type { OperationCode } from '@/types/enums';
 import { isoDay } from '@/utils/time';
 import { isMastery, median, percent } from '@/utils/math';
-import { getLevelForOp } from '@/types';
 import { bucketScore, computeStreaks, trendFromLast3 } from './utils';
 
 export async function getClassroomProgress(params: {
@@ -42,8 +43,6 @@ export async function getClassroomProgress(params: {
       getAttemptsForClassroomInRange({ classroomId: params.classroomId, startAt, endAt }),
       getRecentAttemptsForClassroom({ classroomId: params.classroomId, since: recentCutoff }),
       getMissedFactsInRange({ classroomId: params.classroomId, startAt, endAt, limit: 12 }),
-      // last 3 TEST assignments in range (your repo currently returns assignments in range; if it doesn't filter by type,
-      // do it here after fetch)
       getRecentAssignmentsForClassroomInRange({
         classroomId: params.classroomId,
         startAt,
@@ -52,6 +51,8 @@ export async function getClassroomProgress(params: {
       }),
       getProgressionSnapshot(params.classroomId),
     ]);
+
+  const domainOrder = snapshot.enabledDomains;
 
   const lastAssignmentIds = lastAssignments.map((a) => a.id);
 
@@ -150,15 +151,16 @@ export async function getClassroomProgress(params: {
     count: bucketCounts.get(label) ?? 0,
   }));
 
-  // ---- Charts: level buckets and operation buckets (by active progression) ----
-  // computeActiveOpAndLevel gives each student their current operation/level per the progression policy.
+  // ---- Charts: level buckets and operation buckets (domain-space primary, op-space fallback) ----
   const levelMap = new Map<number, number>();
   const opCountMap = new Map<OperationCode, number>();
 
   for (const s of students) {
-    const active = computeActiveOpAndLevel({ progress: s.progress, snapshot });
-    levelMap.set(active.level, (levelMap.get(active.level) ?? 0) + 1);
-    opCountMap.set(active.operation, (opCountMap.get(active.operation) ?? 0) + 1);
+    const result = computeActiveDomainAndLevel(s.progress, domainOrder);
+    const operation = domainToOpModifier(result.domain).operation;
+    const level = result.level;
+    levelMap.set(level, (levelMap.get(level) ?? 0) + 1);
+    opCountMap.set(operation, (opCountMap.get(operation) ?? 0) + 1);
   }
 
   const levelBuckets = Array.from({ length: snapshot.maxNumber }, (_, i) => i + 1).map(
@@ -232,15 +234,19 @@ export async function getClassroomProgress(params: {
     const lastTestMastery = !!lastTest && lastTestMasteredStudentIds.has(s.id);
     const missedLastTest = !!lastTest && !needsSetup && !lastTestAttemptedStudentIds.has(s.id);
 
-    const active = computeActiveOpAndLevel({ progress: s.progress, snapshot });
+    const activeResult = computeActiveDomainAndLevel(s.progress, domainOrder);
+    const activeDomain: DomainCode = activeResult.domain;
+    const activeOperation: OperationCode = domainToOpModifier(activeResult.domain).operation;
+    const activeLevel: number = activeResult.level;
 
     return {
       id: s.id,
       name: s.name,
       username: s.username,
-      level: getLevelForOp(s.progress, primaryOp),
-      activeOperation: active.operation,
-      activeLevel: active.level,
+      level: s.progress.find((p) => p.domain === `${primaryOp}_WHOLE`)?.level ?? 1,
+      activeOperation,
+      activeDomain,
+      activeLevel,
 
       mustSetPassword: s.mustSetPassword,
 
@@ -287,7 +293,7 @@ export async function getClassroomProgress(params: {
 
   const highestLevel =
     students.length > 0
-      ? Math.max(...students.map((s) => getLevelForOp(s.progress, primaryOp)))
+      ? Math.max(...students.map((s) => s.progress.find((p) => p.domain === `${primaryOp}_WHOLE`)?.level ?? 1))
       : null;
 
   const lowestRecentPercent =

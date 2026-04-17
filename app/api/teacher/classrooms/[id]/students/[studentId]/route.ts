@@ -2,10 +2,10 @@ import { z } from 'zod';
 import {
   updateClassroomStudentById,
   deleteClassroomStudentById,
-  setTeacherStudentProgressRows,
   getProgressionSnapshot,
-  distributeLevelAcrossOperations,
+  placeStudentAtDomainFull,
 } from '@/core';
+import { DOMAIN_CODES } from '@/types/domain';
 import {
   handleApiError,
   readJson,
@@ -17,7 +17,8 @@ import { jsonResponse } from '@/utils/http';
 const updateStudentSchema = z.object({
   name: z.string().min(1),
   username: z.string().min(1),
-  level: z.coerce.number().int().min(1).max(100),
+  domain: z.enum(DOMAIN_CODES).optional(),
+  level: z.coerce.number().int().min(0).max(100).optional(),
 });
 
 type Ctx = RouteContext<{ id: string; studentId: string }>;
@@ -39,24 +40,26 @@ export async function PATCH(request: Request, { params }: Ctx) {
       input: { name: input.name, username: input.username },
     });
 
-    const operationOrder = snapshot.operationOrder.length
-      ? snapshot.operationOrder
-      : snapshot.enabledOperations;
-
-    const levelsToWrite = distributeLevelAcrossOperations({
-      operationOrder,
-      primaryOp: snapshot.primaryOperation,
-      maxNumber: snapshot.maxNumber,
-      levelAmount: input.level,
-    });
-
-    if (levelsToWrite.length > 0) {
-      await setTeacherStudentProgressRows({
+    if (input.domain && input.level !== undefined) {
+      await placeStudentAtDomainFull({
         teacherId: ctx.teacher.id,
         classroomId: ctx.classroomId,
         studentId: ctx.studentIdNum,
-        levels: levelsToWrite,
+        domain: input.domain,
+        level: input.level,
       });
+    } else if (input.level !== undefined) {
+      // level-only: place at first enabled domain
+      const primaryDomain = snapshot.enabledDomains[0];
+      if (primaryDomain) {
+        await placeStudentAtDomainFull({
+          teacherId: ctx.teacher.id,
+          classroomId: ctx.classroomId,
+          studentId: ctx.studentIdNum,
+          domain: primaryDomain,
+          level: input.level,
+        });
+      }
     }
 
     return jsonResponse({ student }, 200);

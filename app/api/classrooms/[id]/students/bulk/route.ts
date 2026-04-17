@@ -14,7 +14,7 @@ import { bulkAddStudentsSchema } from '@/validation/teacher/bulk-students';
 import { errorResponse, jsonResponse } from '@/utils/http';
 import { handleApiError, readJson, type RouteContext } from '@/app';
 
-import type { OperationCode } from '@/types/enums';
+import type { DomainCode } from '@/types/domain';
 import type { BulkAddStudentInputDTO } from '@/types/api/teacherStudents';
 
 export async function POST(request: Request, { params }: RouteContext) {
@@ -28,20 +28,19 @@ export async function POST(request: Request, { params }: RouteContext) {
     const body = await readJson(request);
     const parsed = bulkAddStudentsSchema.parse(body);
 
-    const defaultStartingOperation = parsed.defaultStartingOperation;
+    const defaultStartingDomain = parsed.defaultStartingDomain;
     const defaultStartingLevel = parsed.defaultStartingLevel;
     const defaultLevel = parsed.defaultLevel ?? 1;
 
     const studentsToCreate: BulkAddStudentInputDTO[] = parsed.students.map((s) => {
       const resolvedLevel = s.startingLevel ?? s.level ?? defaultStartingLevel ?? defaultLevel;
-
-      const resolvedOp: OperationCode | undefined = s.startingOperation ?? defaultStartingOperation;
+      const resolvedDomain: DomainCode | undefined = s.startingDomain ?? defaultStartingDomain;
 
       return {
         firstName: s.firstName,
         lastName: s.lastName,
         username: s.username,
-        startingOperation: resolvedOp,
+        startingDomain: resolvedDomain,
         startingLevel: resolvedLevel,
       };
     });

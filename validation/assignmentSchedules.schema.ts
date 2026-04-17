@@ -1,8 +1,7 @@
 import { z } from 'zod';
-import { ASSIGNMENT_TYPES, OPERATION_CODES, RECIPIENT_RULES } from '@/types/enums';
+import { ASSIGNMENT_TYPES, RECIPIENT_RULES } from '@/types/enums';
 
 const typeSchema = z.enum(ASSIGNMENT_TYPES);
-const operationSchema = z.enum(OPERATION_CODES);
 const recipientRuleSchema = z.enum(RECIPIENT_RULES);
 
 const base = z.object({
@@ -15,16 +14,6 @@ const base = z.object({
     .optional(),
   days: z.array(z.string().min(1)).min(1),
   isActive: z.coerce.boolean().optional(),
-
-  operation: operationSchema.optional().nullable(),
-
-  dependsOnScheduleId: z.coerce.number().int().positive().optional().nullable(),
-  offsetMinutes: z.coerce
-    .number()
-    .int()
-    .min(0)
-    .max(7 * 24 * 60)
-    .optional(),
   recipientRule: recipientRuleSchema.optional(),
 });
 
@@ -39,7 +28,8 @@ const practiceTime = base.extend({
   targetKind: z.literal('PRACTICE_TIME'),
   requiredSets: z.coerce.number().int().min(1).max(20),
   minimumScorePercent: z.coerce.number().int().min(1).max(100),
-  durationMinutes: z.undefined().optional(),
+  // durationMinutes: optional per-set time limit for PRACTICE_TIME schedules
+  durationMinutes: z.coerce.number().int().min(1).max(600).optional(),
   type: z.undefined().optional(),
   numQuestions: z.undefined().optional(),
 });

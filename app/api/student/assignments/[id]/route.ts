@@ -3,12 +3,10 @@ import { z } from 'zod';
 import { prisma } from '@/data/prisma';
 import {
   getProgressionSnapshot,
-  getStudentLevelForOperation,
   getStudentActiveProgress,
   promoteStudentAfterMastery,
   generateQuestions,
   gradeGeneratedQuestions,
-  resolveModifierForOperationLevel,
   studentCanAccessAssignment,
   getMaxUniqueQuestionsFor,
 } from '@/core';
@@ -96,7 +94,6 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
         closesAt: true,
         windowMinutes: true,
         numQuestions: true,
-        operation: true,
         durationMinutes: true,
         requiredSets: true,
         minimumScorePercent: true,
@@ -122,7 +119,6 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
       durationMinutes: assignment.durationMinutes ?? null,
       requiredSets: assignment.requiredSets ?? null,
       minimumScorePercent: assignment.minimumScorePercent ?? null,
-      operation: assignment.operation ?? null,
     };
 
     const now = new Date();
@@ -147,19 +143,9 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
         studentId: student.id,
         snapshot: practiceSnapshot,
       });
-      const practiceOperation = assignment.operation ?? practiceActive.operation;
-      const practiceLevel =
-        assignment.operation != null
-          ? await getStudentLevelForOperation({ studentId: student.id, operation: practiceOperation })
-          : practiceActive.level;
-      const practiceModifier =
-        assignment.operation != null
-          ? resolveModifierForOperationLevel({
-              operation: practiceOperation,
-              level: practiceLevel,
-              snapshot: practiceSnapshot,
-            })
-          : practiceActive.modifier;
+      const practiceOperation = practiceActive.operation;
+      const practiceLevel = practiceActive.level;
+      const practiceModifier = practiceActive.modifier;
       const available = getMaxUniqueQuestionsFor({
         operation: practiceOperation,
         level: practiceLevel,
@@ -190,8 +176,8 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
       select: { id: true, score: true, total: true, completedAt: true, startedAt: true },
     });
 
-    if (existingAttempt) {
-      const ts = existingAttempt.completedAt ?? existingAttempt.startedAt;
+    if (existingAttempt?.completedAt) {
+      const ts = existingAttempt.completedAt;
       return jsonResponse(
         {
           status: 'ALREADY_SUBMITTED',
@@ -201,7 +187,7 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
             score: existingAttempt.score,
             total: existingAttempt.total,
             percent: percent(existingAttempt.score, existingAttempt.total),
-            completedAt: ts ? ts.toISOString() : null,
+            completedAt: ts.toISOString(),
           },
         },
         200,
@@ -209,35 +195,35 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
     }
 
     const snapshot = await getProgressionSnapshot(student.classroomId);
-    const maxNumber = clampInt(snapshot.maxNumber, 1, 100);
 
     const active = await getStudentActiveProgress({ studentId: student.id, snapshot });
-    const operation = assignment.operation ?? active.operation;
-
-    const level =
-      assignment.operation != null
-        ? await getStudentLevelForOperation({ studentId: student.id, operation })
-        : active.level;
-
-    const modifier =
-      assignment.operation != null
-        ? resolveModifierForOperationLevel({
-            operation,
-            level,
-            snapshot,
-          })
-        : active.modifier;
+    const operation = active.operation;
+    const level = active.level;
+    const modifier = active.modifier;
+    const domain = active.domain;
 
     const count = clampInt(assignment.numQuestions, 1, 200);
 
     const questions = generateQuestions({
-      seed: assignmentSeed(assignment.id, student.id),
-      operation,
+      domain,
       level,
-      maxNumber,
       count,
-      modifier,
+      seed: assignmentSeed(assignment.id, student.id),
     });
+
+    const draft = await prisma.attempt.upsert({
+      where: { studentId_assignmentId: { studentId: student.id, assignmentId: assignment.id } },
+      create: {
+        studentId: student.id,
+        assignmentId: assignment.id,
+        score: 0,
+        total: count,
+        startedAt: new Date(),
+      },
+      update: {},
+      select: { startedAt: true },
+    });
+    const sessionStartedAt = draft.startedAt;
 
     return jsonResponse(
       {
@@ -251,6 +237,7 @@ export async function GET(req: Request, { params }: RouteContext<AssignmentRoute
         },
         assignment: assignmentPayload,
         questions,
+        sessionStartedAt: sessionStartedAt.toISOString(),
       },
       200,
     );
@@ -283,8 +270,9 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
         targetKind: true,
         opensAt: true,
         closesAt: true,
+        windowMinutes: true,
         numQuestions: true,
-        operation: true,
+        durationMinutes: true,
         recipients: { select: { studentId: true } },
       },
     });
@@ -311,39 +299,42 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
 
     const existingAttempt = await prisma.attempt.findUnique({
       where: { studentId_assignmentId: { studentId: student.id, assignmentId: assignment.id } },
-      select: { id: true },
+      select: { id: true, completedAt: true, startedAt: true },
     });
-    if (existingAttempt) return errorResponse('You already submitted this assignment', 409);
+    if (existingAttempt?.completedAt)
+      return errorResponse('You already submitted this assignment', 409);
+
+    if (assignment.windowMinutes && existingAttempt) {
+      const elapsedMs = now.getTime() - existingAttempt.startedAt.getTime();
+      const limitMs = assignment.windowMinutes * 60 * 1000;
+      if (elapsedMs > limitMs + 30_000) {
+        return errorResponse('Time limit exceeded', 409);
+      }
+    }
+
+    if (assignment.durationMinutes && existingAttempt) {
+      const elapsedMs = now.getTime() - existingAttempt.startedAt.getTime();
+      const limitMs = assignment.durationMinutes * 60 * 1000;
+      if (elapsedMs > limitMs + 30_000) {
+        return errorResponse('Time limit exceeded', 409);
+      }
+    }
 
     const snapshot = await getProgressionSnapshot(student.classroomId);
     const maxNumberAtTime = clampInt(snapshot.maxNumber, 1, 100);
 
     const active = await getStudentActiveProgress({ studentId: student.id, snapshot });
-    const operation = assignment.operation ?? active.operation;
-
-    const levelAtTime =
-      assignment.operation != null
-        ? await getStudentLevelForOperation({ studentId: student.id, operation })
-        : active.level;
-
-    const modifierAtTime =
-      assignment.operation != null
-        ? resolveModifierForOperationLevel({
-            operation,
-            level: levelAtTime,
-            snapshot,
-          })
-        : active.modifier;
+    const operation = active.operation;
+    const levelAtTime = active.level;
+    const domain = active.domain;
 
     const total = clampInt(assignment.numQuestions, 1, 200);
 
     const questions = generateQuestions({
-      seed: assignmentSeed(assignment.id, student.id),
-      operation,
+      domain,
       level: levelAtTime,
-      maxNumber: maxNumberAtTime,
       count: total,
-      modifier: modifierAtTime,
+      seed: assignmentSeed(assignment.id, student.id),
     });
 
     const answersByQuestionId = new Map<number, AnswerValue | null>();
@@ -365,19 +356,34 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
     const wasMastery = graded.total > 0 && graded.score === graded.total;
 
     const created = await prisma.$transaction(async (tx) => {
-      const attempt = await tx.attempt.create({
-        data: {
-          studentId: student.id,
-          assignmentId: assignment.id,
-          score: graded.score,
-          total: graded.total,
-          completedAt: new Date(),
-          operationAtTime: operation,
-          levelAtTime,
-          maxNumberAtTime,
-        },
-        select: { id: true, score: true, total: true, completedAt: true },
-      });
+      const attempt = existingAttempt
+        ? await tx.attempt.update({
+            where: { id: existingAttempt.id },
+            data: {
+              score: graded.score,
+              total: graded.total,
+              completedAt: new Date(),
+              operationAtTime: operation,
+              levelAtTime,
+              maxNumberAtTime,
+              domainAtTime: domain,
+            },
+            select: { id: true, score: true, total: true, completedAt: true },
+          })
+        : await tx.attempt.create({
+            data: {
+              studentId: student.id,
+              assignmentId: assignment.id,
+              score: graded.score,
+              total: graded.total,
+              completedAt: new Date(),
+              operationAtTime: operation,
+              levelAtTime,
+              maxNumberAtTime,
+              domainAtTime: domain,
+            },
+            select: { id: true, score: true, total: true, completedAt: true },
+          });
 
       await tx.attemptItem.createMany({
         data: questions.map((q, idx) => {
@@ -402,6 +408,7 @@ export async function POST(req: Request, { params }: RouteContext<AssignmentRout
         studentId: student.id,
         classroomId: student.classroomId,
         operation,
+        domain,
       });
     }
 

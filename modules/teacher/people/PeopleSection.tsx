@@ -1,5 +1,6 @@
 import { getRosterWithLastAttempt, getProgressionSnapshot } from '@/core';
 import { PeopleClient } from '@/modules';
+import type { DomainCode } from '@/types/domain';
 
 export async function PeopleSection({
   classroomId,
@@ -8,7 +9,7 @@ export async function PeopleSection({
   classroomId: number;
   teacherId: number;
 }) {
-  const [roster, policy] = await Promise.all([
+  const [roster, snapshot] = await Promise.all([
     getRosterWithLastAttempt({ classroomId, teacherId }),
     getProgressionSnapshot(classroomId),
   ]);
@@ -17,9 +18,8 @@ export async function PeopleSection({
     <PeopleClient
       classroomId={classroomId}
       initialStudents={roster.students}
-      enabledOperations={policy.enabledOperations}
-      operationOrder={policy.operationOrder}
-      maxNumber={policy.maxNumber}
+      enabledDomains={snapshot.enabledDomains as DomainCode[]}
+      maxNumber={snapshot.maxNumber}
     />
   );
 }

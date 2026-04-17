@@ -53,6 +53,7 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
 
   const [requiredSets, setRequiredSets] = React.useState(3);
   const [minimumScorePercent, setMinimumScorePercent] = React.useState(80);
+  const [durationMinutes, setDurationMinutes] = React.useState<number | undefined>(undefined);
 
   React.useEffect(() => {
     if (!open) return;
@@ -84,10 +85,12 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
         setType(initial.type ?? 'TEST');
         setRequiredSets(3);
         setMinimumScorePercent(80);
+        setDurationMinutes(undefined);
       } else {
         setWindowMinutes(initial.windowMinutes ?? 4);
         setRequiredSets(initial.requiredSets ?? 3);
         setMinimumScorePercent(initial.minimumScorePercent ?? 80);
+        setDurationMinutes(initial.durationMinutes ?? undefined);
         setNumQuestions(12);
         setType('TEST');
       }
@@ -102,6 +105,7 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
       setType('TEST');
       setRequiredSets(3);
       setMinimumScorePercent(80);
+      setDurationMinutes(undefined);
     }
   }, [open, mode, initial]);
   function toggleDay(key: (typeof WEEKDAYS)[number]) {
@@ -136,9 +140,6 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
         days: safeDays as unknown as string[],
         type,
         numQuestions,
-        operation: initial?.operation ?? null,
-        dependsOnScheduleId: initial?.dependsOnScheduleId ?? null,
-        offsetMinutes: initial?.offsetMinutes ?? 0,
         recipientRule: initial?.recipientRule ?? 'ALL',
       };
     }
@@ -151,9 +152,7 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
       days: safeDays as unknown as string[],
       requiredSets,
       minimumScorePercent,
-      operation: initial?.operation ?? null,
-      dependsOnScheduleId: initial?.dependsOnScheduleId ?? null,
-      offsetMinutes: initial?.offsetMinutes ?? 0,
+      durationMinutes,
       recipientRule: initial?.recipientRule ?? 'ALL',
     };
   }
@@ -369,9 +368,23 @@ export function ScheduleFormModal({ open, onClose, mode, initial, busy, error, o
                   />
                 </div>
 
+                <div className="grid gap-1 sm:col-span-2">
+                  <Label htmlFor="durationMinutes">Per-set time limit (minutes, optional)</Label>
+                  <Input
+                    id="durationMinutes"
+                    inputMode="numeric"
+                    placeholder="No limit"
+                    value={durationMinutes !== undefined ? String(durationMinutes) : ''}
+                    onChange={(e) => {
+                      const v = Number(e.target.value);
+                      setDurationMinutes(e.target.value === '' ? undefined : v || undefined);
+                    }}
+                  />
+                </div>
+
                 <div className="sm:col-span-2">
                   <HelpText>
-                    Students must complete the required number of qualifying sets before the window closes. A set qualifies when the score meets the minimum.
+                    Students must complete the required number of qualifying sets before the window closes. A set qualifies when the score meets the minimum. The optional per-set time limit restricts how long each individual set attempt takes.
                   </HelpText>
                 </div>
               </>

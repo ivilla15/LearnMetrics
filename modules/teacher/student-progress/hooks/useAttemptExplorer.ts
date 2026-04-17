@@ -1,14 +1,21 @@
 'use client';
 
 import * as React from 'react';
-import type { AttemptDetailDTO, AttemptExplorerFilter, AttemptRowDTO, OperationCode } from '@/types';
+import type { AttemptDetailDTO, AttemptExplorerFilter, AttemptRowDTO } from '@/types';
 import { getApiErrorMessage } from '@/utils/http';
 
 export function useAttemptExplorer(
   baseUrl: string,
-  opts?: { operationFilter?: OperationCode | null },
+  opts?: {
+    /**
+     * Either a DomainCode (e.g. "ADD_FRACTION") or an OperationCode (e.g. "ADD").
+     * DomainCodes contain "_" and are sent as ?domain=; OperationCodes are sent as ?operation=.
+     * Passing null/undefined removes the filter.
+     */
+    domainOrOpFilter?: string | null;
+  },
 ) {
-  const operationFilter = opts?.operationFilter ?? null;
+  const domainOrOpFilter = opts?.domainOrOpFilter ?? null;
 
   const [attempts, setAttempts] = React.useState<AttemptRowDTO[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -31,7 +38,14 @@ export function useAttemptExplorer(
 
       try {
         const qs = new URLSearchParams({ filter });
-        if (operationFilter) qs.set('operation', operationFilter);
+        if (domainOrOpFilter) {
+          // DomainCodes contain "_" (e.g. ADD_FRACTION); OperationCodes do not (e.g. ADD).
+          if (domainOrOpFilter.includes('_')) {
+            qs.set('domain', domainOrOpFilter);
+          } else {
+            qs.set('operation', domainOrOpFilter);
+          }
+        }
 
         const res = await fetch(`${baseUrl}/attempts?${qs.toString()}`, { cache: 'no-store' });
         const payload: unknown = await res.json().catch(() => null);
@@ -66,7 +80,7 @@ export function useAttemptExplorer(
     return () => {
       cancelled = true;
     };
-  }, [baseUrl, filter, operationFilter]);
+  }, [baseUrl, filter, domainOrOpFilter]);
 
   React.useEffect(() => {
     if (!selectedAttemptId) {
@@ -83,7 +97,13 @@ export function useAttemptExplorer(
     setLoadingMore(true);
     try {
       const qs = new URLSearchParams({ filter, cursor: nextCursor });
-      if (operationFilter) qs.set('operation', operationFilter);
+      if (domainOrOpFilter) {
+        if (domainOrOpFilter.includes('_')) {
+          qs.set('domain', domainOrOpFilter);
+        } else {
+          qs.set('operation', domainOrOpFilter);
+        }
+      }
 
       const res = await fetch(`${baseUrl}/attempts?${qs.toString()}`, { cache: 'no-store' });
       const payload: unknown = await res.json().catch(() => null);

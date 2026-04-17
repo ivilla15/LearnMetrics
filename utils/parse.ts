@@ -1,5 +1,5 @@
 import { AssignmentAttemptsFilter } from '@/types';
-import type { OperationCode } from '@/types/enums';
+import { DOMAIN_CODES, type DomainCode } from '@/types/domain';
 
 export function parseId(raw: string): number | null {
   const n = Number(raw);
@@ -50,8 +50,17 @@ export type ParsedBulkStudent = {
   firstName: string;
   lastName: string;
   username: string;
-  startingOperation?: OperationCode;
+  startingDomain?: DomainCode;
   startingLevel?: number;
+};
+
+const DOMAIN_CODE_SET = new Set<string>(DOMAIN_CODES);
+// Shorthand ADD/SUB/MUL/DIV → whole-number domain
+const SHORTHAND_MAP: Record<string, DomainCode> = {
+  ADD: 'ADD_WHOLE',
+  SUB: 'SUB_WHOLE',
+  MUL: 'MUL_WHOLE',
+  DIV: 'DIV_WHOLE',
 };
 
 export function parseBulkStudentsText(
@@ -60,8 +69,6 @@ export function parseBulkStudentsText(
 ): ParsedBulkStudent[] {
   const taken = new Set(existingUsernames.map((u) => String(u).trim().toLowerCase()));
   const rows: ParsedBulkStudent[] = [];
-
-  const OP_CODES = new Set<OperationCode>(['ADD', 'SUB', 'MUL', 'DIV']);
 
   const lines = text
     .split(/\r?\n/)
@@ -88,15 +95,21 @@ export function parseBulkStudentsText(
     const lastName = nameTokens.slice(1).join(' ');
     const displayName = `${firstName} ${lastName}`.trim();
 
-    let startingOperation: OperationCode | undefined = undefined;
+    let startingDomain: DomainCode | undefined = undefined;
     let startingLevel: number | undefined = undefined;
 
-    // scan the remaining token positions (1..n) for op or numeric level in any order
     for (let i = 1; i < tokens.length; i++) {
       const tok = tokens[i].toUpperCase();
-      if (!startingOperation && OP_CODES.has(tok as OperationCode)) {
-        startingOperation = tok as OperationCode;
-        continue;
+
+      if (!startingDomain) {
+        if (DOMAIN_CODE_SET.has(tok)) {
+          startingDomain = tok as DomainCode;
+          continue;
+        }
+        if (SHORTHAND_MAP[tok]) {
+          startingDomain = SHORTHAND_MAP[tok];
+          continue;
+        }
       }
 
       // strip non-digit punctuation (e.g. parentheses) before testing numeric
@@ -119,7 +132,7 @@ export function parseBulkStudentsText(
       firstName,
       lastName,
       username,
-      ...(startingOperation ? { startingOperation } : {}),
+      ...(startingDomain ? { startingDomain } : {}),
       ...(startingLevel ? { startingLevel } : {}),
     });
   }

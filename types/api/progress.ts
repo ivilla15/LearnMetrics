@@ -9,6 +9,8 @@ export type ClassroomProgressStudentRowDTO = {
   username: string;
   level: number;
   activeOperation: OperationCode;
+  // Phase 5: canonical active domain; null for legacy/unmigrated students.
+  activeDomain?: string | null;
   activeLevel: number;
 
   mustSetPassword: boolean;
@@ -135,8 +137,9 @@ export type TeacherStudentProgressDTO = {
     trendLast3: 'improving' | 'regressing' | 'flat' | 'need3';
     daysSinceLastAttempt: number | null;
 
-    operationLevels: Array<{ operation: OperationCode; level: number }>;
+    domainLevels: Array<{ domain: string; level: number }>;
     activeOperation: OperationCode;
+    activeDomain: string | null;
     activeLevel: number;
 
     flags: {

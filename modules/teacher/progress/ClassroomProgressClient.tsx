@@ -21,6 +21,7 @@ import {
   StudentsTableCard,
   StudentPickerModal,
 } from './_components';
+import { ClassroomIntegritySummary } from '@/modules/teacher/dashboard/_components/ClassroomIntegritySummary';
 
 type Props = {
   classroomId: number;
@@ -52,6 +53,9 @@ export function ClassroomProgressClient({ classroomId, initial }: Props) {
         onScrollToStudents={p.scrollToStudentsTable}
         onPrint={() => window.print()}
       />
+
+      {/* Integrity summary */}
+      <ClassroomIntegritySummary classroomId={classroomId} />
 
       {/* Charts — range control + 2-col bar charts */}
       <div className="flex items-end gap-3">

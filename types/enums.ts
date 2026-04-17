@@ -13,7 +13,7 @@ export type RecipientRule = (typeof RECIPIENT_RULES)[number];
 export const OPERATION_CODES = ['ADD', 'SUB', 'MUL', 'DIV'] as const;
 export type OperationCode = (typeof OPERATION_CODES)[number];
 
-export const MODIFIER_CODES = ['DECIMAL', 'FRACTION'] as const;
+export const MODIFIER_CODES = ['FRACTION', 'DECIMAL'] as const;
 export type ModifierCode = (typeof MODIFIER_CODES)[number];
 
 export const TEACHER_PLANS = ['TRIAL', 'PRO', 'SCHOOL'] as const;

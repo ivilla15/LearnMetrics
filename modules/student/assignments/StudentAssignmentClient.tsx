@@ -15,6 +15,19 @@ import {
 import { parseAssignmentId } from '@/utils';
 import type { AttemptDetailDTO, StudentAssignmentLoadResponse } from '@/types';
 
+async function recordEvent(assignmentId: number, eventType: string) {
+  try {
+    await fetch(`/api/student/assignments/${assignmentId}/events`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ eventType }),
+    });
+  } catch {
+    // best-effort, never throw
+  }
+}
+
 export default function StudentAssignmentClient({
   assignmentIdParam,
 }: {
@@ -108,18 +121,45 @@ export default function StudentAssignmentClient({
   }, [assignmentId, toast]);
 
   const [now, setNow] = useState(Date.now());
+  // Track when READY state was first entered so durationMinutes can enforce a per-student limit
+  const sessionStartRef = useRef<number | null>(null);
+
+  // Use server-recorded session start time (draft Attempt.startedAt) for durationMinutes timer.
+  // This prevents the client from spoofing its own start time.
+  useEffect(() => {
+    if (data?.status === 'READY' && sessionStartRef.current === null) {
+      sessionStartRef.current = new Date(data.sessionStartedAt).getTime();
+    }
+  }, [data]);
 
   useEffect(() => {
-    if (!assignment?.closesAt) return;
+    const hasTimer =
+      assignment?.closesAt ||
+      assignment?.durationMinutes ||
+      (assignment?.targetKind === 'ASSESSMENT' && assignment?.windowMinutes);
+    if (!hasTimer) return;
     const t = setInterval(() => setNow(Date.now()), 250);
     return () => clearInterval(t);
-  }, [assignment?.closesAt]);
+  }, [assignment?.closesAt, assignment?.durationMinutes, assignment?.targetKind, assignment?.windowMinutes]);
 
   const msLeft = useMemo(() => {
-    if (!assignment?.closesAt) return 0;
-    const raw = new Date(assignment.closesAt).getTime() - now;
-    return Math.max(0, raw);
-  }, [assignment?.closesAt, now]);
+    if (!assignment) return 0;
+    const windowDeadline = assignment.closesAt ? new Date(assignment.closesAt).getTime() : Infinity;
+    // For ASSESSMENT: windowMinutes is the per-student session limit from their start time.
+    // This is the primary enforcement timer — not closesAt, which is just the outer window.
+    const sessionLimitDeadline =
+      assignment.targetKind === 'ASSESSMENT' && assignment.windowMinutes && sessionStartRef.current
+        ? sessionStartRef.current + assignment.windowMinutes * 60_000
+        : Infinity;
+    const durationDeadline =
+      assignment.durationMinutes && sessionStartRef.current
+        ? sessionStartRef.current + assignment.durationMinutes * 60_000
+        : Infinity;
+    // Enforce whichever limit comes first
+    const deadline = Math.min(windowDeadline, sessionLimitDeadline, durationDeadline);
+    if (!Number.isFinite(deadline)) return 0;
+    return Math.max(0, deadline - now);
+  }, [assignment, now]);
 
   const handleSubmit = useCallback(
     async (isAuto = false) => {
@@ -183,16 +223,62 @@ export default function StudentAssignmentClient({
     void handleSubmit(true);
   }, [msLeft, data?.status, handleSubmit]);
 
+  // Anti-copy/paste + session integrity tracking (only active during READY state)
   useEffect(() => {
+    if (data?.status !== 'READY' || !assignmentId) return;
+
     function onBeforeUnload(e: BeforeUnloadEvent) {
-      if (data?.status !== 'READY') return;
+      // Fire LEFT_PAGE via sendBeacon — reliable on page unload, unlike fetch.
+      // sendBeacon is best-effort; failures are silently ignored.
+      const blob = new Blob([JSON.stringify({ eventType: 'LEFT_PAGE' })], {
+        type: 'application/json',
+      });
+      navigator.sendBeacon(`/api/student/assignments/${assignmentId}/events`, blob);
       e.preventDefault();
       e.returnValue = '';
     }
 
+    function blockClipboard(eventType: 'COPY_BLOCKED' | 'CUT_BLOCKED' | 'PASTE_BLOCKED') {
+      return (e: ClipboardEvent) => {
+        // Allow copy inside input elements (students answering)
+        const target = e.target as HTMLElement | null;
+        if (target instanceof HTMLInputElement) return;
+        e.preventDefault();
+        toast('Copying is not allowed during an assignment.', 'error');
+        void recordEvent(assignmentId!, eventType);
+      };
+    }
+
+    function onVisibilityChange() {
+      if (document.visibilityState === 'hidden') {
+        void recordEvent(assignmentId!, 'TAB_HIDDEN');
+      }
+    }
+
+    function onBlur() {
+      void recordEvent(assignmentId!, 'WINDOW_BLUR');
+    }
+
+    const onCopy = blockClipboard('COPY_BLOCKED');
+    const onCut = blockClipboard('CUT_BLOCKED');
+    const onPaste = blockClipboard('PASTE_BLOCKED');
+
     window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [data?.status]);
+    document.addEventListener('copy', onCopy);
+    document.addEventListener('cut', onCut);
+    document.addEventListener('paste', onPaste);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('blur', onBlur);
+
+    return () => {
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      document.removeEventListener('copy', onCopy);
+      document.removeEventListener('cut', onCut);
+      document.removeEventListener('paste', onPaste);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, [data?.status, assignmentId, toast]);
 
   useEffect(() => {
     let cancelled = false;
@@ -423,6 +509,8 @@ export default function StudentAssignmentClient({
                           sessionUrl += `&ops=${p.operation}&level=${p.level}&maxNumber=${p.maxNumber}&count=${p.numQuestionsPerSet}`;
                           if (p.modifier === 'DECIMAL') sessionUrl += '&decimals=1';
                           else if (p.modifier === 'FRACTION') sessionUrl += '&fractions=1';
+                          // Pass per-set time limit if configured on the assignment
+                          if (assignment.durationMinutes) sessionUrl += `&minutes=${assignment.durationMinutes}`;
                           router.push(sessionUrl);
                         }}
                         disabled={!assignmentId}

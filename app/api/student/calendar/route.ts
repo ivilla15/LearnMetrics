@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/data/prisma';
 import { requireStudent } from '@/core';
-import { clampInt, parseCursor } from '@/utils';
+import { clampInt, parseCursor, localDateTimeToUtcRange, localDayToUtcDate } from '@/utils';
 import { addDays } from 'date-fns';
 import { formatInTimeZone } from 'date-fns-tz';
 import type { CalendarProjectionRowDTO } from '@/types';
@@ -48,7 +48,6 @@ export async function GET(req: Request) {
       type: true,
       mode: true,
       targetKind: true,
-      operation: true,
       opensAt: true,
       closesAt: true,
       numQuestions: true,
@@ -85,7 +84,6 @@ export async function GET(req: Request) {
             select: {
               type: true,
               mode: true,
-              operation: true,
             },
           },
         },
@@ -114,7 +112,6 @@ export async function GET(req: Request) {
       windowMinutes: a.windowMinutes ?? null,
       numQuestions: a.numQuestions ?? 12,
       durationMinutes: a.durationMinutes ?? null,
-      operation: a.operation ?? null,
       stats: undefined,
       scheduleId: a.scheduleId ?? null,
       runDate: a.runDate ? a.runDate.toISOString() : null,
@@ -135,7 +132,6 @@ export async function GET(req: Request) {
           opensAtLocalTime: true,
           targetKind: true,
           type: true,
-          operation: true,
           windowMinutes: true,
           numQuestions: true,
           durationMinutes: true,
@@ -180,27 +176,30 @@ export async function GET(req: Request) {
           if (!days.includes(dayName)) continue;
 
           const localDate = formatInTimeZone(candidateBase, tz, 'yyyy-MM-dd');
-          const runDate = new Date(localDate + 'T00:00:00.000Z');
+          const runDate = localDayToUtcDate(localDate, tz);
 
           const key = `${sched.id}|${runDate.toISOString()}`;
           if (realKeys.has(key)) continue;
           if (skippedKeys.has(key)) continue;
 
-          const opensAtUTC = runDate.toISOString();
-          const closesAtUTC = runDate.toISOString();
+          const { opensAtUTC, closesAtUTC } = localDateTimeToUtcRange({
+            localDate,
+            localTime: sched.opensAtLocalTime,
+            windowMinutes: sched.windowMinutes,
+            tz,
+          });
 
           projections.push({
             kind: 'projection',
             scheduleId: sched.id,
             runDate: runDate.toISOString(),
-            opensAt: opensAtUTC,
-            closesAt: closesAtUTC,
+            opensAt: opensAtUTC.toISOString(),
+            closesAt: closesAtUTC.toISOString(),
             mode: 'SCHEDULED',
             targetKind: sched.targetKind,
             type: sched.type ?? null,
             numQuestions: sched.targetKind === 'ASSESSMENT' ? (sched.numQuestions ?? 12) : null,
             windowMinutes: sched.windowMinutes ?? null,
-            operation: sched.operation ?? null,
             durationMinutes:
               sched.targetKind === 'PRACTICE_TIME' ? (sched.durationMinutes ?? null) : null,
           });

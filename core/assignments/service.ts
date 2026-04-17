@@ -3,12 +3,7 @@ import { NotFoundError, ConflictError } from '@/core';
 import { Prisma } from '@prisma/client';
 import { requireTeacherActiveEntitlement } from '@/core';
 import { assertTeacherOwnsClassroom } from '@/core/classrooms/ownership';
-import type {
-  AssignmentMode,
-  AssignmentType,
-  AssignmentTargetKind,
-  OperationCode,
-} from '@/types/enums';
+import type { AssignmentMode, AssignmentType, AssignmentTargetKind } from '@/types/enums';
 import type { AssignmentCoreDTO, ScheduledOccurrenceDetailsDTO } from '@/types';
 import { addMinutes } from 'date-fns';
 import { fromZonedTime } from 'date-fns-tz';
@@ -45,7 +40,6 @@ export async function createScheduledAssignment(params: {
   type: AssignmentType;
 
   targetKind?: AssignmentTargetKind;
-  operation?: OperationCode | null;
 
   numQuestions?: number;
   durationMinutes?: number | null;
@@ -57,8 +51,6 @@ export async function createScheduledAssignment(params: {
 
   scheduleId?: number | null;
   runDate?: Date;
-
-  parentAssignmentId?: number | null;
 }): Promise<AssignmentCoreDTO> {
   const {
     teacherId,
@@ -70,7 +62,6 @@ export async function createScheduledAssignment(params: {
     type,
 
     targetKind = 'ASSESSMENT',
-    operation = null,
 
     numQuestions = 12,
     durationMinutes = null,
@@ -82,8 +73,6 @@ export async function createScheduledAssignment(params: {
 
     scheduleId = null,
     runDate,
-
-    parentAssignmentId = null,
   } = params;
 
   if (!(opensAt instanceof Date) || Number.isNaN(opensAt.getTime())) {
@@ -154,7 +143,6 @@ export async function createScheduledAssignment(params: {
     type: true,
     mode: true,
     targetKind: true,
-    operation: true,
     opensAt: true,
     closesAt: true,
     windowMinutes: true,
@@ -175,7 +163,6 @@ export async function createScheduledAssignment(params: {
       type: a.type,
       mode: a.mode,
       targetKind: a.targetKind,
-      operation: a.operation ?? null,
       opensAt: a.opensAt.toISOString(),
       closesAt: toIso(a.closesAt),
       windowMinutes: a.windowMinutes,
@@ -199,7 +186,6 @@ export async function createScheduledAssignment(params: {
         mode,
         type,
         targetKind,
-        operation: operation ?? undefined,
 
         numQuestions: targetKind === 'ASSESSMENT' ? numQuestions : 0,
         durationMinutes:
@@ -208,8 +194,6 @@ export async function createScheduledAssignment(params: {
         requiredSets: targetKind === 'PRACTICE_TIME' ? (requiredSets ?? undefined) : undefined,
         minimumScorePercent:
           targetKind === 'PRACTICE_TIME' ? (minimumScorePercent ?? undefined) : undefined,
-
-        parentAssignmentId: parentAssignmentId ?? undefined,
 
         ...(normalizedStudentIds
           ? {
@@ -262,7 +246,6 @@ export async function createScheduledAssignment(params: {
         mode,
         type,
         targetKind,
-        operation: operation ?? undefined,
 
         numQuestions: targetKind === 'ASSESSMENT' ? numQuestions : 0,
         durationMinutes:
@@ -274,7 +257,6 @@ export async function createScheduledAssignment(params: {
 
         scheduleId,
         runDate: runDate!,
-        parentAssignmentId: parentAssignmentId ?? undefined,
 
         ...(normalizedStudentIds
           ? {
@@ -315,7 +297,6 @@ export async function getLatestAssignmentForClassroom(
       type: true,
       mode: true,
       targetKind: true,
-      operation: true,
       opensAt: true,
       closesAt: true,
       windowMinutes: true,
@@ -336,7 +317,6 @@ export async function getLatestAssignmentForClassroom(
     type: latest.type,
     mode: latest.mode,
     targetKind: latest.targetKind,
-    operation: latest.operation ?? null,
     opensAt: latest.opensAt.toISOString(),
     closesAt: toIso(latest.closesAt),
     windowMinutes: latest.windowMinutes,
@@ -428,7 +408,6 @@ export async function getScheduledOccurrenceDetails(params: {
       type: true,
       numQuestions: true,
       durationMinutes: true,
-      operation: true,
       Classroom: {
         select: {
           timeZone: true,
@@ -504,7 +483,6 @@ export async function getScheduledOccurrenceDetails(params: {
     numQuestions: schedule.targetKind === 'PRACTICE_TIME' ? null : schedule.numQuestions,
     durationMinutes:
       schedule.targetKind === 'PRACTICE_TIME' ? (schedule.durationMinutes ?? null) : null,
-    operation: schedule.operation,
 
     existingAssignmentId,
   };

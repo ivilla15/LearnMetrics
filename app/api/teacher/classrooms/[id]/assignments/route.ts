@@ -108,6 +108,27 @@ export async function GET(req: Request, { params }: Ctx) {
         })
       : [];
 
+    const flaggedGroups = assignmentIds.length
+      ? await prisma.attempt.groupBy({
+          by: ['assignmentId'],
+          where: {
+            assignmentId: { in: assignmentIds },
+            reviewStatus: { in: ['FLAGGED', 'INVALIDATED'] },
+          },
+          _count: { id: true },
+        })
+      : [];
+    const flaggedByAssignment = new Map(flaggedGroups.map((r) => [r.assignmentId, r._count.id]));
+
+    const eventGroups = assignmentIds.length
+      ? await prisma.attemptEvent.groupBy({
+          by: ['assignmentId'],
+          where: { assignmentId: { in: assignmentIds } },
+          _count: { id: true },
+        })
+      : [];
+    const eventCountByAssignment = new Map(eventGroups.map((r) => [r.assignmentId, r._count.id]));
+
     const statsByAssignment = new Map<
       number,
       { attemptedCount: number; masteryCount: number; sumPercent: number; total: number }
@@ -165,13 +186,14 @@ export async function GET(req: Request, { params }: Ctx) {
           totalStudents,
           masteryRate: derived === 'FINISHED' ? masteryRate : null,
           avgPercent: derived === 'FINISHED' ? avgPercent : null,
+          flaggedCount: flaggedByAssignment.get(a.id) ?? 0,
+          integrityEventCount: eventCountByAssignment.get(a.id) ?? 0,
         },
       };
     });
 
     const projections: CalendarProjectionRowDTO[] = [];
 
-    // Only project when viewing "all" so the calendar can show future schedule dots
     if (status === 'all') {
       const PROJECTION_DAYS = 60;
       const horizon = addDays(now, PROJECTION_DAYS);
@@ -193,7 +215,6 @@ export async function GET(req: Request, { params }: Ctx) {
 
           targetKind: true,
           type: true,
-          operation: true,
 
           windowMinutes: true,
           numQuestions: true,
@@ -249,15 +270,10 @@ export async function GET(req: Request, { params }: Ctx) {
           if (realKeys.has(key)) continue;
           if (skippedKeys.has(key)) continue;
 
-          const windowMinutes =
-            sched.targetKind === 'PRACTICE_TIME'
-              ? (sched.durationMinutes ?? sched.windowMinutes)
-              : sched.windowMinutes;
-
           const { opensAtUTC, closesAtUTC } = localDateTimeToUtcRange({
             localDate,
             localTime: sched.opensAtLocalTime,
-            windowMinutes,
+            windowMinutes: sched.windowMinutes,
             tz,
           });
 
@@ -275,7 +291,6 @@ export async function GET(req: Request, { params }: Ctx) {
             type: sched.type ?? null,
             numQuestions: sched.targetKind === 'ASSESSMENT' ? (sched.numQuestions ?? 12) : null,
             windowMinutes: sched.windowMinutes ?? null,
-            operation: sched.operation ?? null,
 
             durationMinutes:
               sched.targetKind === 'PRACTICE_TIME' ? (sched.durationMinutes ?? null) : null,
@@ -327,8 +342,12 @@ export async function POST(req: Request, { params }: Ctx) {
         new Date(new Date(input.opensAt).getTime() + (input.windowMinutes ?? 4) * 60_000),
       windowMinutes: input.windowMinutes ?? null,
       mode: input.mode,
-      type: input.type ?? 'TEST',
+      targetKind: input.targetKind,
+      type: input.targetKind === 'PRACTICE_TIME' ? 'PRACTICE' : (input.type ?? 'TEST'),
       numQuestions: input.numQuestions ?? 12,
+      durationMinutes: input.durationMinutes ?? null,
+      requiredSets: input.requiredSets ?? null,
+      minimumScorePercent: input.minimumScorePercent ?? null,
       studentIds: input.studentIds,
       scheduleId,
       runDate: runDate ?? undefined,

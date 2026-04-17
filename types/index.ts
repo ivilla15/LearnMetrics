@@ -1,4 +1,5 @@
 export * from './enums';
+export * from './domain';
 export * from './display';
 export * from './guards';
 

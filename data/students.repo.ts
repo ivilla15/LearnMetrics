@@ -33,7 +33,7 @@ export async function findStudentsWithLatestAttempt(classroomId: number) {
       mustSetPassword: true,
       progress: {
         select: {
-          operation: true,
+          domain: true,
           level: true,
         },
       },
@@ -64,7 +64,7 @@ export async function findStudentsWithLatestAttempt(classroomId: number) {
       mustSetPassword: s.mustSetPassword,
 
       progress: s.progress.map((p) => ({
-        operation: p.operation,
+        domain: p.domain,
         level: p.level,
       })),
 

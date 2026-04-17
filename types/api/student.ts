@@ -50,6 +50,7 @@ export type StudentAssignmentDTO = {
   windowMinutes: number | null;
 
   numQuestions: number;
+  durationMinutes: number | null;
 
   requiredSets: number | null;
   minimumScorePercent: number | null;
@@ -90,6 +91,7 @@ export type StudentAssignmentLoadResponse =
       student: { id: number; name: string; operation: OperationCode; level: number };
       assignment: StudentAssignmentDTO;
       questions: StudentQuestionDTO[];
+      sessionStartedAt: string; // ISO — server-recorded draft attempt start time
     };
 
 export type PracticeProgressDTO = {

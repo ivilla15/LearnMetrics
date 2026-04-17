@@ -17,18 +17,13 @@ import {
   Section,
 } from '@/components';
 
-import type { StudentMeDTO, MinutesOption, ProgressionModifier } from '@/types';
+import type { StudentMeDTO, MinutesOption } from '@/types';
 import { parseIntSafe, clamp } from '@/utils';
-import { OPERATION_CODES, type OperationCode } from '@/types/enums';
-import { getMaxUniqueQuestionsFor } from '@/core/questions/questions';
+import { DOMAIN_CODES, type DomainCode } from '@/types/domain';
+import { DOMAIN_CONFIG, getDomainLabel } from '@/core/domain';
 
-type OpCode = OperationCode;
-const OPS = OPERATION_CODES;
-
-function getLevelForOp(progress: StudentMeDTO['progress'], op: OpCode): number | null {
-  const list = Array.isArray(progress) ? progress : [];
-  const row = list.find((p) => p.operation === op);
-  return typeof row?.level === 'number' ? row.level : null;
+function maxQuestionsForDomain(domain: DomainCode): number {
+  return DOMAIN_CONFIG[domain].progressionStyle === 'FACT_FAMILY' ? 13 : 200;
 }
 
 export default function StudentPracticeSetupPage() {
@@ -41,8 +36,8 @@ export default function StudentPracticeSetupPage() {
   const [countText, setCountText] = useState('30');
   const [minutes, setMinutes] = useState<MinutesOption>('4');
 
-  const [selectedOps, setSelectedOps] = useState<OpCode[]>(['MUL']);
-  const [modifier, setModifier] = useState<ProgressionModifier>(null);
+  const [selectedDomain, setSelectedDomain] = useState<DomainCode>('MUL_WHOLE');
+  const [enabledDomains, setEnabledDomains] = useState<DomainCode[]>([]);
   const [practiceMaxNumber, setPracticeMaxNumber] = useState<number>(12);
 
   useEffect(() => {
@@ -65,22 +60,29 @@ export default function StudentPracticeSetupPage() {
       const cfgRes = await fetch('/api/student/practice');
       const cfg = await cfgRes.json().catch(() => null);
 
-      if (cfgRes.ok && cfg && typeof cfg.practiceMaxNumber === 'number') {
-        setPracticeMaxNumber(clamp(cfg.practiceMaxNumber, 1, 100));
+      if (cfgRes.ok && cfg) {
+        if (typeof cfg.practiceMaxNumber === 'number') {
+          setPracticeMaxNumber(clamp(cfg.practiceMaxNumber, 1, 100));
+        }
+        if (Array.isArray(cfg.enabledDomains) && cfg.enabledDomains.length > 0) {
+          setEnabledDomains(cfg.enabledDomains as DomainCode[]);
+          const first = cfg.enabledDomains[0] as DomainCode;
+          setSelectedDomain(first);
+        } else {
+          setEnabledDomains([...DOMAIN_CODES]);
+        }
       } else {
         setPracticeMaxNumber(12);
+        setEnabledDomains([...DOMAIN_CODES]);
       }
 
       const student = (json?.student ?? json) as StudentMeDTO;
       setMe(student);
 
-      const defaultLevel = clamp(getLevelForOp(student.progress, 'MUL') ?? 3, 1, 12);
+      const defaultLevel = clamp(student.progress?.level ?? 3, 1, 12);
       setLevelText(String(defaultLevel));
       setCountText('30');
       setMinutes('4');
-
-      setSelectedOps(['MUL']);
-      setModifier(null);
 
       setLoading(false);
     }
@@ -92,75 +94,35 @@ export default function StudentPracticeSetupPage() {
     };
   }, []);
 
-  const toggleOp = (op: OpCode) => {
-    setSelectedOps((prev) => {
-      const next = new Set(prev);
-      if (next.has(op)) next.delete(op);
-      else next.add(op);
-      return Array.from(next) as OpCode[];
-    });
-  };
-
-  const selectAllOps = () => {
-    setSelectedOps(Array.from(OPS) as OpCode[]);
-  };
-
-  const clearOps = () => {
-    setSelectedOps([]);
-  };
-
   const summary = useMemo(() => {
     const lvlRaw = parseIntSafe(levelText);
     const cntRaw = parseIntSafe(countText);
 
-    const lvl = clamp(lvlRaw ?? (me ? getLevelForOp(me.progress, 'MUL') : null) ?? 3, 1, 12);
-
-    const ops = selectedOps.length > 0 ? selectedOps : (['MUL'] as OpCode[]);
-
-    const maxAvailable = Math.max(
-      ...ops.map((op) =>
-        getMaxUniqueQuestionsFor({
-          operation: op,
-          level: lvl,
-          maxNumber: practiceMaxNumber,
-          modifier,
-        }),
-      ),
-    );
-
-    const c = clamp(cntRaw ?? 30, 6, Math.min(40, maxAvailable || 40));
+    const lvl = clamp(lvlRaw ?? 3, 1, 12);
+    const maxAvail = maxQuestionsForDomain(selectedDomain);
+    const c = clamp(cntRaw ?? 30, 6, Math.min(40, maxAvail));
     const m = minutes === 'OFF' ? 0 : Number(minutes);
 
-    return { lvl, c, m, ops, modifier };
-  }, [levelText, countText, minutes, me, selectedOps, modifier, practiceMaxNumber]);
+    return { lvl, c, m, domain: selectedDomain };
+  }, [levelText, countText, minutes, selectedDomain]);
 
   const qsString = useMemo(() => {
-    const params = new URLSearchParams({
+    const p = new URLSearchParams({
+      domain: summary.domain,
       level: String(summary.lvl),
       count: String(summary.c),
       minutes: String(summary.m),
       maxNumber: String(practiceMaxNumber),
-      ops: summary.ops.join(','),
-      fractions: summary.modifier === 'FRACTION' ? '1' : '0',
-      decimals: summary.modifier === 'DECIMAL' ? '1' : '0',
     });
-    return params.toString();
-  }, [summary.lvl, summary.c, summary.m, summary.ops, summary.modifier, practiceMaxNumber]);
+    return p.toString();
+  }, [summary, practiceMaxNumber]);
 
-  const maxAvailable = useMemo(() => {
-    const ops = summary.ops.length > 0 ? summary.ops : (['MUL'] as OpCode[]);
+  const maxAvailable = useMemo(
+    () => maxQuestionsForDomain(summary.domain),
+    [summary.domain],
+  );
 
-    return Math.max(
-      ...ops.map((op) =>
-        getMaxUniqueQuestionsFor({
-          operation: op,
-          level: summary.lvl,
-          maxNumber: practiceMaxNumber,
-          modifier: summary.modifier,
-        }),
-      ),
-    );
-  }, [summary.ops, summary.lvl, summary.modifier, practiceMaxNumber]);
+  const domainsToShow = enabledDomains.length > 0 ? enabledDomains : [...DOMAIN_CODES];
 
   const canStart = !loading && !!me;
 
@@ -204,7 +166,7 @@ export default function StudentPracticeSetupPage() {
                       }}
                     />
                     <HelpText>
-                      Default is your current level: {getLevelForOp(me.progress, 'MUL') ?? 3}.
+                      Default is your current level: {me.progress?.level ?? 3}.
                     </HelpText>
                   </div>
 
@@ -225,7 +187,8 @@ export default function StudentPracticeSetupPage() {
                       }}
                     />
                     <HelpText>
-                      Recommended: 20–30 questions. Max {Math.min(40, maxAvailable)} for this level.
+                      Recommended: 20–30 questions. Max {Math.min(40, maxAvailable)} for this
+                      domain.
                     </HelpText>
                   </div>
 
@@ -247,26 +210,15 @@ export default function StudentPracticeSetupPage() {
                   </div>
 
                   <div className="grid gap-2">
-                    <div className="flex items-center justify-between">
-                      <Label>Operations</Label>
-                      <div className="flex gap-2">
-                        <button type="button" onClick={selectAllOps} className="text-xs underline">
-                          All
-                        </button>
-                        <button type="button" onClick={clearOps} className="text-xs underline">
-                          Clear
-                        </button>
-                      </div>
-                    </div>
-
+                    <Label>Domain</Label>
                     <div className="flex flex-wrap gap-2">
-                      {OPS.map((op) => {
-                        const active = selectedOps.includes(op);
+                      {domainsToShow.map((d) => {
+                        const active = selectedDomain === d;
                         return (
                           <button
-                            key={op}
+                            key={d}
                             type="button"
-                            onClick={() => toggleOp(op)}
+                            onClick={() => setSelectedDomain(d)}
                             className={[
                               'rounded-[999px] border px-3 py-1.5 text-sm font-medium transition-colors',
                               active
@@ -274,42 +226,11 @@ export default function StudentPracticeSetupPage() {
                                 : 'border-[hsl(var(--border))] bg-[hsl(var(--surface))] text-[hsl(var(--fg))] hover:bg-[hsl(var(--surface-2))]',
                             ].join(' ')}
                           >
-                            {op === 'ADD'
-                              ? 'Add'
-                              : op === 'SUB'
-                                ? 'Sub'
-                                : op === 'MUL'
-                                  ? 'Mul'
-                                  : 'Div'}
+                            {getDomainLabel(d)}
                           </button>
                         );
                       })}
                     </div>
-
-                    <div className="mt-2 flex gap-4">
-                      <label className="inline-flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={modifier === 'FRACTION'}
-                          onChange={(e) => setModifier(e.target.checked ? 'FRACTION' : null)}
-                        />
-                        <span className="text-sm">Include fractions</span>
-                      </label>
-
-                      <label className="inline-flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={modifier === 'DECIMAL'}
-                          onChange={(e) => setModifier(e.target.checked ? 'DECIMAL' : null)}
-                        />
-                        <span className="text-sm">Include decimals</span>
-                      </label>
-                    </div>
-
-                    <HelpText>
-                      Practice sets use one question style at a time. Pick integers, fractions, or
-                      decimals.
-                    </HelpText>
                   </div>
 
                   <Button
@@ -327,10 +248,17 @@ export default function StudentPracticeSetupPage() {
           <Card className="shadow-sm">
             <CardHeader>
               <CardTitle>Preview</CardTitle>
-              <CardDescription>What you’re about to start</CardDescription>
+              <CardDescription>What you&apos;re about to start</CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-3">
+              <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4">
+                <div className="text-xs text-[hsl(var(--muted-fg))]">Domain</div>
+                <div className="text-lg font-semibold text-[hsl(var(--fg))]">
+                  {getDomainLabel(summary.domain)}
+                </div>
+              </div>
+
               <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4">
                 <div className="text-xs text-[hsl(var(--muted-fg))]">Level</div>
                 <div className="text-lg font-semibold text-[hsl(var(--fg))]">{summary.lvl}</div>
@@ -348,27 +276,9 @@ export default function StudentPracticeSetupPage() {
                 </div>
               </div>
 
-              <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4">
-                <div className="text-xs text-[hsl(var(--muted-fg))]">Operations</div>
-                <div className="text-lg font-semibold text-[hsl(var(--fg))]">
-                  {summary.ops.join(', ')}
-                </div>
-              </div>
-
-              <div className="rounded-(--radius) bg-[hsl(var(--surface-2))] p-4">
-                <div className="text-xs text-[hsl(var(--muted-fg))]">Question style</div>
-                <div className="text-lg font-semibold text-[hsl(var(--fg))]">
-                  {summary.modifier === 'FRACTION'
-                    ? 'Fractions'
-                    : summary.modifier === 'DECIMAL'
-                      ? 'Decimals'
-                      : 'Integers'}
-                </div>
-              </div>
-
               <HelpText>
-                Practice is meant to help you build speed and accuracy. Your teacher won’t see these
-                results.
+                Practice is meant to help you build speed and accuracy. Your teacher won&apos;t see
+                these results.
               </HelpText>
             </CardContent>
           </Card>

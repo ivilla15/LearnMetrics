@@ -6,7 +6,6 @@ import { getScheduledOccurrenceDetails } from '@/core';
 
 import { PageHeader, Section, Card, CardContent } from '@/components';
 import { ClassroomSubNav } from '@/modules';
-import { formatOperation } from '@/types';
 import { formatCalendarTargetLine, formatCalendarTypeLabel } from '@/types';
 
 type PageProps = {
@@ -127,13 +126,6 @@ export default async function Page({ params, searchParams }: PageProps) {
                   </div>
                 </div>
               ) : null}
-
-              <div>
-                <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Operation</div>
-                <div className="mt-1 text-base font-semibold text-[hsl(var(--fg))]">
-                  {detail.operation ? formatOperation(detail.operation) : '—'}
-                </div>
-              </div>
 
               <div>
                 <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Run date</div>

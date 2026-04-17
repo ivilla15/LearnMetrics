@@ -1,5 +1,6 @@
 import type { AssignmentMode, AssignmentType, OperationCode } from '@/types/enums';
 import type { AnswerValue } from './question';
+import type { AttemptReviewStatus } from './assignments';
 
 export type AttemptSummaryDTO = {
   id: number;
@@ -16,11 +17,15 @@ export type AttemptRowDTO = {
   type: AssignmentType;
   mode: AssignmentMode;
   operation: OperationCode;
+  // Phase 4: domain snapshot from the attempt; null for pre-Phase-3 attempts.
+  domain?: string | null;
   levelAtTime: number;
   score: number;
   total: number;
   percent: number;
   wasMastery: boolean;
+  reviewStatus?: AttemptReviewStatus | null;
+  eventCount?: number;
 };
 
 export type AttemptDetailItemDTO = {
@@ -59,6 +64,8 @@ export type AttemptResultsRowDTO = {
   completedAt: string | null;
 
   operation?: OperationCode;
+  // Phase 4: domain snapshot from the attempt; null for pre-Phase-3 attempts.
+  domain?: string | null;
   type?: AssignmentType;
 
   score: number | null;
@@ -68,4 +75,7 @@ export type AttemptResultsRowDTO = {
 
   wasMastery: boolean | null;
   levelAtTime: number | null;
+
+  reviewStatus?: AttemptReviewStatus | null;
+  eventCount?: number;
 };

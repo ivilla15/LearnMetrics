@@ -1,7 +1,7 @@
 'use client';
 
 import * as React from 'react';
-import type { TeacherStudentProgressDTO, OperationCode } from '@/types';
+import type { TeacherStudentProgressDTO } from '@/types';
 import { getApiErrorMessage } from '@/utils/http';
 
 export function useStudentProgress(params: {
@@ -15,7 +15,8 @@ export function useStudentProgress(params: {
   const [data, setData] = React.useState<TeacherStudentProgressDTO>(initial);
   const [loading, setLoading] = React.useState(false);
   const [daysText, setDaysText] = React.useState(String(initial.range.days ?? 30));
-  const [operationTab, setOperationTab] = React.useState<OperationCode | null>(null);
+  // Holds a DomainCode (e.g. 'ADD_FRACTION') or OperationCode (e.g. 'ADD') or null for all.
+  const [operationTab, setOperationTab] = React.useState<string | null>(null);
 
   React.useEffect(() => {
     if (data.range.days) setDaysText(String(data.range.days));

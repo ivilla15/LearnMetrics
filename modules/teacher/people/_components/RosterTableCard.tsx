@@ -7,9 +7,9 @@ import type {
   BulkAddStudentInputDTO,
   RosterEditingStateDTO,
   RosterStudentRowDTO,
-  OperationCode,
   BulkAddResponseDTO,
 } from '@/types';
+import type { DomainCode } from '@/types/domain';
 
 import { Card, CardContent, useToast } from '@/components';
 import { getApiErrorMessage } from '@/utils';
@@ -24,15 +24,14 @@ export function RosterTableCard(props: {
   students: RosterStudentRowDTO[];
   busy?: boolean;
 
-  enabledOperations: OperationCode[];
-  operationOrder: OperationCode[];
+  enabledDomains: DomainCode[];
   maxNumber: number;
 
   onBulkAdd: (students: BulkAddStudentInputDTO[]) => Promise<BulkAddResponseDTO>;
   onUpdateStudent: (id: number, update: { name: string; username: string }) => Promise<void>;
   onUpdateStudentProgress: (params: {
     studentId: number;
-    operation: OperationCode;
+    domain: DomainCode;
     level: number;
   }) => Promise<void>;
 
@@ -46,8 +45,7 @@ export function RosterTableCard(props: {
     classroomId,
     students,
     busy = false,
-    enabledOperations,
-    operationOrder,
+    enabledDomains,
     maxNumber,
     onBulkAdd,
     onUpdateStudent,
@@ -151,7 +149,6 @@ export function RosterTableCard(props: {
     try {
       setBulkError(null);
 
-      console.log('RAW BULK INPUT:', bulkNamesText);
       const payload = parseBulkStudentsText(bulkNamesText, existingUsernames);
       if (!payload.length) {
         setBulkError('Please enter at least one valid "First Last" line.');
@@ -162,7 +159,7 @@ export function RosterTableCard(props: {
         firstName: p.firstName,
         lastName: p.lastName,
         username: p.username,
-        startingOperation: p.startingOperation,
+        startingDomain: p.startingDomain,
         startingLevel: p.startingLevel,
       }));
 
@@ -189,7 +186,7 @@ export function RosterTableCard(props: {
 
       await onUpdateStudentProgress({
         studentId: next.id,
-        operation: next.operation,
+        domain: next.domain,
         level: next.level || 1,
       });
 
@@ -289,8 +286,7 @@ export function RosterTableCard(props: {
           students={students}
           busy={busy}
           bulkDeleteBusy={bulkDeleteBusy}
-          enabledOperations={enabledOperations}
-          operationOrder={operationOrder}
+          enabledDomains={enabledDomains}
           maxNumber={maxNumber}
           editing={editing}
           setEditing={setEditing}

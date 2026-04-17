@@ -47,14 +47,14 @@ export type DeleteAllStudentsArgs = {
   deleteSchedules: boolean;
 };
 
-import type { OperationCode } from '@/types/enums';
+import type { DomainCode } from '@/types/domain';
 import type { BulkAddResponseDTO } from '@/types/api/roster';
 
 export type BulkAddStudentInputDTO = {
   firstName: string;
   lastName: string;
   username: string;
-  startingOperation?: OperationCode;
+  startingDomain?: DomainCode;
   startingLevel?: number;
 };
 

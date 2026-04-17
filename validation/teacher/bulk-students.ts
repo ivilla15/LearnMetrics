@@ -1,10 +1,22 @@
 import { z } from 'zod';
-import { OPERATION_CODES } from '@/types/enums';
+import { DOMAIN_CODES } from '@/types/domain';
 
-const operationSchema = z.enum(OPERATION_CODES);
+// Accept full domain codes (e.g. MUL_WHOLE) and shorthand (ADD → ADD_WHOLE)
+const SHORTHAND: Record<string, string> = {
+  ADD: 'ADD_WHOLE',
+  SUB: 'SUB_WHOLE',
+  MUL: 'MUL_WHOLE',
+  DIV: 'DIV_WHOLE',
+};
+
+const domainSchema = z.preprocess((val) => {
+  if (typeof val !== 'string') return val;
+  const upper = val.toUpperCase();
+  return SHORTHAND[upper] ?? upper;
+}, z.enum(DOMAIN_CODES));
 
 export const bulkAddStudentsSchema = z.object({
-  defaultStartingOperation: operationSchema.optional(),
+  defaultStartingDomain: domainSchema.optional(),
   defaultStartingLevel: z.coerce.number().int().min(1).max(100).optional(),
 
   defaultLevel: z.coerce.number().int().min(1).max(100).optional(),
@@ -18,7 +30,7 @@ export const bulkAddStudentsSchema = z.object({
 
         level: z.coerce.number().int().min(1).max(100).optional(),
 
-        startingOperation: operationSchema.optional(),
+        startingDomain: domainSchema.optional(),
         startingLevel: z.coerce.number().int().min(1).max(100).optional(),
       }),
     )

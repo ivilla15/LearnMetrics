@@ -1,13 +1,13 @@
 import { prisma } from '@/data/prisma';
-import type { OperationCode } from '@/types/enums';
+import type { DomainCode } from '@/types/domain';
 
-export async function findByStudentId(studentId: number) {
-  return prisma.studentProgress.findMany({
+export async function findByStudentId(
+  studentId: number,
+): Promise<Array<{ domain: DomainCode; level: number }>> {
+  const rows = await prisma.studentProgress.findMany({
     where: { studentId },
-    select: {
-      operation: true,
-      level: true,
-    },
-    orderBy: { operation: 'asc' },
-  }) as Promise<Array<{ operation: OperationCode; level: number }>>;
+    select: { domain: true, level: true },
+    orderBy: { domain: 'asc' },
+  });
+  return rows;
 }

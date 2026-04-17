@@ -1,12 +1,12 @@
 import { prisma } from '@/data/prisma';
-import type { OperationCode } from '@/types/enums';
+import type { DomainCode } from '@/types/domain';
 
-export async function getStudentLevelForOperation(params: {
+export async function getStudentLevelForDomain(params: {
   studentId: number;
-  operation: OperationCode;
+  domain: DomainCode;
 }): Promise<number> {
   const row = await prisma.studentProgress.findUnique({
-    where: { studentId_operation: { studentId: params.studentId, operation: params.operation } },
+    where: { studentId_domain: { studentId: params.studentId, domain: params.domain } },
     select: { level: true },
   });
 

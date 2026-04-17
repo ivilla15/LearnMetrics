@@ -29,10 +29,14 @@ export async function GET(req: Request, { params }: RouteContext) {
         classroomId: true,
         type: true,
         mode: true,
+        targetKind: true,
         opensAt: true,
         closesAt: true,
         windowMinutes: true,
         numQuestions: true,
+        durationMinutes: true,
+        requiredSets: true,
+        minimumScorePercent: true,
         recipients: { select: { studentId: true } },
       },
     });
@@ -64,8 +68,18 @@ export async function GET(req: Request, { params }: RouteContext) {
         score: true,
         total: true,
         levelAtTime: true,
+        domainAtTime: true,
+        reviewStatus: true,
       },
     });
+
+    const eventCounts = await prisma.attemptEvent.groupBy({
+      by: ['studentId'],
+      where: { assignmentId: aid },
+      _count: { id: true },
+    });
+    const eventCountByStudent = new Map<number, number>();
+    for (const e of eventCounts) eventCountByStudent.set(e.studentId, e._count.id);
 
     const attemptByStudent = new Map<number, (typeof attempts)[number]>();
     for (const a of attempts) attemptByStudent.set(a.studentId, a);
@@ -88,6 +102,9 @@ export async function GET(req: Request, { params }: RouteContext) {
         missed,
         wasMastery,
         levelAtTime: a?.levelAtTime ?? null,
+        domain: a?.domainAtTime ?? null,
+        reviewStatus: (a?.reviewStatus ?? null) as 'VALID' | 'FLAGGED' | 'INVALIDATED' | null,
+        eventCount: eventCountByStudent.get(s.id) ?? 0,
       };
     });
 
@@ -105,10 +122,14 @@ export async function GET(req: Request, { params }: RouteContext) {
           assignmentId: assignment.id,
           type: assignment.type,
           mode: assignment.mode,
+          targetKind: assignment.targetKind,
           opensAt: assignment.opensAt.toISOString(),
           closesAt: assignment.closesAt ? assignment.closesAt.toISOString() : null,
           windowMinutes: assignment.windowMinutes,
           numQuestions: assignment.numQuestions ?? 12,
+          durationMinutes: assignment.durationMinutes ?? null,
+          requiredSets: assignment.requiredSets ?? null,
+          minimumScorePercent: assignment.minimumScorePercent ?? null,
           isTargeted: targetedIds.length > 0,
           recipientCount: targetedIds.length,
         },

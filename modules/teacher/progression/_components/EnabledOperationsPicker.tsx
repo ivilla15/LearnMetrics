@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { HelpText } from '@/components';
 import { OPERATION_CODES, type OperationCode } from '@/types/enums';
+import { formatOperation } from '@/types/display';
 
 export function EnabledOperationsPicker(props: {
   enabledOperations: OperationCode[];
@@ -38,7 +39,7 @@ export function EnabledOperationsPicker(props: {
                 disabled={disabled}
                 aria-label={`Enable ${op}`}
               />
-              <span className="font-mono">{op}</span>
+              <span>{formatOperation(op)}</span>
             </label>
           );
         })}

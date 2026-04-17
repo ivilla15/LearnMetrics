@@ -63,7 +63,6 @@ export function AssignmentSummaryCard(props: {
           {Pill(assignment ? formatAssignmentMode(assignment.mode) : '—', 'muted')}
           {Pill(assignment ? formatAssignmentType(assignment.type) : '—', 'muted')}
           {Pill(formatTargetPill(assignment), 'muted')}
-          {assignment?.operation ? Pill(assignment.operation, 'muted') : null}
         </div>
 
         <div className="text-sm text-[hsl(var(--muted-fg))]">

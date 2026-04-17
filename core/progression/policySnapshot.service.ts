@@ -1,52 +1,29 @@
 import { prisma } from '@/data/prisma';
-import { NotFoundError } from '@/core/errors';
 import { clampInt } from '@/utils/math';
-import type { ProgressionSnapshotDTO, ModifierRuleDTO } from '@/types/api/progression';
-import type { OperationCode } from '@/types/enums';
-import { getPolicyOps } from './ops.service';
+import type { ProgressionSnapshotDTO } from '@/types/api/progression';
+import { DOMAIN_CODES, type DomainCode } from '@/types/domain';
+
+const DEFAULT_DOMAINS: DomainCode[] = ['ADD_WHOLE', 'SUB_WHOLE', 'MUL_WHOLE', 'DIV_WHOLE'];
 
 export async function getProgressionSnapshot(classroomId: number): Promise<ProgressionSnapshotDTO> {
-  const policy = await prisma.classroomProgressionPolicy.findUnique({
+  const policy = await prisma.classroomProgressionPolicy.upsert({
     where: { classroomId },
-    select: {
-      enabledOperations: true,
-      operationOrder: true,
-      maxNumber: true,
-      modifierRules: {
-        select: {
-          modifier: true,
-          operations: true,
-          minLevel: true,
-          propagate: true,
-          enabled: true,
-        },
-        orderBy: [{ minLevel: 'asc' }, { id: 'asc' }],
-      },
+    create: {
+      classroomId,
+      enabledDomains: DEFAULT_DOMAINS,
+      maxNumber: 12,
     },
-  });
-
-  if (!policy) throw new NotFoundError('Progression policy not found');
-
-  const ops = getPolicyOps({
-    enabledOperations: policy.enabledOperations as unknown as OperationCode[],
-    operationOrder: policy.operationOrder as unknown as OperationCode[],
+    update: {},
+    select: { enabledDomains: true, maxNumber: true },
   });
 
   const maxNumber = clampInt(policy.maxNumber ?? 12, 1, 100);
-
-  const modifierRules: ModifierRuleDTO[] = policy.modifierRules.map((rule) => ({
-    modifier: rule.modifier,
-    operations: rule.operations as unknown as OperationCode[],
-    minLevel: clampInt(rule.minLevel ?? 1, 1, maxNumber),
-    propagate: Boolean(rule.propagate),
-    enabled: Boolean(rule.enabled),
-  }));
+  const enabledDomains = policy.enabledDomains.filter(
+    (d): d is DomainCode => (DOMAIN_CODES as readonly string[]).includes(d),
+  );
 
   return {
-    enabledOperations: ops.enabledOperations,
-    operationOrder: ops.operationOrder,
-    primaryOperation: ops.primaryOperation,
+    enabledDomains: enabledDomains.length > 0 ? enabledDomains : DEFAULT_DOMAINS,
     maxNumber,
-    modifierRules,
   };
 }

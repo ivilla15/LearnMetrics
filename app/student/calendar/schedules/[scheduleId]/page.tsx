@@ -5,7 +5,7 @@ import { requireStudent } from '@/core/auth';
 import { getScheduledOccurrenceDetails } from '@/core';
 import { AppPage } from '@/modules';
 import { Card, CardContent, Section } from '@/components';
-import { formatAssignmentType, formatOperation } from '@/types';
+import { formatAssignmentType } from '@/types';
 import { getStatus } from '@/utils';
 
 function formatTypeLabel(params: {
@@ -162,12 +162,6 @@ export default async function Page({ params, searchParams }: PageProps) {
                   </div>
                 ) : null}
 
-                <div>
-                  <div className="text-xs font-medium text-[hsl(var(--muted-fg))]">Operation</div>
-                  <div className="mt-1 text-base font-semibold text-[hsl(var(--fg))]">
-                    {detail.operation ? formatOperation(detail.operation) : '—'}
-                  </div>
-                </div>
               </div>
 
               {detail.isSkipped ? (

@@ -16,8 +16,6 @@ export type AssignmentCoreDTO = {
   mode: AssignmentMode;
   targetKind: AssignmentTargetKind;
 
-  operation: OperationCode | null;
-
   opensAt: string;
   closesAt: string | null;
 
@@ -48,8 +46,6 @@ export type TeacherAssignmentListItemDTO = {
   mode: AssignmentMode;
   targetKind: AssignmentTargetKind;
 
-  operation: OperationCode | null;
-
   status: 'FINISHED' | 'OPEN' | 'UPCOMING';
 
   opensAt: string;
@@ -71,6 +67,10 @@ export type TeacherAssignmentListItemDTO = {
     totalStudents: number;
     masteryRate: number | null;
     avgPercent: number | null;
+    /** Count of FLAGGED or INVALIDATED attempts for this assignment. */
+    flaggedCount: number;
+    /** Total AttemptEvent count for this assignment (any integrity signal, before review). */
+    integrityEventCount: number;
   };
 };
 
@@ -95,6 +95,8 @@ export type AssignModalBootstrapResponse = {
   };
 };
 
+export type AttemptReviewStatus = 'VALID' | 'FLAGGED' | 'INVALIDATED';
+
 export type TeacherAssignmentAttemptRowDTO = {
   studentId: number;
   name: string;
@@ -110,6 +112,9 @@ export type TeacherAssignmentAttemptRowDTO = {
 
   wasMastery: boolean | null;
   levelAtTime: number | null;
+
+  reviewStatus: AttemptReviewStatus | null;
+  eventCount: number;
 };
 
 export type TeacherAssignmentAttemptsResponse = {
@@ -119,8 +124,6 @@ export type TeacherAssignmentAttemptsResponse = {
     type: AssignmentType;
     mode: AssignmentMode;
     targetKind: AssignmentTargetKind;
-
-    operation: OperationCode | null;
 
     opensAt: string;
     closesAt: string | null;
@@ -168,8 +171,6 @@ export type TeacherAttemptDetailResponse = {
     mode: AssignmentMode;
     targetKind: AssignmentTargetKind;
 
-    operation: OperationCode | null;
-
     opensAt: string;
     closesAt: string | null;
 
@@ -188,8 +189,6 @@ export type StudentAssignmentListItemDTO = {
   type: AssignmentType;
   mode: AssignmentMode;
   targetKind: AssignmentTargetKind;
-
-  operation: OperationCode | null;
 
   status: AssignmentListFilter;
 
@@ -237,7 +236,6 @@ export type ScheduledOccurrenceDetailsDTO = {
   windowMinutes: number | null;
   numQuestions: number | null;
   durationMinutes: number | null;
-  operation: OperationCode | null;
 
   existingAssignmentId: number | null;
 };

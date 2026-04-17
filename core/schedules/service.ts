@@ -50,14 +50,11 @@ const scheduleSelect = {
 
   type: true,
   numQuestions: true,
-  operation: true,
 
   durationMinutes: true,
   requiredSets: true,
   minimumScorePercent: true,
 
-  dependsOnScheduleId: true,
-  offsetMinutes: true,
   recipientRule: true,
 } satisfies Prisma.AssignmentScheduleSelect;
 
@@ -80,10 +77,7 @@ function toDTO(
     durationMinutes: row.durationMinutes ?? null,
     requiredSets: row.requiredSets ?? null,
     minimumScorePercent: row.minimumScorePercent ?? null,
-    operation: row.operation ?? null,
 
-    dependsOnScheduleId: row.dependsOnScheduleId ?? null,
-    offsetMinutes: row.offsetMinutes,
     recipientRule: row.recipientRule,
   };
 }
@@ -131,14 +125,12 @@ export async function createAdditionalClassroomSchedule(params: {
 
       type: input.targetKind === 'ASSESSMENT' ? input.type : null,
       numQuestions: input.targetKind === 'ASSESSMENT' ? (input.numQuestions ?? 12) : 0,
-      operation: input.operation ?? null,
 
-      durationMinutes: null,
+      durationMinutes:
+        input.targetKind === 'PRACTICE_TIME' ? (input.durationMinutes ?? null) : null,
       requiredSets: input.targetKind === 'PRACTICE_TIME' ? input.requiredSets : null,
       minimumScorePercent: input.targetKind === 'PRACTICE_TIME' ? input.minimumScorePercent : null,
 
-      dependsOnScheduleId: input.dependsOnScheduleId ?? null,
-      offsetMinutes: input.offsetMinutes ?? 0,
       recipientRule: input.recipientRule ?? 'ALL',
     },
     select: scheduleSelect,
@@ -178,14 +170,12 @@ export async function updateClassroomScheduleById(params: {
 
       type: input.targetKind === 'ASSESSMENT' ? input.type : null,
       numQuestions: input.targetKind === 'ASSESSMENT' ? (input.numQuestions ?? 12) : 0,
-      operation: input.operation ?? null,
 
-      durationMinutes: null,
+      durationMinutes:
+        input.targetKind === 'PRACTICE_TIME' ? (input.durationMinutes ?? null) : null,
       requiredSets: input.targetKind === 'PRACTICE_TIME' ? input.requiredSets : null,
       minimumScorePercent: input.targetKind === 'PRACTICE_TIME' ? input.minimumScorePercent : null,
 
-      dependsOnScheduleId: input.dependsOnScheduleId ?? null,
-      offsetMinutes: input.offsetMinutes ?? 0,
       recipientRule: input.recipientRule ?? 'ALL',
     },
     select: scheduleSelect,
@@ -295,10 +285,9 @@ export async function runActiveSchedulesForDate(baseDate: Date = new Date()) {
         type: typeForAssignment,
 
         targetKind: sched.targetKind,
-        operation: sched.operation ?? null,
 
         numQuestions: sched.targetKind === 'ASSESSMENT' ? sched.numQuestions : 0,
-        durationMinutes: null,
+        durationMinutes: sched.targetKind === 'PRACTICE_TIME' ? (sched.durationMinutes ?? null) : null,
         requiredSets: sched.targetKind === 'PRACTICE_TIME' ? (sched.requiredSets ?? null) : null,
         minimumScorePercent: sched.targetKind === 'PRACTICE_TIME' ? (sched.minimumScorePercent ?? null) : null,
       });
